@@ -1,0 +1,71 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: mbanking_bpr_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: mbanking_bpr
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d mbanking_bpr"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: mbanking_bpr_redis
+    restart: unless-stopped
+    # Tidak expose port 6379 ke host agar tidak bentrok dengan redis-server bawaan VPS
+    volumes:
+      - redis_data:/data
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mbanking_bpr_app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    ports:
+      - "8080:8080"
+    environment:
+      APP_NAME: MBanking-BPR-Backend
+      APP_ENV: production
+      APP_PORT: "8080"
+      APP_VERSION: v1.0.0
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: postgres
+      DB_PASS: postgres
+      DB_NAME: mbanking_bpr
+      DB_SSL: disable
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASS: ""
+      REDIS_DB: "0"
+      JWT_SECRET: bpr-rahasia-super-aman-jwt-key-2026!
+      JWT_EXPIRY_MINUTES: "60"
+      RATE_LIMIT_MAX: "20"
+      RATE_LIMIT_WINDOW_SEC: "60"
+      ENABLE_MOCK_CBS: "false"
+      CBS_BASE_URL: https://cbs-openapi-dev.bprdmb.id
+      CBS_CLIENT_ID: DEMO-CLIENT-001
+      CBS_CLIENT_SECRET: "s3cr3tK3yD3m0BNI2024#!"
+      CBS_TIMEOUT_SEC: "15"
+    volumes:
+      - ./web/admin/uploads:/app/web/admin/uploads
+
+volumes:
+  postgres_data:
+  redis_data:
+

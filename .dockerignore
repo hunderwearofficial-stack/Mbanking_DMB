@@ -1,0 +1,6 @@
+m_banking_bpr/
+*.exe
+mbanking-server-linux
+.git/
+.env
+

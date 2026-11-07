@@ -1,0 +1,71 @@
+package domain
+
+import (
+	"time"
+
+	"mbanking-bpr/internal/model"
+)
+
+// Re-export model.User as domain.User
+type User = model.User
+
+type LoginRequest struct {
+	PhoneNumber string `json:"phone_number"` // Primary identifier in Mobile Banking
+	Username    string `json:"username"`     // Optional fallback identifier
+	Password    string `json:"password" binding:"required"`
+	DeviceID    string `json:"device_id"`    // For device binding check
+}
+
+type LoginResponse struct {
+	AccessToken  string      `json:"access_token"`
+	RefreshToken string      `json:"refresh_token"`
+	TokenType    string      `json:"token_type"`
+	ExpiresIn    int         `json:"expires_in"` // in seconds (e.g. 900 for 15 mins)
+	User         UserProfile `json:"user"`
+}
+
+type UserProfile struct {
+	ID             string    `json:"id"`
+	NIK            string    `json:"nik"`
+	CIF            string    `json:"cif"`
+	FullName       string    `json:"full_name"`
+	PhoneNumber    string    `json:"phone_number"`
+	Email          string    `json:"email"`
+	Alamat         string    `json:"alamat"`
+	KodePos        string    `json:"kode_pos"`
+	JenisKelamin   string    `json:"jenis_kelamin"`
+	Agama          string    `json:"agama"`
+	TglLahir       string    `json:"tgl_lahir"`
+	TempatLahir    string    `json:"tempat_lahir"`
+	NamaIbuKandung string    `json:"nama_ibu_kandung"`
+	DeviceID       string    `json:"device_id"`
+	PrimaryAccount string    `json:"primary_account"`
+	IsActive       bool      `json:"is_active"`
+	CreatedAt      time.Time `json:"created_at"`
+}
+
+// Activation / Self-Registration DTOs
+type ActivateVerifyRequest struct {
+	AccountNumber string `json:"account_number" binding:"required"`
+	PhoneNumber   string `json:"phone_number" binding:"required"`
+	DeviceID      string `json:"device_id"`
+}
+
+type ActivateVerifyResponse struct {
+	SessionID   string `json:"session_id"`
+	MaskedPhone string `json:"masked_phone"`
+	FullName    string `json:"full_name"`
+	AccountNo   string `json:"account_no"`
+}
+
+type ActivateOTPRequest struct {
+	SessionID string `json:"session_id" binding:"required"`
+	OTPCode   string `json:"otp_code" binding:"required"`
+}
+
+type ActivateSetupRequest struct {
+	SessionID string `json:"session_id" binding:"required"`
+	Password  string `json:"password" binding:"required"`
+	PIN       string `json:"pin" binding:"required"`
+	DeviceID  string `json:"device_id"`
+}

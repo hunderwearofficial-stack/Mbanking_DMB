@@ -1,0 +1,18 @@
+# Go Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+mbanking-server-linux
+server
+
+# Environment files
+.env
+
+# Flutter build & ephemeral files
+m_banking_bpr/build/
+m_banking_bpr/.dart_tool/
+m_banking_bpr/.flutter-plugins
+m_banking_bpr/.flutter-plugins-dependencies
+

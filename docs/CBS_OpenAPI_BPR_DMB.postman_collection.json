@@ -1,0 +1,341 @@
+{
+  "info": {
+    "_postman_id": "b7e92c11-4d8a-49b0-9f12-8a77c6543210",
+    "name": "CBS OpenAPI BPR DMB - Full Collection",
+    "description": "Koleksi resmi seluruh endpoint Core Banking System (CBS) OpenAPI PT BPR Dana Mandiri Bogor (https://cbs-openapi-dev.bprdmb.id) dilengkapi otomatis Pre-request Script HMAC-SHA512 (X-Signature) dan penyimpanan token otomatis.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Health Check (Ping)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{cbs_base_url}}/ping",
+          "host": ["{{cbs_base_url}}"],
+          "path": ["ping"]
+        }
+      }
+    },
+    {
+      "name": "2. OAuth - Get Access Token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var res = pm.response.json();",
+              "if (res.data && res.data.accessToken) {",
+              "    pm.collectionVariables.set(\"cbs_token\", res.data.accessToken);",
+              "    pm.globals.set(\"cbs_token\", res.data.accessToken);",
+              "}",
+              "if (res.data && res.data.refreshToken) {",
+              "    pm.collectionVariables.set(\"cbs_refresh_token\", res.data.refreshToken);",
+              "    pm.globals.set(\"cbs_refresh_token\", res.data.refreshToken);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"clientId\": \"{{cbs_client_id}}\",\n  \"clientSecret\": \"{{cbs_client_secret}}\"\n}"
+        },
+        "url": {
+          "raw": "{{cbs_base_url}}/api/oauth/access-token",
+          "host": ["{{cbs_base_url}}"],
+          "path": ["api", "oauth", "access-token"]
+        }
+      }
+    },
+    {
+      "name": "3. OAuth - Refresh Token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var res = pm.response.json();",
+              "if (res.data && res.data.accessToken) {",
+              "    pm.collectionVariables.set(\"cbs_token\", res.data.accessToken);",
+              "    pm.globals.set(\"cbs_token\", res.data.accessToken);",
+              "}",
+              "if (res.data && res.data.refreshToken) {",
+              "    pm.collectionVariables.set(\"cbs_refresh_token\", res.data.refreshToken);",
+              "    pm.globals.set(\"cbs_refresh_token\", res.data.refreshToken);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refreshToken\": \"{{cbs_refresh_token}}\"\n}"
+        },
+        "url": {
+          "raw": "{{cbs_base_url}}/api/oauth/refresh-token",
+          "host": ["{{cbs_base_url}}"],
+          "path": ["api", "oauth", "refresh-token"]
+        }
+      }
+    },
+    {
+      "name": "4. Informasi Nasabah by CIF (/api/nasabah)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "const secret = pm.collectionVariables.get(\"cbs_client_secret\") || \"s3cr3tK3yD3m0BNI2024#!\";",
+              "const compactBody = JSON.stringify(JSON.parse(pm.request.body.raw));",
+              "pm.request.body.raw = compactBody;",
+              "const signature = CryptoJS.HmacSHA512(compactBody, secret).toString(CryptoJS.enc.Hex);",
+              "pm.variables.set(\"x_signature\", signature);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{cbs_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Client-ID",
+            "value": "{{cbs_client_id}}"
+          },
+          {
+            "key": "X-Signature",
+            "value": "{{x_signature}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"noCif\":\"001000003289\"}"
+        },
+        "url": {
+          "raw": "{{cbs_base_url}}/api/nasabah",
+          "host": ["{{cbs_base_url}}"],
+          "path": ["api", "nasabah"]
+        }
+      }
+    },
+    {
+      "name": "5. Daftar Rekening Tabungan by CIF (/api/savings-accounts)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "const secret = pm.collectionVariables.get(\"cbs_client_secret\") || \"s3cr3tK3yD3m0BNI2024#!\";",
+              "const compactBody = JSON.stringify(JSON.parse(pm.request.body.raw));",
+              "pm.request.body.raw = compactBody;",
+              "const signature = CryptoJS.HmacSHA512(compactBody, secret).toString(CryptoJS.enc.Hex);",
+              "pm.variables.set(\"x_signature\", signature);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{cbs_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Client-ID",
+            "value": "{{cbs_client_id}}"
+          },
+          {
+            "key": "X-Signature",
+            "value": "{{x_signature}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"noCif\":\"001000003289\"}"
+        },
+        "url": {
+          "raw": "{{cbs_base_url}}/api/savings-accounts",
+          "host": ["{{cbs_base_url}}"],
+          "path": ["api", "savings-accounts"]
+        }
+      }
+    },
+    {
+      "name": "6. Cek Saldo Rekening Tabungan (/api/savings-account-balance)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "const secret = pm.collectionVariables.get(\"cbs_client_secret\") || \"s3cr3tK3yD3m0BNI2024#!\";",
+              "const compactBody = JSON.stringify(JSON.parse(pm.request.body.raw));",
+              "pm.request.body.raw = compactBody;",
+              "const signature = CryptoJS.HmacSHA512(compactBody, secret).toString(CryptoJS.enc.Hex);",
+              "pm.variables.set(\"x_signature\", signature);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{cbs_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Client-ID",
+            "value": "{{cbs_client_id}}"
+          },
+          {
+            "key": "X-Signature",
+            "value": "{{x_signature}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"noRekening\":\"0500103000003289\"}"
+        },
+        "url": {
+          "raw": "{{cbs_base_url}}/api/savings-account-balance",
+          "host": ["{{cbs_base_url}}"],
+          "path": ["api", "savings-account-balance"]
+        }
+      }
+    },
+    {
+      "name": "7. Transfer Pemindahbukuan (/api/overbooking)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "const secret = pm.collectionVariables.get(\"cbs_client_secret\") || \"s3cr3tK3yD3m0BNI2024#!\";",
+              "const compactBody = JSON.stringify(JSON.parse(pm.request.body.raw));",
+              "pm.request.body.raw = compactBody;",
+              "const signature = CryptoJS.HmacSHA512(compactBody, secret).toString(CryptoJS.enc.Hex);",
+              "pm.variables.set(\"x_signature\", signature);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{cbs_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Client-ID",
+            "value": "{{cbs_client_id}}"
+          },
+          {
+            "key": "X-Signature",
+            "value": "{{x_signature}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"noRekDebit\":\"0500103000003289\",\"noRekKredit\":\"0500103000003364\",\"nominal\":10,\"keterangan\":\"Transfer Overbooking M-Banking DMB\"}"
+        },
+        "url": {
+          "raw": "{{cbs_base_url}}/api/overbooking",
+          "host": ["{{cbs_base_url}}"],
+          "path": ["api", "overbooking"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "cbs_base_url",
+      "value": "https://cbs-openapi-dev.bprdmb.id"
+    },
+    {
+      "key": "cbs_client_id",
+      "value": "DEMO-CLIENT-001"
+    },
+    {
+      "key": "cbs_client_secret",
+      "value": "s3cr3tK3yD3m0BNI2024#!"
+    },
+    {
+      "key": "cbs_token",
+      "value": ""
+    },
+    {
+      "key": "cbs_refresh_token",
+      "value": ""
+    }
+  ]
+}
+
