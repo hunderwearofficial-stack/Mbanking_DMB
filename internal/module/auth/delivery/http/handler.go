@@ -127,3 +127,52 @@ func (h *AuthHandler) CompleteActivation(c *gin.Context) {
 
 	response.Success(c, "Aktivasi Mobile Banking Bank DMB berhasil diselesaikan!", res)
 }
+
+// RequestForgotPassword handles POST /api/v1/auth/forgot-password/request
+func (h *AuthHandler) RequestForgotPassword(c *gin.Context) {
+	var req domain.ForgotPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Nomor handphone wajib diisi", err.Error())
+		return
+	}
+	if req.DeviceID == "" {
+		req.DeviceID = c.GetHeader(middleware.HeaderDeviceID)
+	}
+	res, err := h.authService.RequestForgotPassword(c.Request.Context(), req)
+	if err != nil {
+		response.BadRequest(c, err.Error(), nil)
+		return
+	}
+	response.Success(c, "Kode OTP reset password telah dikirimkan", res)
+}
+
+// VerifyForgotPasswordOTP handles POST /api/v1/auth/forgot-password/otp
+func (h *AuthHandler) VerifyForgotPasswordOTP(c *gin.Context) {
+	var req domain.ForgotPasswordVerifyOTPRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Sesi dan kode OTP wajib diisi", err.Error())
+		return
+	}
+	if err := h.authService.VerifyForgotPasswordOTP(c.Request.Context(), req); err != nil {
+		response.BadRequest(c, err.Error(), nil)
+		return
+	}
+	response.Success(c, "Kode OTP berhasil diverifikasi", gin.H{"verified": true})
+}
+
+// ResetForgotPassword handles POST /api/v1/auth/forgot-password/reset
+func (h *AuthHandler) ResetForgotPassword(c *gin.Context) {
+	var req domain.ForgotPasswordResetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Password baru wajib diisi", err.Error())
+		return
+	}
+	if req.DeviceID == "" {
+		req.DeviceID = c.GetHeader(middleware.HeaderDeviceID)
+	}
+	if err := h.authService.ResetForgotPassword(c.Request.Context(), req); err != nil {
+		response.BadRequest(c, err.Error(), nil)
+		return
+	}
+	response.Success(c, "Password berhasil diperbarui. Silakan masuk kembali.", gin.H{"reset": true})
+}

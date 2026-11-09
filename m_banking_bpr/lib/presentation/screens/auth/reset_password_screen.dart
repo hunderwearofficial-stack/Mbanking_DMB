@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/network/api_exception.dart';
+import '../../blocs/auth/auth_cubit.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/figma_illustrations.dart';
 import 'login_screen.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
-  const ResetPasswordScreen({super.key});
+  final String sessionId;
+  const ResetPasswordScreen({super.key, this.sessionId = ''});
 
   @override
   State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
@@ -16,6 +20,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   final _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -24,7 +29,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     super.dispose();
   }
 
-  void _onUpdatePassword() {
+  Future<void> _onUpdatePassword() async {
     final p1 = _passwordController.text.trim();
     final p2 = _confirmPasswordController.text.trim();
 
@@ -33,8 +38,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       return;
     }
 
-    if (p1.length < 6) {
-      _showError('Password minimal 6 karakter');
+    if (p1.length < 8) {
+      _showError('Password minimal 8 karakter');
       return;
     }
 
@@ -43,6 +48,31 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       return;
     }
 
+    if (widget.sessionId.isNotEmpty) {
+      setState(() => _isLoading = true);
+      try {
+        final authRepo = context.read<AuthCubit>().authRepository;
+        await authRepo.resetForgotPassword(
+          sessionId: widget.sessionId,
+          newPassword: p1,
+        );
+      } on ApiException catch (e) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          _showError(e.message);
+        }
+        return;
+      } catch (e) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          _showError('Gagal memperbarui password: $e');
+        }
+        return;
+      }
+      if (mounted) setState(() => _isLoading = false);
+    }
+
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Password berhasil diperbarui! Silakan masuk kembali.'),
@@ -210,6 +240,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               // Buttons from Figma
               CustomButton(
                 text: 'Perbarui Password',
+                isLoading: _isLoading,
                 backgroundColor: AppColors.primary,
                 onPressed: _onUpdatePassword,
               ),

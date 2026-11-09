@@ -3,11 +3,13 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"mbanking-bpr/config"
 	"mbanking-bpr/internal/model"
 	"mbanking-bpr/internal/module/admin/repository"
+	"mbanking-bpr/internal/otpprovider"
 	"mbanking-bpr/pkg/utils"
 )
 
@@ -42,6 +44,13 @@ type AdminService interface {
 
 	GetAppConfig(ctx context.Context) (*model.AppConfig, error)
 	UpdateAppConfig(ctx context.Context, cfg *model.AppConfig) error
+
+	// Audit Trail & Notifications
+	ListAuditLogs(ctx context.Context, actorType string, limit int) ([]model.AuditLog, error)
+	ListNotificationsForUser(ctx context.Context, userID string, limit int) ([]model.Notification, error)
+	MarkNotificationsRead(ctx context.Context, userID string) error
+	UpdateUserFCMToken(ctx context.Context, userID, fcmToken string) error
+	BroadcastNotification(ctx context.Context, title, message, category string) error
 }
 
 type adminService struct {
@@ -85,6 +94,8 @@ func (s *adminService) Login(ctx context.Context, username, password string) (st
 		return "", nil, err
 	}
 
+	otpprovider.RecordAuditLog(ctx, s.repo.DB(), "ADMIN", admin.ID, admin.FullName, "ADMIN_LOGIN", admin.Username, "SUCCESS", "WEB-BACKOFFICE", fmt.Sprintf("Login konsol backoffice (%s)", admin.Role))
+
 	return tokenPair.AccessToken, admin, nil
 }
 
@@ -107,7 +118,13 @@ func (s *adminService) ResetCustomerDevice(ctx context.Context, userID string) e
 	if err != nil || user == nil {
 		return ErrCustomerNotFound
 	}
-	return s.repo.ResetDeviceBinding(ctx, userID)
+	oldDev := user.DeviceID
+	if err := s.repo.ResetDeviceBinding(ctx, userID); err != nil {
+		return err
+	}
+	otpprovider.RecordAuditLog(ctx, s.repo.DB(), "ADMIN", "BACKOFFICE", "Petugas CS/Admin", "UNBIND_CUSTOMER_DEVICE", user.FullName+" ("+user.CIF+")", "WARNING", "WEB-BACKOFFICE", fmt.Sprintf("Unbind/Reset Device ID nasabah (Perangkat sebelumnya: %s)", oldDev))
+	otpprovider.CreateNotificationAndPush(ctx, s.repo.DB(), user.ID, "Reset Perangkat Berhasil", "Ikatan perangkat (Device ID) akun Mobile DMB Anda telah di-reset oleh petugas Bank DMB.", "SECURITY")
+	return nil
 }
 
 func (s *adminService) ToggleCustomerActive(ctx context.Context, userID string, isActive bool) error {
@@ -115,7 +132,16 @@ func (s *adminService) ToggleCustomerActive(ctx context.Context, userID string, 
 	if err != nil || user == nil {
 		return ErrCustomerNotFound
 	}
-	return s.repo.ToggleCustomerStatus(ctx, userID, isActive)
+	if err := s.repo.ToggleCustomerStatus(ctx, userID, isActive); err != nil {
+		return err
+	}
+	if isActive {
+		otpprovider.RecordAuditLog(ctx, s.repo.DB(), "ADMIN", "BACKOFFICE", "Petugas CS/Admin", "UNBLOCK_CUSTOMER", user.FullName+" ("+user.CIF+")", "SUCCESS", "WEB-BACKOFFICE", "Membuka blokir akun nasabah & me-reset counter gagal login/PIN")
+		otpprovider.CreateNotificationAndPush(ctx, s.repo.DB(), user.ID, "Akun Telah Diaktifkan Kembali", "Akun Mobile DMB Anda telah diaktifkan kembali oleh Customer Service Bank DMB.", "SECURITY")
+	} else {
+		otpprovider.RecordAuditLog(ctx, s.repo.DB(), "ADMIN", "BACKOFFICE", "Petugas CS/Admin", "BLOCK_CUSTOMER", user.FullName+" ("+user.CIF+")", "DANGER", "WEB-BACKOFFICE", "Memblokir akun nasabah secara manual")
+	}
+	return nil
 }
 
 func (s *adminService) ListBanners(ctx context.Context, activeOnly bool) ([]model.Banner, error) {
@@ -156,7 +182,11 @@ func (s *adminService) GetAppConfig(ctx context.Context) (*model.AppConfig, erro
 }
 
 func (s *adminService) UpdateAppConfig(ctx context.Context, cfg *model.AppConfig) error {
-	return s.repo.UpdateAppConfig(ctx, cfg)
+	if err := s.repo.UpdateAppConfig(ctx, cfg); err != nil {
+		return err
+	}
+	otpprovider.RecordAuditLog(ctx, s.repo.DB(), "ADMIN", "BACKOFFICE", "Super Admin", "UPDATE_BANK_CONFIG", cfg.BankShortName, "SUCCESS", "WEB-BACKOFFICE", fmt.Sprintf("Memperbarui konfigurasi bank & OTP Provider (%s)", cfg.OTPProvider))
+	return nil
 }
 
 func (s *adminService) ListAdminUsers(ctx context.Context) ([]model.AdminUser, error) {
@@ -203,4 +233,29 @@ func (s *adminService) ToggleAdminStatus(ctx context.Context, id string, isActiv
 
 func (s *adminService) DeleteAdminUser(ctx context.Context, id string) error {
 	return s.repo.DeleteAdminUser(ctx, id)
+}
+
+func (s *adminService) ListAuditLogs(ctx context.Context, actorType string, limit int) ([]model.AuditLog, error) {
+	return s.repo.ListAuditLogs(ctx, actorType, limit)
+}
+
+func (s *adminService) ListNotificationsForUser(ctx context.Context, userID string, limit int) ([]model.Notification, error) {
+	return s.repo.ListNotificationsForUser(ctx, userID, limit)
+}
+
+func (s *adminService) MarkNotificationsRead(ctx context.Context, userID string) error {
+	return s.repo.MarkNotificationsRead(ctx, userID)
+}
+
+func (s *adminService) UpdateUserFCMToken(ctx context.Context, userID, fcmToken string) error {
+	return s.repo.UpdateUserFCMToken(ctx, userID, fcmToken)
+}
+
+func (s *adminService) BroadcastNotification(ctx context.Context, title, message, category string) error {
+	if category == "" {
+		category = "PROMO"
+	}
+	otpprovider.CreateNotificationAndPush(ctx, s.repo.DB(), "ALL", title, message, category)
+	otpprovider.RecordAuditLog(ctx, s.repo.DB(), "ADMIN", "BACKOFFICE", "Marketing / Admin", "BROADCAST_NOTIFICATION", "ALL_CUSTOMERS", "SUCCESS", "WEB-BACKOFFICE", fmt.Sprintf("Broadcast notifikasi [%s]: %s", category, title))
+	return nil
 }

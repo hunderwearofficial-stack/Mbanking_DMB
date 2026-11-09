@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/network/api_exception.dart';
+import '../../blocs/auth/auth_cubit.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/figma_illustrations.dart';
 import 'otp_verification_screen.dart';
@@ -13,6 +16,7 @@ class ForgotPasswordScreen extends StatefulWidget {
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _phoneController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -20,7 +24,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     super.dispose();
   }
 
-  void _onSendOtp() {
+  Future<void> _onSendOtp() async {
     final phone = _phoneController.text.trim();
     if (phone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -32,11 +36,41 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       return;
     }
 
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => OtpVerificationScreen(phoneNumber: phone),
-      ),
-    );
+    setState(() => _isLoading = true);
+    try {
+      final authRepo = context.read<AuthCubit>().authRepository;
+      final res = await authRepo.requestForgotPassword(phoneNumber: phone);
+      final sessionId = res['session_id'] as String? ?? '';
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => OtpVerificationScreen(
+            phoneNumber: phone,
+            sessionId: sessionId,
+          ),
+        ),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal mengirim OTP: $e'),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -139,6 +173,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               // Action Buttons matching Figma
               CustomButton(
                 text: 'Kirim OTP',
+                isLoading: _isLoading,
                 backgroundColor: AppColors.primary,
                 onPressed: _onSendOtp,
               ),

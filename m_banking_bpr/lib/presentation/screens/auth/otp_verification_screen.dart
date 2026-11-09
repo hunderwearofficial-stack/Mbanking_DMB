@@ -1,11 +1,19 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/network/api_exception.dart';
+import '../../blocs/auth/auth_cubit.dart';
 import 'reset_password_screen.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
   final String phoneNumber;
-  const OtpVerificationScreen({super.key, required this.phoneNumber});
+  final String sessionId;
+  const OtpVerificationScreen({
+    super.key,
+    required this.phoneNumber,
+    this.sessionId = '',
+  });
 
   @override
   State<OtpVerificationScreen> createState() => _OtpVerificationScreenState();
@@ -13,8 +21,9 @@ class OtpVerificationScreen extends StatefulWidget {
 
 class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   String _otp = '';
-  int _secondsLeft = 29;
+  int _secondsLeft = 60;
   Timer? _timer;
+  bool _isVerifying = false;
 
   @override
   void initState() {
@@ -41,20 +50,64 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   }
 
   void _onKeyTap(String key) {
+    if (_isVerifying) return;
     if (_otp.length < 6) {
       setState(() {
         _otp += key;
       });
       if (_otp.length == 6) {
-        // Auto-verify and navigate to Reset Password
-        Future.delayed(const Duration(milliseconds: 300), () {
-          if (mounted) {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (_) => const ResetPasswordScreen()),
-            );
-          }
-        });
+        _verifyOtpCode(_otp);
       }
+    }
+  }
+
+  Future<void> _verifyOtpCode(String code) async {
+    if (widget.sessionId.isEmpty) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => ResetPasswordScreen(sessionId: widget.sessionId)),
+      );
+      return;
+    }
+
+    setState(() => _isVerifying = true);
+    try {
+      final authRepo = context.read<AuthCubit>().authRepository;
+      await authRepo.verifyForgotPasswordOtp(
+        sessionId: widget.sessionId,
+        otpCode: code,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => ResetPasswordScreen(sessionId: widget.sessionId),
+        ),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _otp = '';
+        _isVerifying = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _otp = '';
+        _isVerifying = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Verifikasi OTP gagal: $e'),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -210,25 +263,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: row.map((key) {
                 if (key == 'bio') {
-                  return SizedBox(
+                  return const SizedBox(
                     width: 70,
                     height: 50,
-                    child: IconButton(
-                      icon: const Icon(Icons.fingerprint_rounded, size: 28, color: AppColors.textPrimary),
-                      onPressed: () {
-                        // Demo autofill OTP
-                        setState(() {
-                          _otp = '123456';
-                        });
-                        Future.delayed(const Duration(milliseconds: 300), () {
-                          if (mounted) {
-                            Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(builder: (_) => const ResetPasswordScreen()),
-                            );
-                          }
-                        });
-                      },
-                    ),
                   );
                 } else if (key == 'backspace') {
                   return SizedBox(

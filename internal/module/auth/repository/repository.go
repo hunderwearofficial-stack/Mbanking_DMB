@@ -14,12 +14,16 @@ import (
 )
 
 type AuthRepository interface {
+	DB() *gorm.DB
 	FindByIdentifier(ctx context.Context, identifier string) (*model.User, error)
 	FindByID(ctx context.Context, id string) (*model.User, error)
 	FindPrimaryAccount(ctx context.Context, userID string) (*model.Account, error)
 	EnsurePrimaryAccount(ctx context.Context, user *model.User, preferredAccountNo string) (*model.Account, error)
 	FindAccountWithUser(ctx context.Context, accountNo string) (*model.Account, *model.User, error)
 	UpdateUserCredentials(ctx context.Context, userID, passwordHash, pinHash, phoneNumber, deviceID string) error
+	UpdatePasswordHash(ctx context.Context, userID, passwordHash, deviceID string) error
+	IncrementFailedLogin(ctx context.Context, userID string, maxAttempts int) (int, bool, error)
+	ResetFailedLogin(ctx context.Context, userID string) error
 	UpdateDeviceID(ctx context.Context, userID, deviceID string) error
 	CreateUser(ctx context.Context, user *model.User) error
 	UpsertCBSUserAndAccount(ctx context.Context, nasabah *domain.CBSNasabahData, bal *domain.BalanceResponse, phone string) (*model.User, *model.Account, error)
@@ -31,6 +35,10 @@ type authRepository struct {
 
 func NewAuthRepository(db *gorm.DB) AuthRepository {
 	return &authRepository{db: db}
+}
+
+func (r *authRepository) DB() *gorm.DB {
+	return r.db
 }
 
 func (r *authRepository) FindByIdentifier(ctx context.Context, identifier string) (*model.User, error) {
@@ -143,16 +151,68 @@ func (r *authRepository) UpdateUserCredentials(ctx context.Context, userID, pass
 		return nil
 	}
 	updates := map[string]interface{}{
-		"password_hash": passwordHash,
-		"pin_hash":      pinHash,
-		"device_id":     deviceID,
-		"is_active":     true,
-		"updated_at":    time.Now(),
+		"password_hash":         passwordHash,
+		"pin_hash":              pinHash,
+		"device_id":             deviceID,
+		"failed_login_attempts": 0,
+		"failed_pin_attempts":   0,
+		"is_active":             true,
+		"updated_at":            time.Now(),
 	}
 	if phoneNumber != "" && phoneNumber != "0" {
 		updates["phone_number"] = phoneNumber
 	}
 	return r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", userID).Updates(updates).Error
+}
+
+func (r *authRepository) UpdatePasswordHash(ctx context.Context, userID, passwordHash, deviceID string) error {
+	if r.db == nil {
+		return nil
+	}
+	updates := map[string]interface{}{
+		"password_hash":         passwordHash,
+		"failed_login_attempts": 0,
+		"is_active":             true,
+		"updated_at":            time.Now(),
+	}
+	if deviceID != "" {
+		updates["device_id"] = deviceID
+	}
+	return r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", userID).Updates(updates).Error
+}
+
+func (r *authRepository) IncrementFailedLogin(ctx context.Context, userID string, maxAttempts int) (int, bool, error) {
+	if r.db == nil {
+		return 1, false, nil
+	}
+	if maxAttempts <= 0 {
+		maxAttempts = 3
+	}
+	var user model.User
+	if err := r.db.WithContext(ctx).Where("id = ?", userID).First(&user).Error; err != nil {
+		return 1, false, err
+	}
+	attempts := user.FailedLoginAttempts + 1
+	blocked := attempts >= maxAttempts
+	updates := map[string]interface{}{
+		"failed_login_attempts": attempts,
+		"updated_at":            time.Now(),
+	}
+	if blocked {
+		updates["is_active"] = false
+	}
+	_ = r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", userID).Updates(updates).Error
+	return attempts, blocked, nil
+}
+
+func (r *authRepository) ResetFailedLogin(ctx context.Context, userID string) error {
+	if r.db == nil {
+		return nil
+	}
+	return r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+		"failed_login_attempts": 0,
+		"updated_at":            time.Now(),
+	}).Error
 }
 
 func (r *authRepository) UpdateDeviceID(ctx context.Context, userID, deviceID string) error {

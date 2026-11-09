@@ -11,6 +11,7 @@ import (
 
 	"mbanking-bpr/internal/model"
 	"mbanking-bpr/internal/module/admin/service"
+	"mbanking-bpr/pkg/middleware"
 	"mbanking-bpr/pkg/response"
 
 	"github.com/gin-gonic/gin"
@@ -321,5 +322,81 @@ func (h *AdminHandler) DeleteAdminUser(c *gin.Context) {
 		return
 	}
 	response.Success(c, "Akun petugas admin berhasil dihapus", gin.H{"id": id})
+}
+
+// ListAuditLogs handles GET /api/v1/admin/audit-logs
+func (h *AdminHandler) ListAuditLogs(c *gin.Context) {
+	actorType := c.DefaultQuery("actor_type", "ALL")
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
+	logs, err := h.adminService.ListAuditLogs(c.Request.Context(), actorType, limit)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "Gagal memuat log audit keamanan", "99", err.Error())
+		return
+	}
+	response.Success(c, "Data audit trail berhasil dimuat", logs)
+}
+
+type BroadcastNotificationRequest struct {
+	Title    string `json:"title" binding:"required"`
+	Message  string `json:"message" binding:"required"`
+	Category string `json:"category"`
+}
+
+// BroadcastNotification handles POST /api/v1/admin/notifications/broadcast
+func (h *AdminHandler) BroadcastNotification(c *gin.Context) {
+	var req BroadcastNotificationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "Judul dan isi pesan notifikasi wajib diisi", "01", err.Error())
+		return
+	}
+	if err := h.adminService.BroadcastNotification(c.Request.Context(), req.Title, req.Message, req.Category); err != nil {
+		response.Error(c, http.StatusInternalServerError, "Gagal mengirim broadcast notifikasi", "99", err.Error())
+		return
+	}
+	response.Success(c, "Notifikasi broadcast berhasil dikirimkan ke seluruh nasabah", nil)
+}
+
+// ListUserNotifications handles GET /api/v1/notifications
+func (h *AdminHandler) ListUserNotifications(c *gin.Context) {
+	userID := ""
+	if val, exists := c.Get(middleware.CtxUserID); exists {
+		userID = val.(string)
+	}
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "30"))
+	notifs, err := h.adminService.ListNotificationsForUser(c.Request.Context(), userID, limit)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "Gagal memuat notifikasi", "99", err.Error())
+		return
+	}
+	response.Success(c, "Daftar notifikasi berhasil dimuat", notifs)
+}
+
+// MarkNotificationsRead handles POST /api/v1/notifications/read
+func (h *AdminHandler) MarkNotificationsRead(c *gin.Context) {
+	userID := ""
+	if val, exists := c.Get(middleware.CtxUserID); exists {
+		userID = val.(string)
+	}
+	_ = h.adminService.MarkNotificationsRead(c.Request.Context(), userID)
+	response.Success(c, "Seluruh notifikasi ditandai telah dibaca", gin.H{"read": true})
+}
+
+type FCMTokenRequest struct {
+	FCMToken string `json:"fcm_token" binding:"required"`
+}
+
+// UpdateUserFCMToken handles POST /api/v1/notifications/fcm-token
+func (h *AdminHandler) UpdateUserFCMToken(c *gin.Context) {
+	userID := ""
+	if val, exists := c.Get(middleware.CtxUserID); exists {
+		userID = val.(string)
+	}
+	var req FCMTokenRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "fcm_token wajib diisi", "01", err.Error())
+		return
+	}
+	_ = h.adminService.UpdateUserFCMToken(c.Request.Context(), userID, req.FCMToken)
+	response.Success(c, "FCM token perangkat berhasil didaftarkan", gin.H{"registered": true})
 }
 

@@ -11,6 +11,7 @@ import '../../blocs/auth/auth_cubit.dart';
 import '../../blocs/auth/auth_state.dart';
 import '../auth/login_screen.dart';
 import '../mutation/mutation_screen.dart';
+import '../notification/notification_screen.dart';
 import 'widgets/balance_card.dart';
 import 'widgets/quick_menu_grid.dart';
 import 'widgets/promo_banner.dart';
@@ -754,11 +755,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   // Action 1: Notifikasi
                   InkWell(
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Notifikasi Transaksi: Rekening Tabungan DMB aktif'),
-                          behavior: SnackBarBehavior.floating,
-                        ),
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const NotificationScreen()),
                       );
                     },
                     borderRadius: BorderRadius.circular(10),

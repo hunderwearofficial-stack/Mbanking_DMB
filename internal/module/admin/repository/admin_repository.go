@@ -46,6 +46,13 @@ type AdminRepository interface {
 	// App & Bank Branding Settings
 	GetAppConfig(ctx context.Context) (*model.AppConfig, error)
 	UpdateAppConfig(ctx context.Context, cfg *model.AppConfig) error
+
+	// Audit Trail & Notifications
+	DB() *gorm.DB
+	ListAuditLogs(ctx context.Context, actorType string, limit int) ([]model.AuditLog, error)
+	ListNotificationsForUser(ctx context.Context, userID string, limit int) ([]model.Notification, error)
+	MarkNotificationsRead(ctx context.Context, userID string) error
+	UpdateUserFCMToken(ctx context.Context, userID, fcmToken string) error
 }
 
 type adminRepository struct {
@@ -360,18 +367,27 @@ func (r *adminRepository) ResetDeviceBinding(ctx context.Context, userID string)
 
 func (r *adminRepository) ToggleCustomerStatus(ctx context.Context, userID string, isActive bool) error {
 	if r.db != nil {
+		updates := map[string]interface{}{
+			"is_active":  isActive,
+			"updated_at": time.Now(),
+		}
+		if isActive {
+			updates["failed_login_attempts"] = 0
+			updates["failed_pin_attempts"] = 0
+		}
 		_ = r.db.WithContext(ctx).Model(&model.User{}).
 			Where("id = ?", userID).
-			Updates(map[string]interface{}{
-				"is_active":  isActive,
-				"updated_at": time.Now(),
-			}).Error
+			Updates(updates).Error
 	}
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if u, ok := r.memUsers[userID]; ok {
 		u.IsActive = isActive
+		if isActive {
+			u.FailedLoginAttempts = 0
+			u.FailedPINAttempts = 0
+		}
 		u.UpdatedAt = time.Now()
 	}
 	return nil
@@ -593,4 +609,67 @@ func (r *adminRepository) DeleteAdminUser(ctx context.Context, id string) error 
 		}
 	}
 	return nil
+}
+
+func (r *adminRepository) DB() *gorm.DB {
+	return r.db
+}
+
+func (r *adminRepository) ListAuditLogs(ctx context.Context, actorType string, limit int) ([]model.AuditLog, error) {
+	if r.db == nil {
+		return []model.AuditLog{}, nil
+	}
+	if limit <= 0 || limit > 500 {
+		limit = 100
+	}
+	var logs []model.AuditLog
+	query := r.db.WithContext(ctx).Model(&model.AuditLog{})
+	if actorType != "" && actorType != "ALL" {
+		query = query.Where("actor_type = ?", strings.ToUpper(actorType))
+	}
+	if err := query.Order("created_at DESC").Limit(limit).Find(&logs).Error; err != nil {
+		return []model.AuditLog{}, err
+	}
+	return logs, nil
+}
+
+func (r *adminRepository) ListNotificationsForUser(ctx context.Context, userID string, limit int) ([]model.Notification, error) {
+	if r.db == nil {
+		return []model.Notification{}, nil
+	}
+	if limit <= 0 || limit > 100 {
+		limit = 30
+	}
+	var notifs []model.Notification
+	if err := r.db.WithContext(ctx).
+		Where("user_id = ? OR user_id = ?", userID, "ALL").
+		Order("created_at DESC").
+		Limit(limit).
+		Find(&notifs).Error; err != nil {
+		return []model.Notification{}, err
+	}
+	return notifs, nil
+}
+
+func (r *adminRepository) MarkNotificationsRead(ctx context.Context, userID string) error {
+	if r.db == nil || userID == "" {
+		return nil
+	}
+	return r.db.WithContext(ctx).
+		Model(&model.Notification{}).
+		Where("user_id = ? AND is_read = ?", userID, false).
+		Update("is_read", true).Error
+}
+
+func (r *adminRepository) UpdateUserFCMToken(ctx context.Context, userID, fcmToken string) error {
+	if r.db == nil || userID == "" {
+		return nil
+	}
+	return r.db.WithContext(ctx).
+		Model(&model.User{}).
+		Where("id = ?", userID).
+		Updates(map[string]interface{}{
+			"fcm_token":  fcmToken,
+			"updated_at": time.Now(),
+		}).Error
 }

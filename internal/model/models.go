@@ -43,12 +43,15 @@ type User struct {
 	TglLahir       string    `json:"tgl_lahir" gorm:"type:varchar(40);column:tgl_lahir"`
 	TempatLahir    string    `json:"tempat_lahir" gorm:"type:varchar(100);column:tempat_lahir"`
 	NamaIbuKandung string    `json:"nama_ibu_kandung" gorm:"type:varchar(100);column:nama_ibu_kandung"`
-	PasswordHash   string    `json:"-" gorm:"type:varchar(255);not null"`
-	PINHash        string    `json:"-" gorm:"type:varchar(255);not null"`
-	DeviceID       string    `json:"device_id" gorm:"type:varchar(100);index"`
-	IsActive       bool      `json:"is_active" gorm:"type:boolean;default:true"`
-	CreatedAt      time.Time `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt      time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+	PasswordHash        string    `json:"-" gorm:"type:varchar(255);not null"`
+	PINHash             string    `json:"-" gorm:"type:varchar(255);not null"`
+	DeviceID            string    `json:"device_id" gorm:"type:varchar(100);index"`
+	FCMToken            string    `json:"fcm_token,omitempty" gorm:"type:text;column:fcm_token"`
+	FailedLoginAttempts int       `json:"failed_login_attempts" gorm:"type:int;default:0;column:failed_login_attempts"`
+	FailedPINAttempts   int       `json:"failed_pin_attempts" gorm:"type:int;default:0;column:failed_pin_attempts"`
+	IsActive            bool      `json:"is_active" gorm:"type:boolean;default:true"`
+	CreatedAt           time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt           time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 
 	// Relationships
 	Accounts []Account `json:"accounts,omitempty" gorm:"foreignKey:UserID;references:ID;constraint:OnDelete:CASCADE"`
@@ -194,5 +197,49 @@ type AppConfig struct {
 	InterbankTransferFee float64   `json:"interbank_transfer_fee" gorm:"type:decimal(15,2);default:2500"`
 	EnforceDeviceBinding bool      `json:"enforce_device_binding" gorm:"type:boolean;default:true"`
 	MaxLoginAttempts     int       `json:"max_login_attempts" gorm:"type:int;default:3"`
+	OTPProvider          string    `json:"otp_provider" gorm:"type:varchar(40);default:'SANDBOX'"` // SANDBOX, FONNTE, WABLAS, CUSTOM_WEBHOOK
+	OTPGatewayURL        string    `json:"otp_gateway_url" gorm:"type:varchar(255);default:'https://api.fonnte.com/send'"`
+	OTPGatewayToken      string    `json:"otp_gateway_token" gorm:"type:varchar(255)"`
+	FCMServerKey         string    `json:"fcm_server_key" gorm:"type:text"`
 	UpdatedAt            time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+// AuditLog records security and operational events for OJK compliance & internal audit
+type AuditLog struct {
+	ID        string    `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
+	ActorType string    `json:"actor_type" gorm:"type:varchar(20);index;not null"` // NASABAH, ADMIN, SYSTEM
+	ActorID   string    `json:"actor_id" gorm:"type:varchar(60);index"`
+	ActorName string    `json:"actor_name" gorm:"type:varchar(100)"`
+	Action    string    `json:"action" gorm:"type:varchar(60);index;not null"`
+	Target    string    `json:"target" gorm:"type:varchar(100)"`
+	Status    string    `json:"status" gorm:"type:varchar(20);default:'SUCCESS'"` // SUCCESS, WARNING, DANGER
+	IPAddress string    `json:"ip_address" gorm:"type:varchar(50)"`
+	DeviceID  string    `json:"device_id" gorm:"type:varchar(120)"`
+	Details   string    `json:"details" gorm:"type:text"`
+	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime;index"`
+}
+
+func (a *AuditLog) BeforeCreate(tx *gorm.DB) error {
+	if a.ID == "" {
+		a.ID = uuid.NewString()
+	}
+	return nil
+}
+
+// Notification represents in-app inbox & push notifications for customers
+type Notification struct {
+	ID        string    `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
+	UserID    string    `json:"user_id" gorm:"type:varchar(60);index;not null"` // User UUID or "ALL" for broadcast
+	Title     string    `json:"title" gorm:"type:varchar(150);not null"`
+	Message   string    `json:"message" gorm:"type:text;not null"`
+	Category  string    `json:"category" gorm:"type:varchar(30);default:'INFO'"` // SECURITY, TRANSACTION, PROMO
+	IsRead    bool      `json:"is_read" gorm:"type:boolean;default:false"`
+	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime;index"`
+}
+
+func (n *Notification) BeforeCreate(tx *gorm.DB) error {
+	if n.ID == "" {
+		n.ID = uuid.NewString()
+	}
+	return nil
 }

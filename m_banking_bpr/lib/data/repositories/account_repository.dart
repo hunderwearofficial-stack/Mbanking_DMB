@@ -71,5 +71,22 @@ class AccountRepository {
     }
     return [];
   }
+
+  Future<List<Map<String, dynamic>>> getNotifications({int limit = 30}) async {
+    final response = await apiClient.get(
+      ApiEndpoints.notifications,
+      queryParameters: {'limit': limit},
+    );
+    if (response is List) {
+      return List<Map<String, dynamic>>.from(response);
+    }
+    return [];
+  }
+
+  Future<void> markNotificationsRead() async {
+    try {
+      await apiClient.post(ApiEndpoints.notificationsRead, data: {});
+    } catch (_) {}
+  }
 }
 

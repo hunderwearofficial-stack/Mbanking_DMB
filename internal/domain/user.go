@@ -74,3 +74,20 @@ type RefreshTokenRequest struct {
 	RefreshToken string `json:"refresh_token" binding:"required"`
 	DeviceID     string `json:"device_id"`
 }
+
+// Forgot Password DTOs
+type ForgotPasswordRequest struct {
+	PhoneNumber string `json:"phone_number" binding:"required"`
+	DeviceID    string `json:"device_id"`
+}
+
+type ForgotPasswordVerifyOTPRequest struct {
+	SessionID string `json:"session_id" binding:"required"`
+	OTPCode   string `json:"otp_code" binding:"required"`
+}
+
+type ForgotPasswordResetRequest struct {
+	SessionID   string `json:"session_id" binding:"required"`
+	NewPassword string `json:"new_password" binding:"required"`
+	DeviceID    string `json:"device_id"`
+}

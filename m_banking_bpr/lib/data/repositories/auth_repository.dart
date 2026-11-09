@@ -145,5 +145,54 @@ class AuthRepository {
 
     return authResponse;
   }
+
+  // ==================== FORGOT PASSWORD FLOW ====================
+
+  Future<Map<String, dynamic>> requestForgotPassword({
+    required String phoneNumber,
+  }) async {
+    final devId = await secureStorage.getDeviceID();
+    final response = await apiClient.post(
+      ApiEndpoints.forgotPasswordRequest,
+      data: {
+        'phone_number': phoneNumber,
+        'device_id': devId,
+      },
+    );
+    if (response is Map<String, dynamic>) {
+      return response;
+    }
+    return <String, dynamic>{};
+  }
+
+  Future<bool> verifyForgotPasswordOtp({
+    required String sessionId,
+    required String otpCode,
+  }) async {
+    await apiClient.post(
+      ApiEndpoints.forgotPasswordOtp,
+      data: {
+        'session_id': sessionId,
+        'otp_code': otpCode,
+      },
+    );
+    return true;
+  }
+
+  Future<bool> resetForgotPassword({
+    required String sessionId,
+    required String newPassword,
+  }) async {
+    final devId = await secureStorage.getDeviceID();
+    await apiClient.post(
+      ApiEndpoints.forgotPasswordReset,
+      data: {
+        'session_id': sessionId,
+        'new_password': newPassword,
+        'device_id': devId,
+      },
+    );
+    return true;
+  }
 }
 

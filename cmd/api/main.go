@@ -58,6 +58,8 @@ func main() {
 			&model.AdminUser{},
 			&model.Banner{},
 			&model.AppConfig{},
+			&model.AuditLog{},
+			&model.Notification{},
 		); migrateErr != nil {
 			log.Error("Gagal menjalankan AutoMigrate GORM", map[string]interface{}{"error": migrateErr.Error()})
 		} else {
@@ -165,6 +167,9 @@ func main() {
 			authGroup.POST("/activate/verify", authHandler.VerifyActivation)
 			authGroup.POST("/activate/otp", authHandler.VerifyActivationOTP)
 			authGroup.POST("/activate/setup", authHandler.CompleteActivation)
+			authGroup.POST("/forgot-password/request", authHandler.RequestForgotPassword)
+			authGroup.POST("/forgot-password/otp", authHandler.VerifyForgotPasswordOTP)
+			authGroup.POST("/forgot-password/reset", authHandler.ResetForgotPassword)
 		}
 
 		// Admin Backoffice API Group
@@ -184,6 +189,8 @@ func main() {
 				adminProtected.PUT("/banners/:id", adminHandler.UpdateBanner)
 				adminProtected.DELETE("/banners/:id", adminHandler.DeleteBanner)
 				adminProtected.GET("/transactions", adminHandler.ListTransactions)
+				adminProtected.GET("/audit-logs", adminHandler.ListAuditLogs)
+				adminProtected.POST("/notifications/broadcast", adminHandler.BroadcastNotification)
 				adminProtected.GET("/config", adminHandler.GetConfig)
 				adminProtected.PUT("/config", adminHandler.UpdateConfig)
 				adminProtected.POST("/upload", adminHandler.UploadFile)
@@ -206,6 +213,14 @@ func main() {
 				accountGroup.GET("/inquiry", accHandler.InquiryAccount)
 				accountGroup.GET("/profile", accHandler.GetCustomerProfile)
 				accountGroup.GET("/list", accHandler.GetSavingsAccounts)
+			}
+
+			// In-App & FCM Notification Routes
+			notifGroup := protected.Group("/notifications")
+			{
+				notifGroup.GET("", adminHandler.ListUserNotifications)
+				notifGroup.POST("/read", adminHandler.MarkNotificationsRead)
+				notifGroup.POST("/fcm-token", adminHandler.UpdateUserFCMToken)
 			}
 
 			// Transaction Routes (Rate Limited: 10 transactions / 60s)

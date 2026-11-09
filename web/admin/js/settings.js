@@ -20,6 +20,18 @@ async function loadConfig() {
       document.getElementById('cfgEnforceDevice').checked = c.enforce_device_binding;
       document.getElementById('cfgMaintenance').checked = c.maintenance_mode;
       document.getElementById('cfgMaintenanceMsg').value = c.maintenance_message || '';
+      if (document.getElementById('cfgOtpProvider')) {
+        document.getElementById('cfgOtpProvider').value = c.otp_provider || 'SANDBOX';
+      }
+      if (document.getElementById('cfgOtpGatewayUrl')) {
+        document.getElementById('cfgOtpGatewayUrl').value = c.otp_gateway_url || 'https://api.fonnte.com/send';
+      }
+      if (document.getElementById('cfgOtpGatewayToken')) {
+        document.getElementById('cfgOtpGatewayToken').value = c.otp_gateway_token || '';
+      }
+      if (document.getElementById('cfgFcmServerKey')) {
+        document.getElementById('cfgFcmServerKey').value = c.fcm_server_key || '';
+      }
 
       // Live UI sync everywhere
       updateDOMBranding(c);
@@ -117,7 +129,11 @@ async function handleSaveConfig(e) {
     website_url: document.getElementById('cfgWebsite').value.trim(),
     enforce_device_binding: document.getElementById('cfgEnforceDevice').checked,
     maintenance_mode: document.getElementById('cfgMaintenance').checked,
-    maintenance_message: document.getElementById('cfgMaintenanceMsg').value.trim()
+    maintenance_message: document.getElementById('cfgMaintenanceMsg').value.trim(),
+    otp_provider: document.getElementById('cfgOtpProvider') ? document.getElementById('cfgOtpProvider').value : 'SANDBOX',
+    otp_gateway_url: document.getElementById('cfgOtpGatewayUrl') ? document.getElementById('cfgOtpGatewayUrl').value.trim() : '',
+    otp_gateway_token: document.getElementById('cfgOtpGatewayToken') ? document.getElementById('cfgOtpGatewayToken').value.trim() : '',
+    fcm_server_key: document.getElementById('cfgFcmServerKey') ? document.getElementById('cfgFcmServerKey').value.trim() : ''
   };
 
   try {

@@ -13,6 +13,7 @@ import (
 	"mbanking-bpr/internal/domain"
 	"mbanking-bpr/internal/model"
 	"mbanking-bpr/internal/module/auth/repository"
+	"mbanking-bpr/internal/otpprovider"
 	"mbanking-bpr/pkg/utils"
 
 	"github.com/google/uuid"
@@ -47,6 +48,9 @@ type AuthService interface {
 	VerifyActivation(ctx context.Context, req domain.ActivateVerifyRequest) (*domain.ActivateVerifyResponse, error)
 	VerifyActivationOTP(ctx context.Context, req domain.ActivateOTPRequest) error
 	CompleteActivation(ctx context.Context, req domain.ActivateSetupRequest) (*domain.LoginResponse, error)
+	RequestForgotPassword(ctx context.Context, req domain.ForgotPasswordRequest) (*domain.ActivateVerifyResponse, error)
+	VerifyForgotPasswordOTP(ctx context.Context, req domain.ForgotPasswordVerifyOTPRequest) error
+	ResetForgotPassword(ctx context.Context, req domain.ForgotPasswordResetRequest) error
 }
 
 type authService struct {
@@ -80,25 +84,45 @@ func (s *authService) Login(ctx context.Context, req domain.LoginRequest) (*doma
 	var primaryAccountNo string
 
 	// 1. Authenticate against PostgreSQL via GORM
-	dbUser, err := s.repo.FindByIdentifier(ctx, identifier)
+	dbUser, err := s.repo.FindByIdentifier(ctx, normalizePhone(identifier))
+	if err != nil || dbUser == nil {
+		dbUser, err = s.repo.FindByIdentifier(ctx, identifier)
+	}
 	if err == nil && dbUser != nil {
 		user = dbUser
 
-		// Verify Password with bcrypt
-		if !utils.CheckPassword(user.PasswordHash, req.Password) {
-			return nil, ErrInvalidCredentials
+		if !user.IsActive {
+			otpprovider.RecordAuditLog(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "LOGIN_BLOCKED_ATTEMPT", user.PhoneNumber, "DANGER", req.DeviceID, "Percobaan login pada akun yang sedang diblokir")
+			return nil, errors.New("akun nasabah sedang diblokir/tidak aktif. Silakan gunakan menu Lupa Password atau hubungi Customer Service Bank DMB")
 		}
 
-		if !user.IsActive {
-			return nil, ErrUserInactive
+		// Verify Password with bcrypt + Auto-Block after 3 failed attempts
+		if !utils.CheckPassword(user.PasswordHash, req.Password) {
+			attempts, blocked, _ := s.repo.IncrementFailedLogin(ctx, user.ID, 3)
+			if blocked {
+				otpprovider.RecordAuditLog(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "AUTO_BLOCK_PASSWORD", user.PhoneNumber, "DANGER", req.DeviceID, "Akun diblokir otomatis karena 3x salah memasukkan password login")
+				otpprovider.CreateNotificationAndPush(ctx, s.repo.DB(), user.ID, "Peringatan Keamanan: Akun Terkunci", "Akun Mobile DMB Anda telah dikunci otomatis karena 3x salah memasukkan password. Silakan gunakan Lupa Password atau hubungi CS Bank DMB.", "SECURITY")
+				return nil, errors.New("akun Anda telah diblokir otomatis karena 3x salah memasukkan password. Silakan gunakan menu Lupa Password atau hubungi CS Bank DMB")
+			}
+			otpprovider.RecordAuditLog(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "LOGIN_FAILED", user.PhoneNumber, "WARNING", req.DeviceID, fmt.Sprintf("Password login salah (Percobaan %d/3)", attempts))
+			return nil, fmt.Errorf("nomor handphone atau password salah (Percobaan %d/3)", attempts)
 		}
+
+		_ = s.repo.ResetFailedLogin(ctx, user.ID)
 
 		// Single Active Device Session (Auto-Logout Old Device):
 		// Logging in on a new device binds the new device_id in PostgreSQL, automatically invalidating any old device's session.
 		if req.DeviceID != "" && user.DeviceID != req.DeviceID {
+			oldDev := user.DeviceID
 			user.DeviceID = req.DeviceID
 			_ = s.repo.UpdateDeviceID(ctx, user.ID, req.DeviceID)
+			if oldDev != "" {
+				otpprovider.RecordAuditLog(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "DEVICE_AUTO_SWITCH", user.CIF, "WARNING", req.DeviceID, fmt.Sprintf("Pindah perangkat dari %s ke %s (Perangkat lama auto-logout)", oldDev, req.DeviceID))
+				otpprovider.CreateNotificationAndPush(ctx, s.repo.DB(), user.ID, "Login di Perangkat Baru", fmt.Sprintf("Akun Mobile DMB Anda baru saja login pada perangkat %s. Sesi pada perangkat %s telah diakhiri otomatis.", req.DeviceID, oldDev), "SECURITY")
+			}
 		}
+
+		otpprovider.RecordAuditLog(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "LOGIN_SUCCESS", user.CIF, "SUCCESS", user.DeviceID, "Login Mobile DMB berhasil")
 
 		// Find user's primary account
 		if acc, accErr := s.repo.FindPrimaryAccount(ctx, user.ID); accErr == nil && acc != nil {
@@ -308,9 +332,9 @@ func (s *authService) VerifyActivation(ctx context.Context, req domain.ActivateV
 		return nil, ErrAccountNotMatch
 	}
 
-	// 3. Generate 6-Digit OTP & Session
+	// 3. Generate 6-Digit OTP & Dispatch via WhatsApp/SMS Gateway (or Sandbox)
 	sessionID := uuid.NewString()
-	otpCode := "123456" // Standard demo OTP (In production: rand 6 digits via SMS Gateway)
+	otpCode, _, _ := otpprovider.SendOTP(ctx, s.repo.DB(), normInputPhone, targetUser.FullName, "Aktivasi M-Banking")
 
 	s.mu.Lock()
 	s.sessions[sessionID] = &ActivationSession{
@@ -323,6 +347,8 @@ func (s *authService) VerifyActivation(ctx context.Context, req domain.ActivateV
 		ExpiresAt:     time.Now().Add(10 * time.Minute),
 	}
 	s.mu.Unlock()
+
+	otpprovider.RecordAuditLog(ctx, s.repo.DB(), "NASABAH", targetUser.ID, targetUser.FullName, "ACTIVATION_OTP_SENT", normInputPhone, "SUCCESS", req.DeviceID, fmt.Sprintf("Kode OTP aktivasi dikirim ke %s (Rek/CIF: %s)", maskPhoneNumber(normInputPhone), accountNo))
 
 	return &domain.ActivateVerifyResponse{
 		SessionID:   sessionID,
@@ -400,6 +426,9 @@ func (s *authService) CompleteActivation(ctx context.Context, req domain.Activat
 	if ensuredAcc, ensErr := s.repo.EnsurePrimaryAccount(ctx, user, primaryAccNo); ensErr == nil && ensuredAcc != nil {
 		primaryAccNo = ensuredAcc.AccountNumber
 	}
+
+	otpprovider.RecordAuditLog(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "ACTIVATION_COMPLETE", primaryAccNo, "SUCCESS", deviceID, fmt.Sprintf("Aktivasi M-Banking berhasil pada perangkat %s", deviceID))
+	otpprovider.CreateNotificationAndPush(ctx, s.repo.DB(), user.ID, "Selamat Datang di Mobile DMB!", fmt.Sprintf("Halo %s, akun M-Banking Anda telah aktif dan terikat aman pada perangkat %s.", user.FullName, deviceID), "SECURITY")
 
 	accessExpMins := s.cfg.JWTExpiryMinutes
 	if accessExpMins <= 0 {
@@ -539,4 +568,77 @@ func (s *authService) RefreshToken(ctx context.Context, req domain.RefreshTokenR
 			CreatedAt:      user.CreatedAt,
 		},
 	}, nil
+}
+
+func (s *authService) RequestForgotPassword(ctx context.Context, req domain.ForgotPasswordRequest) (*domain.ActivateVerifyResponse, error) {
+	normPhone := normalizePhone(req.PhoneNumber)
+	user, err := s.repo.FindByIdentifier(ctx, normPhone)
+	if err != nil || user == nil {
+		user, err = s.repo.FindByIdentifier(ctx, strings.TrimSpace(req.PhoneNumber))
+		if err != nil || user == nil {
+			return nil, errors.New("nomor handphone belum terdaftar di layanan Mobile DMB")
+		}
+	}
+
+	sessionID := uuid.NewString()
+	otpCode, _, _ := otpprovider.SendOTP(ctx, s.repo.DB(), normPhone, user.FullName, "Reset Password M-Banking")
+
+	s.mu.Lock()
+	s.sessions[sessionID] = &ActivationSession{
+		UserID:        user.ID,
+		PhoneNumber:   normPhone,
+		FullName:      user.FullName,
+		OTP:           otpCode,
+		IsOTPVerified: false,
+		ExpiresAt:     time.Now().Add(10 * time.Minute),
+	}
+	s.mu.Unlock()
+
+	otpprovider.RecordAuditLog(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "FORGOT_PASSWORD_OTP_SENT", normPhone, "WARNING", req.DeviceID, "Permintaan kode OTP untuk Lupa Password")
+
+	return &domain.ActivateVerifyResponse{
+		SessionID:   sessionID,
+		MaskedPhone: maskPhoneNumber(normPhone),
+		FullName:    user.FullName,
+	}, nil
+}
+
+func (s *authService) VerifyForgotPasswordOTP(ctx context.Context, req domain.ForgotPasswordVerifyOTPRequest) error {
+	return s.VerifyActivationOTP(ctx, domain.ActivateOTPRequest{
+		SessionID: req.SessionID,
+		OTPCode:   req.OTPCode,
+	})
+}
+
+func (s *authService) ResetForgotPassword(ctx context.Context, req domain.ForgotPasswordResetRequest) error {
+	s.mu.Lock()
+	session, exists := s.sessions[req.SessionID]
+	if !exists || time.Now().After(session.ExpiresAt) {
+		s.mu.Unlock()
+		return ErrSessionNotFound
+	}
+	if !session.IsOTPVerified {
+		s.mu.Unlock()
+		return ErrOTPNotVerified
+	}
+	delete(s.sessions, req.SessionID)
+	s.mu.Unlock()
+
+	if len(strings.TrimSpace(req.NewPassword)) < 8 {
+		return ErrPasswordTooShort
+	}
+
+	pwHash, err := utils.HashPassword(req.NewPassword)
+	if err != nil {
+		return err
+	}
+
+	if err := s.repo.UpdatePasswordHash(ctx, session.UserID, pwHash, req.DeviceID); err != nil {
+		return err
+	}
+
+	otpprovider.RecordAuditLog(ctx, s.repo.DB(), "NASABAH", session.UserID, session.FullName, "RESET_PASSWORD_SUCCESS", session.PhoneNumber, "SUCCESS", req.DeviceID, "Password akun berhasil di-reset melalui verifikasi OTP")
+	otpprovider.CreateNotificationAndPush(ctx, s.repo.DB(), session.UserID, "Password Berhasil Diperbarui", "Password login Mobile DMB Anda baru saja diperbarui. Jika Anda tidak merasa melakukan perubahan ini, segera hubungi CS Bank DMB.", "SECURITY")
+
+	return nil
 }
