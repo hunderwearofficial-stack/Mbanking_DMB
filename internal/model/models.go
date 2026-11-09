@@ -243,3 +243,49 @@ func (n *Notification) BeforeCreate(tx *gorm.DB) error {
 	}
 	return nil
 }
+
+// SavedBeneficiary stores favorite destination accounts for quick transfers
+type SavedBeneficiary struct {
+	ID            string    `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
+	UserID        string    `json:"user_id" gorm:"type:varchar(60);index;not null"`
+	BankCode      string    `json:"bank_code" gorm:"type:varchar(20);default:'BPR'"`
+	BankName      string    `json:"bank_name" gorm:"type:varchar(100);default:'Bank DMB'"`
+	AccountNumber string    `json:"account_number" gorm:"type:varchar(30);not null"`
+	AccountName   string    `json:"account_name" gorm:"type:varchar(100);not null"`
+	Nickname      string    `json:"nickname" gorm:"type:varchar(60)"`
+	CreatedAt     time.Time `json:"created_at" gorm:"autoCreateTime"`
+}
+
+func (s *SavedBeneficiary) BeforeCreate(tx *gorm.DB) error {
+	if s.ID == "" {
+		s.ID = uuid.NewString()
+	}
+	return nil
+}
+
+// ProductApplication stores online Deposito & Loan (Kredit) applications from Mobile DMB
+type ProductApplication struct {
+	ID              string    `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
+	UserID          string    `json:"user_id" gorm:"type:varchar(60);index;not null"`
+	CIF             string    `json:"cif" gorm:"type:varchar(30)"`
+	FullName        string    `json:"full_name" gorm:"type:varchar(100);not null"`
+	PhoneNumber     string    `json:"phone_number" gorm:"type:varchar(30);not null"`
+	ProductType     string    `json:"product_type" gorm:"type:varchar(30);index;not null"` // DEPOSITO, PINJAMAN
+	ProductName     string    `json:"product_name" gorm:"type:varchar(100);not null"`
+	Amount          float64   `json:"amount" gorm:"type:decimal(15,2);not null"`
+	TenorMonths     int       `json:"tenor_months" gorm:"type:int;not null"`
+	InterestRate    string    `json:"interest_rate" gorm:"type:varchar(50)"`
+	EstimatedReturn float64   `json:"estimated_return" gorm:"type:decimal(15,2)"`
+	PurposeOrSource string    `json:"purpose_or_source" gorm:"type:varchar(255)"`
+	Status          string    `json:"status" gorm:"type:varchar(30);default:'PENDING'"` // PENDING, CONTACTED, APPROVED, REJECTED
+	AdminNotes      string    `json:"admin_notes" gorm:"type:text"`
+	CreatedAt       time.Time `json:"created_at" gorm:"autoCreateTime;index"`
+	UpdatedAt       time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+func (p *ProductApplication) BeforeCreate(tx *gorm.DB) error {
+	if p.ID == "" {
+		p.ID = uuid.NewString()
+	}
+	return nil
+}

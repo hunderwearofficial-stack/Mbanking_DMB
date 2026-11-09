@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../data/models/loan_model.dart';
+import '../../../blocs/account/account_cubit.dart';
+import '../../../blocs/account/account_state.dart';
 import '../../mutation/mutation_screen.dart';
+import '../../product/product_simulator_sheet.dart';
+import '../../profile/security_settings_screen.dart';
 import '../../transfer/transfer_screen.dart';
 
 class FigmaMenuGrid extends StatelessWidget {
@@ -145,18 +151,38 @@ class FigmaMenuGrid extends StatelessWidget {
             _buildDetailRow('Kantor Cabang', loan.branchOffice),
             const SizedBox(height: 20),
 
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFEA580C),
+                      side: const BorderSide(color: Color(0xFFEA580C)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    icon: const Icon(Icons.calculate_rounded, size: 18),
+                    label: const Text('Simulasi & Ajukan', style: TextStyle(fontWeight: FontWeight.w800)),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      ProductSimulatorSheet.show(context, initialType: 'PINJAMAN');
+                    },
+                  ),
                 ),
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Tutup Rincian Pinjaman', style: TextStyle(fontWeight: FontWeight.w700)),
-              ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Tutup Rincian', style: TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 10),
           ],
@@ -258,10 +284,33 @@ class FigmaMenuGrid extends StatelessWidget {
   }
 
   void _showStatementModal(BuildContext context) {
+    final accState = context.read<AccountCubit>().state;
+    double totalCredit = 0;
+    double totalDebit = 0;
+    int txCount = 0;
+    String accNo = '-';
+    String holderName = 'Nasabah Bank DMB';
+    double endBalance = 0;
+
+    if (accState is AccountLoaded) {
+      accNo = accState.account.accountNumber;
+      holderName = accState.account.holderName;
+      endBalance = accState.account.balance;
+      txCount = accState.mutations.length;
+      for (final m in accState.mutations) {
+        if (m.isCredit) {
+          totalCredit += m.amount;
+        } else {
+          totalDebit += m.amount;
+        }
+      }
+    }
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
+      isScrollControlled: true,
+      builder: (sheetCtx) => Container(
         padding: const EdgeInsets.all(24),
         decoration: const BoxDecoration(
           color: Colors.white,
@@ -293,70 +342,106 @@ class FigmaMenuGrid extends StatelessWidget {
                   child: const Icon(Icons.description_rounded, color: AppColors.primary, size: 24),
                 ),
                 const SizedBox(width: 14),
-                const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'e-Statement Tabungan',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
-                    ),
-                    Text(
-                      'Rekening Koran Digital',
-                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                    ),
-                  ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'e-Statement Rekening Koran',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                      ),
+                      Text(
+                        'Rekening $accNo • $holderName',
+                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
-            const Text(
-              'Unduh mutasi resmi rekening koran Bank DMB berformat PDF:',
-              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            const SizedBox(height: 18),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                children: [
+                  _buildDetailRow('Total Mutasi Terdata', '$txCount Transaksi'),
+                  _buildDetailRow('Total Dana Masuk (Kredit)', '+ ${CurrencyFormatter.formatRupiah(totalCredit)}'),
+                  _buildDetailRow('Total Dana Keluar (Debit)', '- ${CurrencyFormatter.formatRupiah(totalDebit)}'),
+                  const Divider(height: 16),
+                  _buildDetailRow('Saldo Akhir Saat Ini', CurrencyFormatter.formatRupiah(endBalance)),
+                ],
+              ),
             ),
-            const SizedBox(height: 14),
-            _buildStatementOption(context, 'Bulan Ini (November 2026)', '4 Transaksi Terdata'),
-            _buildStatementOption(context, 'Bulan Lalu (Oktober 2026)', '18 Transaksi Terdata'),
-            _buildStatementOption(context, 'Kuartal 3 2026', 'Rekapitulasi Triwulan'),
             const SizedBox(height: 16),
+            _buildStatementOption(
+              sheetCtx,
+              'Ringkasan e-Statement Bulan Berjalan',
+              '$txCount Transaksi • Saldo Akhir ${CurrencyFormatter.formatRupiah(endBalance)}',
+              onShare: () {
+                final text = '=== E-STATEMENT RESMI BANK DMB ===\n'
+                    'PT BPR DANA MANDIRI BOGOR\n'
+                    'Nama Nasabah : $holderName\n'
+                    'No. Rekening : $accNo\n'
+                    'Jumlah Mutasi: $txCount Transaksi\n'
+                    'Total Kredit : + ${CurrencyFormatter.formatRupiah(totalCredit)}\n'
+                    'Total Debit  : - ${CurrencyFormatter.formatRupiah(totalDebit)}\n'
+                    'Saldo Akhir  : ${CurrencyFormatter.formatRupiah(endBalance)}\n'
+                    '==================================';
+                Clipboard.setData(ClipboardData(text: text));
+                Navigator.pop(sheetCtx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Ringkasan e-Statement resmi berhasil disalin ke Clipboard! Siap ditempel ke WhatsApp/Email.'),
+                    backgroundColor: AppColors.primary,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStatementOption(BuildContext context, String period, String subtitle) {
+  Widget _buildStatementOption(BuildContext context, String period, String subtitle, {required VoidCallback onShare}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: const Color(0xFFF0FDF4),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: const Color(0xFFBBF7D0)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(period, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-              const SizedBox(height: 2),
-              Text(subtitle, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(period, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                const SizedBox(height: 2),
+                Text(subtitle, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+              ],
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.download_rounded, color: AppColors.primary, size: 20),
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Mengunduh e-Statement $period...'),
-                  backgroundColor: AppColors.primary,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              );
-            },
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            icon: const Icon(Icons.copy_all_rounded, size: 16),
+            label: const Text('Salin Resmi', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800)),
+            onPressed: onShare,
           ),
         ],
       ),
@@ -413,15 +498,11 @@ class FigmaMenuGrid extends StatelessWidget {
         },
       },
       {
-        'title': 'Detail Rek',
-        'icon': Icons.account_balance_rounded,
+        'title': 'Deposito',
+        'icon': Icons.savings_rounded,
         'bgColor': const Color(0xFFFEF3C7), // Warm Yellow
         'iconColor': const Color(0xFFD97706),
-        'onTap': () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const MutationScreen()),
-          );
-        },
+        'onTap': () => ProductSimulatorSheet.show(context, initialType: 'DEPOSITO'),
       },
       {
         'title': 'e-Statement',
@@ -431,17 +512,14 @@ class FigmaMenuGrid extends StatelessWidget {
         'onTap': () => _showStatementModal(context),
       },
       {
-        'title': 'Lihat Semua',
-        'icon': Icons.grid_view_rounded,
+        'title': 'Keamanan',
+        'icon': Icons.shield_outlined,
         'bgColor': Colors.white,
-        'iconColor': const Color(0xFF64748B),
+        'iconColor': const Color(0xFF0F766E),
         'isOutlined': true,
         'onTap': () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Semua Layanan Bank DMB telah ditampilkan di beranda'),
-              behavior: SnackBarBehavior.floating,
-            ),
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const SecuritySettingsScreen()),
           );
         },
       },

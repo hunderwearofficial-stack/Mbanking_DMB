@@ -53,6 +53,17 @@ type AdminRepository interface {
 	ListNotificationsForUser(ctx context.Context, userID string, limit int) ([]model.Notification, error)
 	MarkNotificationsRead(ctx context.Context, userID string) error
 	UpdateUserFCMToken(ctx context.Context, userID, fcmToken string) error
+
+	// Saved Beneficiaries (Favorite Destination Accounts)
+	ListBeneficiaries(ctx context.Context, userID string) ([]model.SavedBeneficiary, error)
+	SaveBeneficiary(ctx context.Context, b *model.SavedBeneficiary) error
+	DeleteBeneficiary(ctx context.Context, id string, userID string) error
+
+	// Online Product Applications (Deposito & Pinjaman)
+	CreateProductApplication(ctx context.Context, app *model.ProductApplication) error
+	ListUserApplications(ctx context.Context, userID string) ([]model.ProductApplication, error)
+	ListAllApplications(ctx context.Context, productType string, limit int) ([]model.ProductApplication, error)
+	UpdateApplicationStatus(ctx context.Context, id string, status string, adminNotes string) (*model.ProductApplication, error)
 }
 
 type adminRepository struct {
@@ -672,4 +683,113 @@ func (r *adminRepository) UpdateUserFCMToken(ctx context.Context, userID, fcmTok
 			"fcm_token":  fcmToken,
 			"updated_at": time.Now(),
 		}).Error
+}
+
+func (r *adminRepository) ListBeneficiaries(ctx context.Context, userID string) ([]model.SavedBeneficiary, error) {
+	if r.db == nil || userID == "" {
+		return []model.SavedBeneficiary{}, nil
+	}
+	var list []model.SavedBeneficiary
+	if err := r.db.WithContext(ctx).
+		Where("user_id = ?", userID).
+		Order("created_at DESC").
+		Find(&list).Error; err != nil {
+		return []model.SavedBeneficiary{}, err
+	}
+	return list, nil
+}
+
+func (r *adminRepository) SaveBeneficiary(ctx context.Context, b *model.SavedBeneficiary) error {
+	if r.db == nil || b == nil {
+		return nil
+	}
+	var existing model.SavedBeneficiary
+	err := r.db.WithContext(ctx).
+		Where("user_id = ? AND account_number = ? AND bank_code = ?", b.UserID, b.AccountNumber, b.BankCode).
+		First(&existing).Error
+	if err == nil {
+		return r.db.WithContext(ctx).Model(&existing).Updates(map[string]interface{}{
+			"account_name": b.AccountName,
+			"bank_name":    b.BankName,
+			"nickname":     b.Nickname,
+		}).Error
+	}
+	if b.ID == "" {
+		b.ID = uuid.NewString()
+	}
+	b.CreatedAt = time.Now()
+	return r.db.WithContext(ctx).Create(b).Error
+}
+
+func (r *adminRepository) DeleteBeneficiary(ctx context.Context, id string, userID string) error {
+	if r.db == nil {
+		return nil
+	}
+	return r.db.WithContext(ctx).
+		Where("id = ? AND user_id = ?", id, userID).
+		Delete(&model.SavedBeneficiary{}).Error
+}
+
+func (r *adminRepository) CreateProductApplication(ctx context.Context, app *model.ProductApplication) error {
+	if r.db == nil || app == nil {
+		return nil
+	}
+	if app.ID == "" {
+		app.ID = uuid.NewString()
+	}
+	if app.Status == "" {
+		app.Status = "PENDING"
+	}
+	app.CreatedAt = time.Now()
+	app.UpdatedAt = time.Now()
+	return r.db.WithContext(ctx).Create(app).Error
+}
+
+func (r *adminRepository) ListUserApplications(ctx context.Context, userID string) ([]model.ProductApplication, error) {
+	if r.db == nil || userID == "" {
+		return []model.ProductApplication{}, nil
+	}
+	var list []model.ProductApplication
+	if err := r.db.WithContext(ctx).
+		Where("user_id = ?", userID).
+		Order("created_at DESC").
+		Find(&list).Error; err != nil {
+		return []model.ProductApplication{}, err
+	}
+	return list, nil
+}
+
+func (r *adminRepository) ListAllApplications(ctx context.Context, productType string, limit int) ([]model.ProductApplication, error) {
+	if r.db == nil {
+		return []model.ProductApplication{}, nil
+	}
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	var list []model.ProductApplication
+	q := r.db.WithContext(ctx).Model(&model.ProductApplication{})
+	if productType != "" && productType != "ALL" {
+		q = q.Where("product_type = ?", strings.ToUpper(productType))
+	}
+	if err := q.Order("created_at DESC").Limit(limit).Find(&list).Error; err != nil {
+		return []model.ProductApplication{}, err
+	}
+	return list, nil
+}
+
+func (r *adminRepository) UpdateApplicationStatus(ctx context.Context, id string, status string, adminNotes string) (*model.ProductApplication, error) {
+	if r.db == nil {
+		return nil, gorm.ErrInvalidDB
+	}
+	var app model.ProductApplication
+	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&app).Error; err != nil {
+		return nil, err
+	}
+	app.Status = strings.ToUpper(status)
+	app.AdminNotes = adminNotes
+	app.UpdatedAt = time.Now()
+	if err := r.db.WithContext(ctx).Save(&app).Error; err != nil {
+		return nil, err
+	}
+	return &app, nil
 }

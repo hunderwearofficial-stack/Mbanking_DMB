@@ -176,3 +176,41 @@ func (h *AuthHandler) ResetForgotPassword(c *gin.Context) {
 	}
 	response.Success(c, "Password berhasil diperbarui. Silakan masuk kembali.", gin.H{"reset": true})
 }
+
+// ChangePassword handles POST /api/v1/auth/change-password
+func (h *AuthHandler) ChangePassword(c *gin.Context) {
+	userID := c.GetString(middleware.CtxUserID)
+	if userID == "" {
+		response.Unauthorized(c, response.CodeUnauthorized, "Sesi tidak valid")
+		return
+	}
+	var req domain.ChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Password lama dan password baru (minimal 8 karakter) wajib diisi", err.Error())
+		return
+	}
+	if err := h.authService.ChangePassword(c.Request.Context(), userID, req); err != nil {
+		response.BadRequest(c, err.Error(), nil)
+		return
+	}
+	response.Success(c, "Password login Anda berhasil diperbarui", gin.H{"updated": true})
+}
+
+// ChangePIN handles POST /api/v1/auth/change-pin
+func (h *AuthHandler) ChangePIN(c *gin.Context) {
+	userID := c.GetString(middleware.CtxUserID)
+	if userID == "" {
+		response.Unauthorized(c, response.CodeUnauthorized, "Sesi tidak valid")
+		return
+	}
+	var req domain.ChangePINRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "PIN lama dan PIN baru (6 digit) wajib diisi", err.Error())
+		return
+	}
+	if err := h.authService.ChangePIN(c.Request.Context(), userID, req); err != nil {
+		response.BadRequest(c, err.Error(), nil)
+		return
+	}
+	response.Success(c, "PIN Transaksi 6 Digit Anda berhasil diperbarui", gin.H{"updated": true})
+}

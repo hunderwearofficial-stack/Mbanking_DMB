@@ -8,6 +8,7 @@ import '../../../../data/models/loan_model.dart';
 import '../../../blocs/auth/auth_cubit.dart';
 import '../../../blocs/auth/auth_state.dart';
 import '../../mutation/mutation_screen.dart';
+import '../../product/product_simulator_sheet.dart';
 
 class FigmaBalanceCardCarousel extends StatefulWidget {
   final AccountModel? account;
@@ -415,9 +416,9 @@ class _FigmaBalanceCardCarouselState extends State<FigmaBalanceCardCarousel> {
                 primaryActionLabel: 'Rincian',
                 primaryActionIcon: Icons.receipt_long_rounded,
                 onPrimaryAction: () => _showLoanDetailsModal(context, loan),
-                secondaryActionLabel: 'Jadwal',
-                secondaryActionIcon: Icons.calendar_month_rounded,
-                onSecondaryAction: () => _showLoanDetailsModal(context, loan),
+                secondaryActionLabel: 'Ajukan',
+                secondaryActionIcon: Icons.add_chart_rounded,
+                onSecondaryAction: () => ProductSimulatorSheet.show(context, initialType: 'PINJAMAN'),
               ),
 
               // Card 3: Deposito Berjangka DMB
@@ -434,31 +435,17 @@ class _FigmaBalanceCardCarouselState extends State<FigmaBalanceCardCarousel> {
                 ),
                 brandTag: 'SIMPANAN',
                 title: 'DEPOSITO BERJANGKA DMB',
-                accNo: '5001008009',
-                accLabel: 'No. Bilyet',
-                amountLabel: 'Total deposito (6.25% p.a.)',
+                accNo: 'Bunga 6.25% p.a.',
+                accLabel: 'Suku Bunga',
+                amountLabel: 'Simulasi Penempatan Deposito',
                 amount: 50000000.0,
                 chipColor: const Color(0xFFFFD54F),
-                primaryActionLabel: 'Detail',
-                primaryActionIcon: Icons.info_outline_rounded,
-                onPrimaryAction: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Bilyet Deposito No. 5001008009 - Bunga 6.25% p.a. Jatuh Tempo 2027'),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                },
+                primaryActionLabel: 'Buka Baru',
+                primaryActionIcon: Icons.add_circle_outline_rounded,
+                onPrimaryAction: () => ProductSimulatorSheet.show(context, initialType: 'DEPOSITO'),
                 secondaryActionLabel: 'Simulasi',
                 secondaryActionIcon: Icons.calculate_rounded,
-                onSecondaryAction: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Simulasi Deposito BPR DMB: Hasil bunga bulanan Rp 260.416 net'),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                },
+                onSecondaryAction: () => ProductSimulatorSheet.show(context, initialType: 'DEPOSITO'),
               ),
             ],
           ),

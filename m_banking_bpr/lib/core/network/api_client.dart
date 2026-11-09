@@ -184,6 +184,24 @@ class ApiClient {
     }
   }
 
+  Future<dynamic> delete(String path) async {
+    try {
+      final response = await dio.delete(path);
+      return _handleResponse(response);
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.connectionError && dio.options.baseUrl != ApiEndpoints.fallbackUrl) {
+        try {
+          dio.options.baseUrl = ApiEndpoints.fallbackUrl;
+          final retryRes = await dio.delete(path);
+          return _handleResponse(retryRes);
+        } catch (_) {
+          dio.options.baseUrl = ApiEndpoints.baseUrl;
+        }
+      }
+      throw _handleDioError(e);
+    }
+  }
+
   dynamic _handleResponse(Response response) {
     final data = response.data;
     if (data is Map<String, dynamic>) {

@@ -51,6 +51,17 @@ type AdminService interface {
 	MarkNotificationsRead(ctx context.Context, userID string) error
 	UpdateUserFCMToken(ctx context.Context, userID, fcmToken string) error
 	BroadcastNotification(ctx context.Context, title, message, category string) error
+
+	// Saved Beneficiaries
+	ListBeneficiaries(ctx context.Context, userID string) ([]model.SavedBeneficiary, error)
+	SaveBeneficiary(ctx context.Context, b *model.SavedBeneficiary) error
+	DeleteBeneficiary(ctx context.Context, id string, userID string) error
+
+	// Online Product Applications (Deposito & Pinjaman)
+	CreateProductApplication(ctx context.Context, userID string, app *model.ProductApplication) (*model.ProductApplication, error)
+	ListUserApplications(ctx context.Context, userID string) ([]model.ProductApplication, error)
+	ListAllApplications(ctx context.Context, productType string, limit int) ([]model.ProductApplication, error)
+	UpdateApplicationStatus(ctx context.Context, id string, status string, adminNotes string) (*model.ProductApplication, error)
 }
 
 type adminService struct {
@@ -258,4 +269,76 @@ func (s *adminService) BroadcastNotification(ctx context.Context, title, message
 	otpprovider.CreateNotificationAndPush(ctx, s.repo.DB(), "ALL", title, message, category)
 	otpprovider.RecordAuditLog(ctx, s.repo.DB(), "ADMIN", "BACKOFFICE", "Marketing / Admin", "BROADCAST_NOTIFICATION", "ALL_CUSTOMERS", "SUCCESS", "WEB-BACKOFFICE", fmt.Sprintf("Broadcast notifikasi [%s]: %s", category, title))
 	return nil
+}
+
+func (s *adminService) ListBeneficiaries(ctx context.Context, userID string) ([]model.SavedBeneficiary, error) {
+	return s.repo.ListBeneficiaries(ctx, userID)
+}
+
+func (s *adminService) SaveBeneficiary(ctx context.Context, b *model.SavedBeneficiary) error {
+	if b.AccountNumber == "" || b.AccountName == "" {
+		return errors.New("nomor rekening dan nama penerima wajib diisi")
+	}
+	if b.BankCode == "" {
+		b.BankCode = "BPR"
+	}
+	if b.BankName == "" {
+		b.BankName = "Bank DMB"
+	}
+	return s.repo.SaveBeneficiary(ctx, b)
+}
+
+func (s *adminService) DeleteBeneficiary(ctx context.Context, id string, userID string) error {
+	return s.repo.DeleteBeneficiary(ctx, id, userID)
+}
+
+func (s *adminService) CreateProductApplication(ctx context.Context, userID string, app *model.ProductApplication) (*model.ProductApplication, error) {
+	user, err := s.repo.GetCustomerByID(ctx, userID)
+	if err != nil || user == nil {
+		return nil, ErrCustomerNotFound
+	}
+	app.UserID = user.ID
+	app.CIF = user.CIF
+	app.FullName = user.FullName
+	app.PhoneNumber = user.PhoneNumber
+	app.Status = "PENDING"
+
+	if err := s.repo.CreateProductApplication(ctx, app); err != nil {
+		return nil, err
+	}
+
+	otpprovider.RecordAuditLog(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "SUBMIT_PRODUCT_APPLICATION", app.ProductName, "SUCCESS", user.DeviceID, fmt.Sprintf("Pengajuan %s sebesar Rp %.0f (Tenor %d bulan)", app.ProductName, app.Amount, app.TenorMonths))
+	otpprovider.CreateNotificationAndPush(ctx, s.repo.DB(), user.ID, "Pengajuan "+app.ProductName+" Diterima", fmt.Sprintf("Terima kasih %s, pengajuan %s sebesar Rp %.0f (Tenor %d bulan) telah diterima. Petugas Bank DMB akan segera menindaklanjuti pengajuan Anda.", user.FullName, app.ProductName, app.Amount, app.TenorMonths), "INFO")
+	return app, nil
+}
+
+func (s *adminService) ListUserApplications(ctx context.Context, userID string) ([]model.ProductApplication, error) {
+	return s.repo.ListUserApplications(ctx, userID)
+}
+
+func (s *adminService) ListAllApplications(ctx context.Context, productType string, limit int) ([]model.ProductApplication, error) {
+	return s.repo.ListAllApplications(ctx, productType, limit)
+}
+
+func (s *adminService) UpdateApplicationStatus(ctx context.Context, id string, status string, adminNotes string) (*model.ProductApplication, error) {
+	app, err := s.repo.UpdateApplicationStatus(ctx, id, status, adminNotes)
+	if err != nil {
+		return nil, err
+	}
+	statusLabel := app.Status
+	switch app.Status {
+	case "APPROVED":
+		statusLabel = "DISETUJUI"
+	case "CONTACTED":
+		statusLabel = "SEDANG DIPROSES / DIHUBUNGI CS"
+	case "REJECTED":
+		statusLabel = "BELUM DAPAT DISETUJUI"
+	}
+	msg := fmt.Sprintf("Status pengajuan %s Anda sebesar Rp %.0f kini: %s.", app.ProductName, app.Amount, statusLabel)
+	if adminNotes != "" {
+		msg += " Catatan Petugas: " + adminNotes
+	}
+	otpprovider.RecordAuditLog(ctx, s.repo.DB(), "ADMIN", "BACKOFFICE", "Petugas CS / Marketing", "UPDATE_APPLICATION_STATUS", app.FullName+" - "+app.ProductName, "SUCCESS", "WEB-BACKOFFICE", fmt.Sprintf("Status pengajuan diubah menjadi %s (%s)", app.Status, adminNotes))
+	otpprovider.CreateNotificationAndPush(ctx, s.repo.DB(), app.UserID, "Update Pengajuan "+app.ProductName, msg, "INFO")
+	return app, nil
 }

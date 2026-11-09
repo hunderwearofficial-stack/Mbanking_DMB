@@ -22,6 +22,7 @@ type AuthRepository interface {
 	FindAccountWithUser(ctx context.Context, accountNo string) (*model.Account, *model.User, error)
 	UpdateUserCredentials(ctx context.Context, userID, passwordHash, pinHash, phoneNumber, deviceID string) error
 	UpdatePasswordHash(ctx context.Context, userID, passwordHash, deviceID string) error
+	UpdateOnlyPINHash(ctx context.Context, userID, pinHash string) error
 	IncrementFailedLogin(ctx context.Context, userID string, maxAttempts int) (int, bool, error)
 	ResetFailedLogin(ctx context.Context, userID string) error
 	UpdateDeviceID(ctx context.Context, userID, deviceID string) error
@@ -179,6 +180,17 @@ func (r *authRepository) UpdatePasswordHash(ctx context.Context, userID, passwor
 		updates["device_id"] = deviceID
 	}
 	return r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", userID).Updates(updates).Error
+}
+
+func (r *authRepository) UpdateOnlyPINHash(ctx context.Context, userID, pinHash string) error {
+	if r.db == nil {
+		return nil
+	}
+	return r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+		"pin_hash":            pinHash,
+		"failed_pin_attempts": 0,
+		"updated_at":          time.Now(),
+	}).Error
 }
 
 func (r *authRepository) IncrementFailedLogin(ctx context.Context, userID string, maxAttempts int) (int, bool, error) {

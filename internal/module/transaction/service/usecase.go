@@ -30,6 +30,36 @@ func NewTransactionService(repo repository.TransactionRepository, cbsProv cbspro
 }
 
 func (s *transactionService) Transfer(ctx context.Context, req domain.TransferRequest, fromAccount string, userID string) (*domain.TransferResponse, error) {
+	// 0. Check AppConfig: Maintenance Mode, Minimum Transfer & Daily Transfer Limit
+	if cfg, cfgErr := s.repo.GetAppConfig(ctx); cfgErr == nil && cfg != nil {
+		if cfg.MaintenanceMode {
+			msg := cfg.MaintenanceMessage
+			if msg == "" {
+				msg = "Layanan transaksi sedang dalam pemeliharaan berkala. Silakan coba beberapa saat lagi."
+			}
+			return nil, errors.New(msg)
+		}
+		minTransfer := cfg.MinTransferAmount
+		if minTransfer <= 0 {
+			minTransfer = 10000
+		}
+		if req.Amount < minTransfer {
+			return nil, fmt.Errorf("nominal transfer minimal Rp %.0f", minTransfer)
+		}
+		dailyLimit := cfg.DailyTransferLimit
+		if dailyLimit <= 0 {
+			dailyLimit = 25000000
+		}
+		todayUsed := s.repo.GetTodayTransferTotal(ctx, userID, fromAccount)
+		if todayUsed+req.Amount > dailyLimit {
+			remaining := dailyLimit - todayUsed
+			if remaining < 0 {
+				remaining = 0
+			}
+			return nil, fmt.Errorf("melebihi batas limit transfer harian (Rp %.0f). Sisa limit Anda hari ini: Rp %.0f", dailyLimit, remaining)
+		}
+	}
+
 	// 1. Validate Customer PIN & Auto-Freeze after 3 failed PIN attempts
 	user, _ := s.repo.GetUserByID(ctx, userID)
 	if user != nil {

@@ -20,6 +20,12 @@ async function loadConfig() {
       document.getElementById('cfgEnforceDevice').checked = c.enforce_device_binding;
       document.getElementById('cfgMaintenance').checked = c.maintenance_mode;
       document.getElementById('cfgMaintenanceMsg').value = c.maintenance_message || '';
+      if (document.getElementById('cfgMinTransfer')) {
+        document.getElementById('cfgMinTransfer').value = c.min_transfer_amount || 10000;
+      }
+      if (document.getElementById('cfgDailyLimit')) {
+        document.getElementById('cfgDailyLimit').value = c.daily_transfer_limit || 25000000;
+      }
       if (document.getElementById('cfgOtpProvider')) {
         document.getElementById('cfgOtpProvider').value = c.otp_provider || 'SANDBOX';
       }
@@ -130,6 +136,8 @@ async function handleSaveConfig(e) {
     enforce_device_binding: document.getElementById('cfgEnforceDevice').checked,
     maintenance_mode: document.getElementById('cfgMaintenance').checked,
     maintenance_message: document.getElementById('cfgMaintenanceMsg').value.trim(),
+    min_transfer_amount: document.getElementById('cfgMinTransfer') ? Number(document.getElementById('cfgMinTransfer').value) || 10000 : 10000,
+    daily_transfer_limit: document.getElementById('cfgDailyLimit') ? Number(document.getElementById('cfgDailyLimit').value) || 25000000 : 25000000,
     otp_provider: document.getElementById('cfgOtpProvider') ? document.getElementById('cfgOtpProvider').value : 'SANDBOX',
     otp_gateway_url: document.getElementById('cfgOtpGatewayUrl') ? document.getElementById('cfgOtpGatewayUrl').value.trim() : '',
     otp_gateway_token: document.getElementById('cfgOtpGatewayToken') ? document.getElementById('cfgOtpGatewayToken').value.trim() : '',

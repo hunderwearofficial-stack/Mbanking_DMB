@@ -12,6 +12,7 @@ import '../../blocs/auth/auth_state.dart';
 import '../auth/login_screen.dart';
 import '../mutation/mutation_screen.dart';
 import '../notification/notification_screen.dart';
+import '../profile/security_settings_screen.dart';
 import 'widgets/balance_card.dart';
 import 'widgets/quick_menu_grid.dart';
 import 'widgets/promo_banner.dart';
@@ -25,6 +26,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String _uploadedLogoUrl = '';
+  bool _maintenanceMode = false;
+  String _maintenanceMessage = '';
 
   @override
   void initState() {
@@ -39,9 +42,11 @@ class _HomeScreenState extends State<HomeScreen> {
       final res = await apiClient.get('/api/v1/config');
       if (mounted && res is Map<String, dynamic>) {
         final logo = (res['logo_url'] as String?) ?? '';
-        if (logo.isNotEmpty) {
-          setState(() => _uploadedLogoUrl = logo);
-        }
+        setState(() {
+          if (logo.isNotEmpty) _uploadedLogoUrl = logo;
+          _maintenanceMode = res['maintenance_mode'] == true;
+          _maintenanceMessage = (res['maintenance_message'] as String?) ?? '';
+        });
       }
     } catch (_) {}
   }
@@ -411,18 +416,40 @@ class _HomeScreenState extends State<HomeScreen> {
                       }),
                     ],
                     const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.primary,
+                              side: const BorderSide(color: AppColors.primary),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              padding: const EdgeInsets.symmetric(vertical: 13),
+                            ),
+                            icon: const Icon(Icons.security_rounded, size: 18),
+                            label: const Text('Keamanan & PIN', style: TextStyle(fontWeight: FontWeight.w800)),
+                            onPressed: () {
+                              Navigator.pop(modalCtx);
+                              Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const SecuritySettingsScreen()),
+                              );
+                            },
+                          ),
                         ),
-                        onPressed: () => Navigator.pop(modalCtx),
-                        child: const Text('Tutup Profil CBS', style: TextStyle(fontWeight: FontWeight.w700)),
-                      ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              padding: const EdgeInsets.symmetric(vertical: 13),
+                            ),
+                            onPressed: () => Navigator.pop(modalCtx),
+                            child: const Text('Tutup Profil', style: TextStyle(fontWeight: FontWeight.w700)),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -606,6 +633,31 @@ class _HomeScreenState extends State<HomeScreen> {
                     // 1. Executive Top Header (Consistent with Backoffice)
                     _buildExecutiveHeader(),
 
+                    if (_maintenanceMode)
+                      Container(
+                        margin: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF1F2),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFFFECDD3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.warning_amber_rounded, color: AppColors.danger, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _maintenanceMessage.isNotEmpty
+                                    ? _maintenanceMessage
+                                    : 'Sistem sedang dalam pemeliharaan berkala.',
+                                style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.danger),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
                     const SizedBox(height: 14),
 
                     // 2. Luxury Wondr Balance Card (Tabungan DMB + Saldo + Copy + Detail)
@@ -687,19 +739,41 @@ class _HomeScreenState extends State<HomeScreen> {
                       alignment: Alignment.centerLeft,
                     ),
 
-              // Right: Clean Exit / Logout Icon
-              InkWell(
-                onTap: _onLogout,
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
+              // Right: Security Settings + Clean Exit / Logout Icon
+              Row(
+                children: [
+                  InkWell(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const SecuritySettingsScreen()),
+                      );
+                    },
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.border),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0FDF4),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFBBF7D0)),
+                      ),
+                      child: const Icon(Icons.shield_outlined, color: AppColors.primary, size: 20),
+                    ),
                   ),
-                  child: const Icon(Icons.logout_rounded, color: AppColors.textPrimary, size: 20),
-                ),
+                  const SizedBox(width: 8),
+                  InkWell(
+                    onTap: _onLogout,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: const Icon(Icons.logout_rounded, color: AppColors.textPrimary, size: 20),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

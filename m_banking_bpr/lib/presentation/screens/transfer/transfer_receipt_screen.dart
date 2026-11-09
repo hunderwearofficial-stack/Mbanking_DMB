@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../data/models/transfer_model.dart';
@@ -135,9 +136,25 @@ class TransferReceiptScreen extends StatelessWidget {
                       icon: const Icon(Icons.share_outlined, color: AppColors.primary, size: 20),
                       label: const Text('Bagikan Resi', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
                       onPressed: () {
+                        final formattedReceipt = '=== STRUK TRANSFER RESMI BANK DMB ===\n'
+                            'PT BPR DANA MANDIRI BOGOR\n'
+                            'Status        : BERHASIL (SUCCESS)\n'
+                            'Waktu         : ${CurrencyFormatter.formatDate(receipt.timestamp)}\n'
+                            'No. Referensi : ${receipt.referenceNo}\n'
+                            'Bank Tujuan   : ${receipt.toBankName}\n'
+                            'Rek. Penerima : ${receipt.toAccount}\n'
+                            'Nama Penerima : ${receipt.toAccountName}\n'
+                            'Rek. Pengirim : ${receipt.fromAccount}\n'
+                            'Nominal       : ${CurrencyFormatter.formatRupiah(receipt.amount)}\n'
+                            'Biaya Admin   : ${CurrencyFormatter.formatRupiah(receipt.fee)}\n'
+                            'Total Debet   : ${CurrencyFormatter.formatRupiah(receipt.totalAmount)}\n'
+                            '${receipt.note.isNotEmpty ? "Catatan       : ${receipt.note}\n" : ""}'
+                            '=====================================';
+                        Clipboard.setData(ClipboardData(text: formattedReceipt));
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Simulasi: Bukti resi berhasil disimpan / dibagikan'),
+                            content: Text('Struk digital resmi Bank DMB berhasil disalin! Siap ditempel ke WhatsApp/Email.'),
+                            backgroundColor: AppColors.primary,
                             behavior: SnackBarBehavior.floating,
                           ),
                         );

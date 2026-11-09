@@ -60,6 +60,8 @@ func main() {
 			&model.AppConfig{},
 			&model.AuditLog{},
 			&model.Notification{},
+			&model.SavedBeneficiary{},
+			&model.ProductApplication{},
 		); migrateErr != nil {
 			log.Error("Gagal menjalankan AutoMigrate GORM", map[string]interface{}{"error": migrateErr.Error()})
 		} else {
@@ -191,6 +193,8 @@ func main() {
 				adminProtected.GET("/transactions", adminHandler.ListTransactions)
 				adminProtected.GET("/audit-logs", adminHandler.ListAuditLogs)
 				adminProtected.POST("/notifications/broadcast", adminHandler.BroadcastNotification)
+				adminProtected.GET("/applications", adminHandler.ListAllApplicationsAdmin)
+				adminProtected.PUT("/applications/:id/status", adminHandler.UpdateApplicationStatusAdmin)
 				adminProtected.GET("/config", adminHandler.GetConfig)
 				adminProtected.PUT("/config", adminHandler.UpdateConfig)
 				adminProtected.POST("/upload", adminHandler.UploadFile)
@@ -205,6 +209,19 @@ func main() {
 		protected := v1.Group("")
 		protected.Use(authMiddleware)
 		{
+			// Security Self-Service Routes (Change Password & Change PIN)
+			protected.POST("/auth/change-password", authHandler.ChangePassword)
+			protected.POST("/auth/change-pin", authHandler.ChangePIN)
+
+			// Saved Beneficiaries (Favorite Transfer Accounts)
+			protected.GET("/beneficiaries", adminHandler.ListBeneficiaries)
+			protected.POST("/beneficiaries", adminHandler.SaveBeneficiary)
+			protected.DELETE("/beneficiaries/:id", adminHandler.DeleteBeneficiary)
+
+			// Online Product Applications (Deposito & Pinjaman)
+			protected.GET("/applications", adminHandler.ListUserApplications)
+			protected.POST("/applications", adminHandler.CreateProductApplication)
+
 			// Account Routes
 			accountGroup := protected.Group("/account")
 			{

@@ -13,6 +13,11 @@ class ApiEndpoints {
   static const String forgotPasswordRequest = '/api/v1/auth/forgot-password/request';
   static const String forgotPasswordOtp = '/api/v1/auth/forgot-password/otp';
   static const String forgotPasswordReset = '/api/v1/auth/forgot-password/reset';
+  static const String changePassword = '/api/v1/auth/change-password';
+  static const String changePin = '/api/v1/auth/change-pin';
+  static const String beneficiaries = '/api/v1/beneficiaries';
+  static const String applications = '/api/v1/applications';
+  static const String appConfig = '/api/v1/config';
   static const String notifications = '/api/v1/notifications';
   static const String notificationsRead = '/api/v1/notifications/read';
   static const String notificationsFcmToken = '/api/v1/notifications/fcm-token';

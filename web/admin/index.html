@@ -464,6 +464,53 @@
                 </table>
               </div>
             </div>
+
+            <!-- Online Product Applications Card (Deposito & Pinjaman) -->
+            <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <h3 class="text-base font-bold text-slate-800">Pengajuan Online Deposito Berjangka & Pinjaman (Mobile DMB)</h3>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">Leads Nasabah</span>
+                  </div>
+                  <p class="text-xs text-slate-500">Daftar pengajuan pembukaan Deposito Berjangka DMB & Kredit/Pinjaman yang dikirim nasabah dari aplikasi Mobile DMB</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <select id="appProductFilter" onchange="loadProductApplications()"
+                    class="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-slate-50 focus:outline-none">
+                    <option value="ALL">Semua Produk</option>
+                    <option value="DEPOSITO">Deposito Berjangka</option>
+                    <option value="PINJAMAN">Pinjaman / Kredit</option>
+                  </select>
+                  <button onclick="loadProductApplications()"
+                    class="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-700 transition flex items-center gap-1.5">
+                    <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+                    <span>Refresh</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="overflow-x-auto rounded-xl border border-slate-200/70">
+                <table class="w-full text-left text-xs">
+                  <thead class="bg-slate-50 text-slate-600 uppercase tracking-wider font-bold border-b border-slate-200">
+                    <tr>
+                      <th class="py-3 px-4">Waktu Pengajuan</th>
+                      <th class="py-3 px-4">Nasabah & Kontak</th>
+                      <th class="py-3 px-4">Produk</th>
+                      <th class="py-3 px-4">Nominal & Tenor</th>
+                      <th class="py-3 px-4">Estimasi Bunga / Cicilan</th>
+                      <th class="py-3 px-4">Status</th>
+                      <th class="py-3 px-4 text-center">Tindak Lanjut CS</th>
+                    </tr>
+                  </thead>
+                  <tbody id="productApplicationsTableBody" class="divide-y divide-slate-100">
+                    <tr>
+                      <td colspan="7" class="py-8 text-center text-slate-400">Memuat daftar pengajuan produk nasabah...</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </section>
 
           <!-- ==================== TAB 3: CMS BANNER PROMOSI ==================== -->
@@ -856,12 +903,25 @@
                 </div>
               </div>
 
-              <!-- Keamanan & Maintenance (Full Width) -->
+              <!-- Keamanan, Limit Transaksi & Maintenance (Full Width) -->
               <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
                 <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-2">
                   <i data-lucide="shield" class="w-4 h-4 text-purple-600"></i>
-                  <span>Keamanan Sistem & Maintenance Mode</span>
+                  <span>Kebijakan Limit Transaksi, Keamanan Sistem & Maintenance Mode</span>
                 </h4>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Minimal Nominal Sekali Transfer (Rp)</label>
+                    <input type="number" id="cfgMinTransfer" value="10000" min="1000" step="1000"
+                      class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 font-bold text-slate-800">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Batas Maksimal Limit Transfer Harian Nasabah (Rp)</label>
+                    <input type="number" id="cfgDailyLimit" value="25000000" min="100000" step="500000"
+                      class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 font-bold text-slate-800">
+                  </div>
+                </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div class="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-200/80">

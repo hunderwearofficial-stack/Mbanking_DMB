@@ -51,6 +51,8 @@ type AuthService interface {
 	RequestForgotPassword(ctx context.Context, req domain.ForgotPasswordRequest) (*domain.ActivateVerifyResponse, error)
 	VerifyForgotPasswordOTP(ctx context.Context, req domain.ForgotPasswordVerifyOTPRequest) error
 	ResetForgotPassword(ctx context.Context, req domain.ForgotPasswordResetRequest) error
+	ChangePassword(ctx context.Context, userID string, req domain.ChangePasswordRequest) error
+	ChangePIN(ctx context.Context, userID string, req domain.ChangePINRequest) error
 }
 
 type authService struct {
@@ -640,5 +642,60 @@ func (s *authService) ResetForgotPassword(ctx context.Context, req domain.Forgot
 	otpprovider.RecordAuditLog(ctx, s.repo.DB(), "NASABAH", session.UserID, session.FullName, "RESET_PASSWORD_SUCCESS", session.PhoneNumber, "SUCCESS", req.DeviceID, "Password akun berhasil di-reset melalui verifikasi OTP")
 	otpprovider.CreateNotificationAndPush(ctx, s.repo.DB(), session.UserID, "Password Berhasil Diperbarui", "Password login Mobile DMB Anda baru saja diperbarui. Jika Anda tidak merasa melakukan perubahan ini, segera hubungi CS Bank DMB.", "SECURITY")
 
+	return nil
+}
+
+func (s *authService) ChangePassword(ctx context.Context, userID string, req domain.ChangePasswordRequest) error {
+	user, err := s.repo.FindByID(ctx, userID)
+	if err != nil || user == nil {
+		return errors.New("data akun nasabah tidak ditemukan")
+	}
+	if !utils.CheckPassword(user.PasswordHash, req.OldPassword) {
+		otpprovider.RecordAuditLog(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "CHANGE_PASSWORD_FAILED", user.PhoneNumber, "WARNING", user.DeviceID, "Gagal ganti password: password lama tidak sesuai")
+		return errors.New("password lama yang Anda masukkan salah")
+	}
+	if len(strings.TrimSpace(req.NewPassword)) < 8 {
+		return ErrPasswordTooShort
+	}
+	if req.OldPassword == req.NewPassword {
+		return errors.New("password baru tidak boleh sama dengan password lama")
+	}
+	pwHash, err := utils.HashPassword(req.NewPassword)
+	if err != nil {
+		return err
+	}
+	if err := s.repo.UpdatePasswordHash(ctx, user.ID, pwHash, ""); err != nil {
+		return err
+	}
+	otpprovider.RecordAuditLog(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "CHANGE_PASSWORD_SUCCESS", user.PhoneNumber, "SUCCESS", user.DeviceID, "Nasabah berhasil mengganti password login")
+	otpprovider.CreateNotificationAndPush(ctx, s.repo.DB(), user.ID, "Password Login Diperbarui", "Password login Mobile DMB Anda telah berhasil diganti melalui menu Pengaturan Keamanan.", "SECURITY")
+	return nil
+}
+
+func (s *authService) ChangePIN(ctx context.Context, userID string, req domain.ChangePINRequest) error {
+	user, err := s.repo.FindByID(ctx, userID)
+	if err != nil || user == nil {
+		return errors.New("data akun nasabah tidak ditemukan")
+	}
+	if !utils.CheckPIN(user.PINHash, req.OldPIN) {
+		otpprovider.RecordAuditLog(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "CHANGE_PIN_FAILED", user.PhoneNumber, "WARNING", user.DeviceID, "Gagal ganti PIN: PIN lama tidak sesuai")
+		return errors.New("PIN transaksi lama yang Anda masukkan salah")
+	}
+	newPin := strings.TrimSpace(req.NewPIN)
+	if len(newPin) != 6 {
+		return ErrPINInvalidLength
+	}
+	if req.OldPIN == newPin {
+		return errors.New("PIN baru tidak boleh sama dengan PIN lama")
+	}
+	pinHash, err := utils.HashPIN(newPin)
+	if err != nil {
+		return err
+	}
+	if err := s.repo.UpdateOnlyPINHash(ctx, user.ID, pinHash); err != nil {
+		return err
+	}
+	otpprovider.RecordAuditLog(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "CHANGE_PIN_SUCCESS", user.PhoneNumber, "SUCCESS", user.DeviceID, "Nasabah berhasil mengganti PIN Transaksi 6 Digit")
+	otpprovider.CreateNotificationAndPush(ctx, s.repo.DB(), user.ID, "PIN Transaksi Diperbarui", "PIN Transaksi 6 Digit Mobile DMB Anda telah berhasil diganti melalui menu Pengaturan Keamanan.", "SECURITY")
 	return nil
 }

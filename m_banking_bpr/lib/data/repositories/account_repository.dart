@@ -88,5 +88,89 @@ class AccountRepository {
       await apiClient.post(ApiEndpoints.notificationsRead, data: {});
     } catch (_) {}
   }
+
+  Future<Map<String, dynamic>> getAppConfig() async {
+    try {
+      final response = await apiClient.get(ApiEndpoints.appConfig);
+      if (response is Map<String, dynamic>) {
+        return response;
+      }
+    } catch (_) {}
+    return {};
+  }
+
+  // ==================== SAVED BENEFICIARIES ====================
+
+  Future<List<Map<String, dynamic>>> getBeneficiaries() async {
+    try {
+      final response = await apiClient.get(ApiEndpoints.beneficiaries);
+      if (response is List) {
+        return List<Map<String, dynamic>>.from(response);
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  Future<void> saveBeneficiary({
+    required String bankCode,
+    required String bankName,
+    required String accountNumber,
+    required String accountName,
+    String nickname = '',
+  }) async {
+    await apiClient.post(
+      ApiEndpoints.beneficiaries,
+      data: {
+        'bank_code': bankCode,
+        'bank_name': bankName,
+        'account_number': accountNumber,
+        'account_name': accountName,
+        'nickname': nickname,
+      },
+    );
+  }
+
+  Future<void> deleteBeneficiary(String id) async {
+    await apiClient.delete('${ApiEndpoints.beneficiaries}/$id');
+  }
+
+  // ==================== ONLINE PRODUCT APPLICATIONS ====================
+
+  Future<List<Map<String, dynamic>>> getUserApplications() async {
+    try {
+      final response = await apiClient.get(ApiEndpoints.applications);
+      if (response is List) {
+        return List<Map<String, dynamic>>.from(response);
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  Future<Map<String, dynamic>> submitProductApplication({
+    required String productType,
+    required String productName,
+    required double amount,
+    required int tenorMonths,
+    required String interestRate,
+    required double estimatedReturn,
+    required String purposeOrSource,
+  }) async {
+    final response = await apiClient.post(
+      ApiEndpoints.applications,
+      data: {
+        'product_type': productType,
+        'product_name': productName,
+        'amount': amount,
+        'tenor_months': tenorMonths,
+        'interest_rate': interestRate,
+        'estimated_return': estimatedReturn,
+        'purpose_or_source': purposeOrSource,
+      },
+    );
+    if (response is Map<String, dynamic>) {
+      return response;
+    }
+    return {};
+  }
 }
 

@@ -400,3 +400,101 @@ func (h *AdminHandler) UpdateUserFCMToken(c *gin.Context) {
 	response.Success(c, "FCM token perangkat berhasil didaftarkan", gin.H{"registered": true})
 }
 
+// ListBeneficiaries handles GET /api/v1/beneficiaries
+func (h *AdminHandler) ListBeneficiaries(c *gin.Context) {
+	userID := c.GetString(middleware.CtxUserID)
+	list, err := h.adminService.ListBeneficiaries(c.Request.Context(), userID)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "Gagal memuat daftar rekening favorit", "99", err.Error())
+		return
+	}
+	response.Success(c, "Daftar rekening tujuan favorit berhasil dimuat", list)
+}
+
+// SaveBeneficiary handles POST /api/v1/beneficiaries
+func (h *AdminHandler) SaveBeneficiary(c *gin.Context) {
+	userID := c.GetString(middleware.CtxUserID)
+	var req model.SavedBeneficiary
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "Data rekening tujuan tidak valid", "01", err.Error())
+		return
+	}
+	req.UserID = userID
+	if err := h.adminService.SaveBeneficiary(c.Request.Context(), &req); err != nil {
+		response.Error(c, http.StatusBadRequest, err.Error(), "01", nil)
+		return
+	}
+	response.Success(c, "Rekening tujuan berhasil disimpan ke daftar favorit", req)
+}
+
+// DeleteBeneficiary handles DELETE /api/v1/beneficiaries/:id
+func (h *AdminHandler) DeleteBeneficiary(c *gin.Context) {
+	userID := c.GetString(middleware.CtxUserID)
+	id := c.Param("id")
+	if err := h.adminService.DeleteBeneficiary(c.Request.Context(), id, userID); err != nil {
+		response.Error(c, http.StatusInternalServerError, "Gagal menghapus rekening favorit", "99", err.Error())
+		return
+	}
+	response.Success(c, "Rekening favorit berhasil dihapus", gin.H{"deleted": true})
+}
+
+// CreateProductApplication handles POST /api/v1/applications
+func (h *AdminHandler) CreateProductApplication(c *gin.Context) {
+	userID := c.GetString(middleware.CtxUserID)
+	var req model.ProductApplication
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "Data pengajuan produk tidak lengkap", "01", err.Error())
+		return
+	}
+	app, err := h.adminService.CreateProductApplication(c.Request.Context(), userID, &req)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, err.Error(), "01", nil)
+		return
+	}
+	response.Success(c, "Pengajuan berhasil dikirim! Petugas Bank DMB akan segera menindaklanjuti.", app)
+}
+
+// ListUserApplications handles GET /api/v1/applications
+func (h *AdminHandler) ListUserApplications(c *gin.Context) {
+	userID := c.GetString(middleware.CtxUserID)
+	list, err := h.adminService.ListUserApplications(c.Request.Context(), userID)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "Gagal memuat riwayat pengajuan", "99", err.Error())
+		return
+	}
+	response.Success(c, "Riwayat pengajuan berhasil dimuat", list)
+}
+
+// ListAllApplicationsAdmin handles GET /api/v1/admin/applications
+func (h *AdminHandler) ListAllApplicationsAdmin(c *gin.Context) {
+	productType := c.DefaultQuery("type", "ALL")
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	list, err := h.adminService.ListAllApplications(c.Request.Context(), productType, limit)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "Gagal memuat daftar pengajuan nasabah", "99", err.Error())
+		return
+	}
+	response.Success(c, "Daftar pengajuan produk nasabah berhasil dimuat", list)
+}
+
+type UpdateApplicationStatusRequest struct {
+	Status     string `json:"status" binding:"required"`
+	AdminNotes string `json:"admin_notes"`
+}
+
+// UpdateApplicationStatusAdmin handles PUT /api/v1/admin/applications/:id/status
+func (h *AdminHandler) UpdateApplicationStatusAdmin(c *gin.Context) {
+	id := c.Param("id")
+	var req UpdateApplicationStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "Status wajib diisi", "01", err.Error())
+		return
+	}
+	app, err := h.adminService.UpdateApplicationStatus(c.Request.Context(), id, req.Status, req.AdminNotes)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "Gagal memperbarui status pengajuan", "99", err.Error())
+		return
+	}
+	response.Success(c, "Status pengajuan nasabah berhasil diperbarui", app)
+}
+

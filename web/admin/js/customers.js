@@ -66,6 +66,111 @@ async function loadCustomers() {
   } catch (e) {
     tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-rose-500">Gagal memuat data: ${e.message}</td></tr>`;
   }
+
+  loadProductApplications();
+}
+
+async function loadProductApplications() {
+  const tbody = document.getElementById('productApplicationsTableBody');
+  if (!tbody) return;
+  const filterEl = document.getElementById('appProductFilter');
+  const type = filterEl ? filterEl.value : 'ALL';
+
+  try {
+    const { ok, json } = await safeFetch(`/admin/applications?type=${encodeURIComponent(type)}&limit=50`, {
+      headers: getAuthHeaders()
+    });
+
+    if (ok && json.data && json.data.length > 0) {
+      tbody.innerHTML = json.data.map(app => {
+        const dt = app.created_at ? new Date(app.created_at).toLocaleString('id-ID') : '-';
+        const isDeposito = app.product_type === 'DEPOSITO';
+        const prodBadge = isDeposito
+          ? `<span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-teal-50 text-[#00897B] border border-teal-200">DEPOSITO</span>`
+          : `<span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200">PINJAMAN</span>`;
+
+        let statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">MENUNGGU CS</span>`;
+        if (app.status === 'CONTACTED') {
+          statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">DIHUBUNGI CS</span>`;
+        } else if (app.status === 'APPROVED') {
+          statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">DISETUJUI</span>`;
+        } else if (app.status === 'REJECTED') {
+          statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">DITOLAK</span>`;
+        }
+
+        const amountFmt = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(app.amount || 0);
+        const estFmt = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(app.estimated_return || 0);
+
+        return `
+          <tr class="hover:bg-slate-50/80 transition">
+            <td class="py-3 px-4 font-mono text-[11px] text-slate-500">${dt}</td>
+            <td class="py-3 px-4">
+              <div class="font-bold text-slate-900">${app.full_name}</div>
+              <div class="text-[11px] font-mono text-slate-500">CIF: ${app.cif || '-'} &bull; HP: ${app.phone_number}</div>
+            </td>
+            <td class="py-3 px-4">
+              <div class="flex items-center gap-1.5 mb-0.5">${prodBadge}</div>
+              <div class="font-bold text-slate-800 text-xs">${app.product_name}</div>
+              <div class="text-[10px] text-slate-500">${app.purpose_or_source || ''}</div>
+            </td>
+            <td class="py-3 px-4">
+              <div class="font-extrabold text-slate-900">${amountFmt}</div>
+              <div class="text-[11px] text-slate-500">Tenor: <strong>${app.tenor_months} Bulan</strong> (${app.interest_rate || '-'})</div>
+            </td>
+            <td class="py-3 px-4">
+              <div class="font-bold text-emerald-700">${estFmt}</div>
+              <div class="text-[10px] text-slate-400">${isDeposito ? 'Est. Bunga Bersih' : 'Est. Angsuran/Bln'}</div>
+            </td>
+            <td class="py-3 px-4">
+              ${statusBadge}
+              ${app.admin_notes ? `<div class="text-[10px] text-slate-500 mt-1 italic">"${app.admin_notes}"</div>` : ''}
+            </td>
+            <td class="py-3 px-4">
+              <div class="flex items-center justify-center gap-1.5">
+                <button onclick="updateProductAppStatus('${app.id}', 'CONTACTED', '${app.product_name}', '${app.full_name}')"
+                  class="px-2 py-1 rounded-lg text-[10px] font-bold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition">
+                  Proses
+                </button>
+                <button onclick="updateProductAppStatus('${app.id}', 'APPROVED', '${app.product_name}', '${app.full_name}')"
+                  class="px-2 py-1 rounded-lg text-[10px] font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition">
+                  Setujui
+                </button>
+                <button onclick="updateProductAppStatus('${app.id}', 'REJECTED', '${app.product_name}', '${app.full_name}')"
+                  class="px-2 py-1 rounded-lg text-[10px] font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition">
+                  Tolak
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    } else {
+      tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">Belum ada pengajuan Deposito / Pinjaman dari aplikasi Mobile DMB</td></tr>`;
+    }
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-rose-500">Gagal memuat pengajuan: ${e.message}</td></tr>`;
+  }
+}
+
+async function updateProductAppStatus(id, status, productName, customerName) {
+  const note = prompt(`Masukkan catatan tindak lanjut untuk ${customerName} (${productName}) [Status: ${status}]:`, 'Petugas CS Bank DMB telah memverifikasi pengajuan Anda.');
+  if (note === null) return;
+
+  try {
+    const { ok, json } = await safeFetch(`/admin/applications/${id}/status`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ status: status, admin_notes: note })
+    });
+    if (ok && json.success) {
+      showToast(`Status pengajuan ${customerName} diperbarui & notifikasi dikirim ke HP nasabah!`, 'success');
+      loadProductApplications();
+    } else {
+      showToast(json.message || 'Gagal memperbarui status pengajuan', 'error');
+    }
+  } catch (e) {
+    showToast('Error: ' + e.message, 'error');
+  }
 }
 
 async function resetCustomerDevice(userId, fullName) {

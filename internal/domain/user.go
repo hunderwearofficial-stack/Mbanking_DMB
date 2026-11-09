@@ -91,3 +91,13 @@ type ForgotPasswordResetRequest struct {
 	NewPassword string `json:"new_password" binding:"required"`
 	DeviceID    string `json:"device_id"`
 }
+
+type ChangePasswordRequest struct {
+	OldPassword string `json:"old_password" binding:"required"`
+	NewPassword string `json:"new_password" binding:"required"`
+}
+
+type ChangePINRequest struct {
+	OldPIN string `json:"old_pin" binding:"required"`
+	NewPIN string `json:"new_pin" binding:"required"`
+}

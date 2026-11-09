@@ -194,5 +194,35 @@ class AuthRepository {
     );
     return true;
   }
+
+  // ==================== SECURITY SELF-SERVICE ====================
+
+  Future<bool> changePassword({
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    await apiClient.post(
+      ApiEndpoints.changePassword,
+      data: {
+        'old_password': oldPassword,
+        'new_password': newPassword,
+      },
+    );
+    return true;
+  }
+
+  Future<bool> changePin({
+    required String oldPin,
+    required String newPin,
+  }) async {
+    await apiClient.post(
+      ApiEndpoints.changePin,
+      data: {
+        'old_pin': oldPin,
+        'new_pin': newPin,
+      },
+    );
+    return true;
+  }
 }
 
