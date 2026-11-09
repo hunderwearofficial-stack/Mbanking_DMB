@@ -93,10 +93,10 @@ func (s *authService) Login(ctx context.Context, req domain.LoginRequest) (*doma
 			return nil, ErrUserInactive
 		}
 
-		// Device Binding Validation & Auto-Binding
+		// Device Binding Validation & Auto-Binding (also auto-upgrades legacy DEVICE-DEMO-001 to real hardware ID)
 		if req.DeviceID != "" {
-			if user.DeviceID == "" {
-				// First login on a device: bind this device
+			if user.DeviceID == "" || (user.DeviceID == "DEVICE-DEMO-001" && req.DeviceID != "DEVICE-DEMO-001") {
+				// First login on a device or upgrading from demo ID: bind this real hardware device
 				user.DeviceID = req.DeviceID
 				_ = s.repo.UpdateDeviceID(ctx, user.ID, req.DeviceID)
 			} else if user.DeviceID != req.DeviceID {
@@ -473,7 +473,10 @@ func (s *authService) RefreshToken(ctx context.Context, req domain.RefreshTokenR
 	if deviceID == "" {
 		deviceID = claims.DeviceID
 	}
-	if user.DeviceID != "" && deviceID != "" && user.DeviceID != deviceID {
+	if user.DeviceID == "" || (user.DeviceID == "DEVICE-DEMO-001" && deviceID != "" && deviceID != "DEVICE-DEMO-001") {
+		user.DeviceID = deviceID
+		_ = s.repo.UpdateDeviceID(ctx, user.ID, deviceID)
+	} else if user.DeviceID != "" && deviceID != "" && user.DeviceID != deviceID {
 		return nil, ErrDeviceBindingMismatch
 	}
 

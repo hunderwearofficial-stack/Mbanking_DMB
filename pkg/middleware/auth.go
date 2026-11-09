@@ -62,8 +62,8 @@ func AuthMiddleware(cfg AuthConfig) gin.HandlerFunc {
 				return
 			}
 
-			// Validate with token claims
-			if claims.DeviceID != "" && claims.DeviceID != headerDeviceID {
+			// Validate with token claims (allow seamless upgrade from legacy DEVICE-DEMO-001)
+			if claims.DeviceID != "" && claims.DeviceID != "DEVICE-DEMO-001" && claims.DeviceID != headerDeviceID {
 				response.Unauthorized(c, response.CodeUnauthorized, "Device ID tidak sesuai dengan token sesi (Device Binding Mismatch)")
 				c.Abort()
 				return
@@ -84,7 +84,10 @@ func AuthMiddleware(cfg AuthConfig) gin.HandlerFunc {
 					return
 				}
 
-				if user.DeviceID != "" && user.DeviceID != headerDeviceID {
+				if (user.DeviceID == "" || user.DeviceID == "DEVICE-DEMO-001") && headerDeviceID != "" && headerDeviceID != "DEVICE-DEMO-001" {
+					_ = cfg.DB.WithContext(c.Request.Context()).Model(&model.User{}).Where("id = ?", user.ID).Update("device_id", headerDeviceID).Error
+					user.DeviceID = headerDeviceID
+				} else if user.DeviceID != "" && user.DeviceID != headerDeviceID {
 					response.Unauthorized(c, response.CodeUnauthorized, "Perangkat ini tidak terdaftar untuk akun Anda (Device Binding Terkunci)")
 					c.Abort()
 					return

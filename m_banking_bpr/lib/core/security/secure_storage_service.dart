@@ -1,6 +1,9 @@
+import 'dart:math';
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class SecureStorageService {
+  static const MethodChannel _deviceChannel = MethodChannel('com.bprdmb.mbanking/device_info');
   static const String _keyAccessToken = 'jwt_access_token';
   static const String _keyRefreshToken = 'jwt_refresh_token';
   static const String _keyDeviceID = 'app_device_id';
@@ -91,10 +94,24 @@ class SecureStorageService {
 
   Future<String> getDeviceID() async {
     String? deviceID = await _read(_keyDeviceID);
-    if (deviceID == null || deviceID.isEmpty) {
-      // Use standard demo device ID or generate a stable UUID
-      deviceID = 'DEVICE-DEMO-001';
-      await _write(_keyDeviceID, deviceID);
+    if (deviceID == null || deviceID.isEmpty || deviceID == 'DEVICE-DEMO-001') {
+      try {
+        final hwId = await _deviceChannel.invokeMethod<String>('getHardwareDeviceId');
+        if (hwId != null && hwId.trim().isNotEmpty) {
+          deviceID = hwId.trim();
+          await _write(_keyDeviceID, deviceID);
+          return deviceID;
+        }
+      } catch (_) {
+        // Fallback for non-Android platforms (iOS/Web/Desktop)
+      }
+
+      if (deviceID == null || deviceID.isEmpty || deviceID == 'DEVICE-DEMO-001') {
+        final rand = Random.secure();
+        final hex = List.generate(8, (_) => rand.nextInt(16).toRadixString(16)).join().toUpperCase();
+        deviceID = 'MOBILE-DMB-$hex';
+        await _write(_keyDeviceID, deviceID);
+      }
     }
     return deviceID;
   }
