@@ -83,7 +83,7 @@ class MBankingBPRApp extends StatelessWidget {
         ],
         child: MaterialApp(
           navigatorKey: appNavigatorKey,
-          title: 'Mobile BPR',
+          title: 'Mobile DMB',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,
           localizationsDelegates: const [
