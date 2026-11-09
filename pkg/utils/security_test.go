@@ -47,10 +47,10 @@ func TestPINValidationAndHashing(t *testing.T) {
 func TestJWTTokenPairAndClaims(t *testing.T) {
 	secret := "test-secret-key-123"
 	userID := "usr-uuid-001"
-	cif := "CIF998877"
-	phone := "081234567890"
-	accountNo := "1001002003"
-	deviceID := "DEVICE-TEST-001"
+	cif := "000000000000"
+	phone := "080000000000"
+	accountNo := "0000000000000000"
+	deviceID := "SAMSUNG-SM_A546E-12345678"
 
 	tokens, err := GenerateTokenPair(userID, cif, phone, accountNo, deviceID, secret, 15, 7)
 	if err != nil {

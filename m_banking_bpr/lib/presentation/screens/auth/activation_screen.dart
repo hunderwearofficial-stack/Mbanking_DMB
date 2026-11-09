@@ -250,13 +250,6 @@ class _ActivationScreenState extends State<ActivationScreen> {
     );
   }
 
-  void _autofillDemo() {
-    setState(() {
-      _accountController.text = '0500103000003289';
-      _phoneController.text = '081234567890';
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -427,7 +420,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
 
         // Input 1: Nomor Rekening
         const Text(
-          'Nomor Rekening Tabungan',
+          'Nomor Rekening Tabungan / CIF',
           style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
         ),
         const SizedBox(height: 8),
@@ -435,7 +428,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
           controller: _accountController,
           keyboardType: TextInputType.number,
           decoration: InputDecoration(
-            hintText: 'Contoh: 0500103000003289',
+            hintText: 'Masukkan Nomor Rekening atau CIF',
             prefixIcon: const Icon(Icons.wallet_rounded, color: Color(0xFF94A3B8), size: 20),
             filled: true,
             fillColor: Colors.white,
@@ -456,7 +449,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
           controller: _phoneController,
           keyboardType: TextInputType.phone,
           decoration: InputDecoration(
-            hintText: 'Contoh: 081234567890',
+            hintText: 'Masukkan Nomor Handphone Aktif',
             prefixIcon: const Icon(Icons.phone_android_rounded, color: Color(0xFF94A3B8), size: 20),
             filled: true,
             fillColor: Colors.white,

@@ -38,13 +38,6 @@ function checkAuth() {
   }
 }
 
-function fillDemoAdmin() {
-  const userInp = document.getElementById('loginUsername');
-  const passInp = document.getElementById('loginPassword');
-  if (userInp) userInp.value = 'admin';
-  if (passInp) passInp.value = 'admin123';
-}
-
 function toggleLoginPasswordVisibility() {
   const passInp = document.getElementById('loginPassword');
   const eyeIcon = document.getElementById('loginEyeIcon');

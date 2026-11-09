@@ -316,7 +316,7 @@ class _TransferScreenState extends State<TransferScreen> {
                             keyboardType: TextInputType.number,
                             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                             decoration: const InputDecoration(
-                              hintText: 'Contoh: 0500103000003364',
+                              hintText: 'Masukkan Nomor Rekening Tujuan',
                               prefixIcon: Icon(Icons.credit_card_rounded, color: AppColors.primary),
                             ),
                           ),

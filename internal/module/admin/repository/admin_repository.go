@@ -92,38 +92,6 @@ func (r *adminRepository) initMemoryDefaults() {
 	}
 	r.memAdmins[admin.Username] = admin
 
-	// Default Demo Customers
-	userPass, _ := utils.HashPassword("rahasia123")
-	userPin, _ := utils.HashPIN("123456")
-	u1 := &model.User{
-		ID:           "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
-		CIF:          "CIF998877",
-		FullName:     "Bima Cahya Ayu",
-		PhoneNumber:  "081234567890",
-		Email:        "bima.cahya@bankdmb.co.id",
-		PasswordHash: userPass,
-		PINHash:      userPin,
-		DeviceID:     "DEVICE-DEMO-001",
-		IsActive:     true,
-		CreatedAt:    time.Now().Add(-60 * 24 * time.Hour),
-		UpdatedAt:    time.Now(),
-	}
-	u2 := &model.User{
-		ID:           "c2eebc99-9c0b-4ef8-bb6d-6bb9bd380a33",
-		CIF:          "CIF112233",
-		FullName:     "Siti Nurhaliza",
-		PhoneNumber:  "087812345678",
-		Email:        "siti.nur@bankdmb.co.id",
-		PasswordHash: userPass,
-		PINHash:      userPin,
-		DeviceID:     "DEVICE-SITI-002",
-		IsActive:     true,
-		CreatedAt:    time.Now().Add(-15 * 24 * time.Hour),
-		UpdatedAt:    time.Now(),
-	}
-	r.memUsers[u1.ID] = u1
-	r.memUsers[u2.ID] = u2
-
 	// Default Banners
 	r.memBanners = []*model.Banner{
 		{
@@ -170,43 +138,6 @@ func (r *adminRepository) initMemoryDefaults() {
 			DisplayOrder: 3,
 			CreatedAt:    time.Now(),
 			UpdatedAt:    time.Now(),
-		},
-	}
-
-	// Default Transactions
-	r.memTx = []*model.Transaction{
-		{
-			ID:              "tx-001",
-			UserID:          u1.ID,
-			FromAccount:     "1001002003",
-			ToAccount:       "1001002004",
-			Amount:          250000,
-			TransactionType: "TRANSFER_INTERNAL",
-			Status:          model.TxStatusSuccess,
-			CBSReferenceNo:  "CBS-20261105-001",
-			CreatedAt:       time.Now().Add(-15 * time.Minute),
-		},
-		{
-			ID:              "tx-002",
-			UserID:          u1.ID,
-			FromAccount:     "1001002003",
-			ToAccount:       "0148899123",
-			Amount:          1500000,
-			TransactionType: "TRANSFER_BANK",
-			Status:          model.TxStatusSuccess,
-			CBSReferenceNo:  "CBS-20261105-002",
-			CreatedAt:       time.Now().Add(-45 * time.Minute),
-		},
-		{
-			ID:              "tx-003",
-			UserID:          u2.ID,
-			FromAccount:     "1001002004",
-			ToAccount:       "PLN-PREPAID",
-			Amount:          100000,
-			TransactionType: "PPOB_LISTRIK",
-			Status:          model.TxStatusSuccess,
-			CBSReferenceNo:  "CBS-20261105-003",
-			CreatedAt:       time.Now().Add(-2 * time.Hour),
 		},
 	}
 

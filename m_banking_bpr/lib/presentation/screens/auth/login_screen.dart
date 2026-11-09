@@ -75,21 +75,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  void _autofillDemo() {
-    setState(() {
-      _phoneController.text = '081234567890';
-      _passwordController.text = 'rahasia123';
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Akun demo Bank DMB terisi otomatis'),
-        backgroundColor: AppColors.primary,
-        duration: Duration(seconds: 1),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<AuthCubit, AuthState>(
@@ -104,13 +89,6 @@ class _LoginScreenState extends State<LoginScreen> {
               content: Text(state.message),
               backgroundColor: AppColors.danger,
               behavior: SnackBarBehavior.floating,
-              action: SnackBarAction(
-                label: 'Masuk Demo',
-                textColor: Colors.white,
-                onPressed: () {
-                  context.read<AuthCubit>().loginOfflineDemo();
-                },
-              ),
             ),
           );
         }
@@ -181,7 +159,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         keyboardType: TextInputType.phone,
                         style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
                         decoration: InputDecoration(
-                          hintText: 'Contoh: 0876273888376',
+                          hintText: 'Masukkan Nomor Handphone Terdaftar',
                           hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
                           filled: true,
                           fillColor: Colors.white,

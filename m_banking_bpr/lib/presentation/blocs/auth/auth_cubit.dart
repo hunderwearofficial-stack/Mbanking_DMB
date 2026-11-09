@@ -74,35 +74,6 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
-  Future<void> loginOfflineDemo() async {
-    emit(AuthLoading());
-    try {
-      final demoUser = UserModel(
-        id: 'usr-demo-001',
-        cif: 'CIF998877',
-        fullName: 'Budi Santoso (Demo)',
-        phoneNumber: '081234567890',
-        email: 'budi.santoso@email.com',
-        deviceId: 'DEVICE-DEMO-001',
-        primaryAccount: '1001002003',
-        isActive: true,
-      );
-
-      await authRepository.secureStorage.saveAuthData(
-        accessToken: 'demo_offline_access_token',
-        refreshToken: 'demo_offline_refresh_token',
-        phoneNumber: demoUser.phoneNumber,
-        cif: demoUser.cif,
-        fullName: demoUser.fullName,
-        primaryAccount: demoUser.primaryAccount,
-      );
-
-      emit(AuthAuthenticated(demoUser));
-    } catch (e) {
-      emit(AuthError('Gagal masuk mode demo: $e'));
-    }
-  }
-
   Future<void> logout() async {
     await authRepository.logout();
     emit(AuthUnauthenticated());

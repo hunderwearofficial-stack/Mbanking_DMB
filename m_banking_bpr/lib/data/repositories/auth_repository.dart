@@ -37,8 +37,7 @@ class AuthRepository {
       primaryAccount: authResponse.user.primaryAccount,
     );
 
-    if (authResponse.user.deviceId.isNotEmpty &&
-        authResponse.user.deviceId != 'DEVICE-DEMO-001') {
+    if (authResponse.user.deviceId.isNotEmpty) {
       await secureStorage.setDeviceID(authResponse.user.deviceId);
     }
 
@@ -140,8 +139,7 @@ class AuthRepository {
       primaryAccount: authResponse.user.primaryAccount,
     );
 
-    if (authResponse.user.deviceId.isNotEmpty &&
-        authResponse.user.deviceId != 'DEVICE-DEMO-001') {
+    if (authResponse.user.deviceId.isNotEmpty) {
       await secureStorage.setDeviceID(authResponse.user.deviceId);
     }
 

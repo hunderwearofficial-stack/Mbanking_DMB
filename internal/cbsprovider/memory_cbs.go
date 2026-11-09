@@ -10,7 +10,6 @@ import (
 
 	"mbanking-bpr/internal/domain"
 	"mbanking-bpr/internal/model"
-	"mbanking-bpr/pkg/logger"
 	"mbanking-bpr/pkg/utils"
 )
 
@@ -86,78 +85,7 @@ func (m *MemoryCBSProvider) GetSavingsAccountsByCIF(ctx context.Context, cifNumb
 }
 
 func (m *MemoryCBSProvider) seedInitialData() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	pwHash, _ := utils.HashPassword("rahasia123")
-	pinHash, _ := utils.HashPIN("123456")
-
-	demoUser := &model.User{
-		ID:           "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
-		CIF:          "CIF998877",
-		FullName:     "Bima Cahya Ayu",
-		PhoneNumber:  "081234567890",
-		Email:        "budi.santoso@email.com",
-		PasswordHash: pwHash,
-		PINHash:      pinHash,
-		DeviceID:     "DEVICE-DEMO-001",
-		IsActive:     true,
-		CreatedAt:    time.Now().Add(-180 * 24 * time.Hour),
-		UpdatedAt:    time.Now(),
-	}
-	m.users[demoUser.PhoneNumber] = demoUser
-	m.users["nasabah1"] = demoUser
-
-	primaryAcc := &model.Account{
-		ID:            "b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a22",
-		UserID:        demoUser.ID,
-		AccountNumber: "1001002003",
-		AccountType:   "Savings",
-		Balance:       15250000.00,
-		Status:        model.AccountStatusActive,
-		CreatedAt:     time.Now().Add(-180 * 24 * time.Hour),
-		UpdatedAt:     time.Now(),
-	}
-	m.accounts[primaryAcc.AccountNumber] = primaryAcc
-
-	now := time.Now()
-	m.mutations[primaryAcc.AccountNumber] = []model.Mutation{
-		{
-			ID:              "d3eebc99-9c0b-4ef8-bb6d-6bb9bd380a44",
-			AccountNumber:   primaryAcc.AccountNumber,
-			TransactionType: model.TxTypeCredit,
-			Amount:          10000000.00,
-			BalanceAfter:    10000000.00,
-			Description:     "SETORAN AWAL PEMBUKAAN REKENING",
-			ReferenceNumber: "REF202611010001",
-			CreatedAt:       now.Add(-10 * 24 * time.Hour),
-		},
-		{
-			ID:              "d4eebc99-9c0b-4ef8-bb6d-6bb9bd380a55",
-			AccountNumber:   primaryAcc.AccountNumber,
-			TransactionType: model.TxTypeCredit,
-			Amount:          5500000.00,
-			BalanceAfter:    15500000.00,
-			Description:     "TRANSFER MASUK DARI BCA - ACHMAD FAUZI",
-			ReferenceNumber: "REF202611020002",
-			CreatedAt:       now.Add(-5 * 24 * time.Hour),
-		},
-		{
-			ID:              "d5eebc99-9c0b-4ef8-bb6d-6bb9bd380a66",
-			AccountNumber:   primaryAcc.AccountNumber,
-			TransactionType: model.TxTypeDebit,
-			Amount:          250000.00,
-			BalanceAfter:    15250000.00,
-			Description:     "PEMBAYARAN QRIS MERCHANT KOPI KENANGAN",
-			ReferenceNumber: "REF202611030003",
-			CreatedAt:       now.Add(-1 * 24 * time.Hour),
-		},
-	}
-
-	logger.GetLogger().Info("Memory Core Banking Provider initialized", map[string]interface{}{
-		"demo_phone":   demoUser.PhoneNumber,
-		"demo_account": primaryAcc.AccountNumber,
-	})
+	// Clean initial state (no dummy customer/mutation seeding)
 }
 
 func (m *MemoryCBSProvider) VerifyCredentials(ctx context.Context, identifier, password, pin string) (*domain.User, error) {

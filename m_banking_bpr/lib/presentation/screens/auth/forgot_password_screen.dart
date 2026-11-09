@@ -12,7 +12,7 @@ class ForgotPasswordScreen extends StatefulWidget {
 }
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
-  final _phoneController = TextEditingController(text: '081234567890');
+  final _phoneController = TextEditingController();
 
   @override
   void dispose() {
@@ -113,7 +113,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     keyboardType: TextInputType.phone,
                     style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
                     decoration: InputDecoration(
-                      hintText: 'Contoh: 0934829487',
+                      hintText: 'Masukkan Nomor Handphone Terdaftar',
                       hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
                       filled: true,
                       fillColor: Colors.white,
