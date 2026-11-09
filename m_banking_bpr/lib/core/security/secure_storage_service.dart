@@ -72,10 +72,14 @@ class SecureStorageService {
   Future<void> clearAuthData() async {
     await _delete(_keyAccessToken);
     await _delete(_keyRefreshToken);
-    await _delete(_keyPhoneNumber);
     await _delete(_keyCIF);
     await _delete(_keyFullName);
     await _delete(_keyPrimaryAccount);
+  }
+
+  Future<void> clearSessionTokens() async {
+    await _delete(_keyAccessToken);
+    await _delete(_keyRefreshToken);
   }
 
   Future<bool> hasValidToken() async {

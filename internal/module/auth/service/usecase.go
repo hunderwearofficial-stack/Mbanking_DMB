@@ -43,6 +43,7 @@ type ActivationSession struct {
 
 type AuthService interface {
 	Login(ctx context.Context, req domain.LoginRequest) (*domain.LoginResponse, error)
+	RefreshToken(ctx context.Context, req domain.RefreshTokenRequest) (*domain.LoginResponse, error)
 	VerifyActivation(ctx context.Context, req domain.ActivateVerifyRequest) (*domain.ActivateVerifyResponse, error)
 	VerifyActivationOTP(ctx context.Context, req domain.ActivateOTPRequest) error
 	CompleteActivation(ctx context.Context, req domain.ActivateSetupRequest) (*domain.LoginResponse, error)
@@ -137,6 +138,13 @@ func (s *authService) Login(ctx context.Context, req domain.LoginRequest) (*doma
 				if bal, cbsErr := s.cbsProv.GetBalance(ctx, primaryAccountNo); cbsErr == nil && bal != nil && bal.HolderName != "" {
 					user.FullName = bal.HolderName
 				}
+			}
+		}
+
+		// Ensure user always has a primary account record in PostgreSQL (auto-heals CIF-only registrations)
+		if primaryAccountNo == "" {
+			if ensuredAcc, ensErr := s.repo.EnsurePrimaryAccount(ctx, user, ""); ensErr == nil && ensuredAcc != nil {
+				primaryAccountNo = ensuredAcc.AccountNumber
 			}
 		}
 	} else {
@@ -392,6 +400,11 @@ func (s *authService) CompleteActivation(ctx context.Context, req domain.Activat
 		return nil, ErrAccountNotMatch
 	}
 
+	primaryAccNo := session.AccountNo
+	if ensuredAcc, ensErr := s.repo.EnsurePrimaryAccount(ctx, user, primaryAccNo); ensErr == nil && ensuredAcc != nil {
+		primaryAccNo = ensuredAcc.AccountNumber
+	}
+
 	accessExpMins := s.cfg.JWTExpiryMinutes
 	if accessExpMins <= 0 {
 		accessExpMins = 60
@@ -401,7 +414,7 @@ func (s *authService) CompleteActivation(ctx context.Context, req domain.Activat
 		user.ID,
 		user.CIF,
 		user.PhoneNumber,
-		session.AccountNo,
+		primaryAccNo,
 		deviceID,
 		s.cfg.JWTSecret,
 		accessExpMins,
@@ -431,8 +444,99 @@ func (s *authService) CompleteActivation(ctx context.Context, req domain.Activat
 			TempatLahir:    user.TempatLahir,
 			NamaIbuKandung: user.NamaIbuKandung,
 			DeviceID:       deviceID,
-			PrimaryAccount: session.AccountNo,
+			PrimaryAccount: primaryAccNo,
 			IsActive:       true,
+			CreatedAt:      user.CreatedAt,
+		},
+	}, nil
+}
+
+func (s *authService) RefreshToken(ctx context.Context, req domain.RefreshTokenRequest) (*domain.LoginResponse, error) {
+	claims, err := utils.ValidateRefreshToken(strings.TrimSpace(req.RefreshToken), s.cfg.JWTSecret)
+	if err != nil || claims == nil {
+		return nil, errors.New("sesi refresh token telah berakhir, silakan login kembali")
+	}
+
+	user, err := s.repo.FindByID(ctx, claims.UserID)
+	if err != nil || user == nil {
+		user, err = s.repo.FindByIdentifier(ctx, claims.PhoneNumber)
+		if err != nil || user == nil {
+			return nil, errors.New("data pengguna tidak ditemukan")
+		}
+	}
+
+	if !user.IsActive {
+		return nil, ErrUserInactive
+	}
+
+	deviceID := req.DeviceID
+	if deviceID == "" {
+		deviceID = claims.DeviceID
+	}
+	if user.DeviceID != "" && deviceID != "" && user.DeviceID != deviceID {
+		return nil, ErrDeviceBindingMismatch
+	}
+
+	primaryAccountNo := claims.AccountNo
+	if acc, accErr := s.repo.FindPrimaryAccount(ctx, user.ID); accErr == nil && acc != nil {
+		primaryAccountNo = acc.AccountNumber
+	}
+
+	if s.cbsProv != nil && user.CIF != "" {
+		if accList, listErr := s.cbsProv.GetSavingsAccountsByCIF(ctx, user.CIF); listErr == nil && len(accList) > 0 {
+			if primaryAccountNo == "" {
+				primaryAccountNo = accList[0].NomorRekening
+			}
+		}
+	}
+
+	if primaryAccountNo == "" {
+		if ensuredAcc, ensErr := s.repo.EnsurePrimaryAccount(ctx, user, ""); ensErr == nil && ensuredAcc != nil {
+			primaryAccountNo = ensuredAcc.AccountNumber
+		}
+	}
+
+	accessExpMins := s.cfg.JWTExpiryMinutes
+	if accessExpMins <= 0 {
+		accessExpMins = 60
+	}
+	refreshExpDays := 7
+	tokens, err := utils.GenerateTokenPair(
+		user.ID,
+		user.CIF,
+		user.PhoneNumber,
+		primaryAccountNo,
+		user.DeviceID,
+		s.cfg.JWTSecret,
+		accessExpMins,
+		refreshExpDays,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &domain.LoginResponse{
+		AccessToken:  tokens.AccessToken,
+		RefreshToken: tokens.RefreshToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    accessExpMins * 60,
+		User: domain.UserProfile{
+			ID:             user.ID,
+			NIK:            user.NIK,
+			CIF:            user.CIF,
+			FullName:       user.FullName,
+			PhoneNumber:    user.PhoneNumber,
+			Email:          user.Email,
+			Alamat:         user.Alamat,
+			KodePos:        user.KodePos,
+			JenisKelamin:   user.JenisKelamin,
+			Agama:          user.Agama,
+			TglLahir:       user.TglLahir,
+			TempatLahir:    user.TempatLahir,
+			NamaIbuKandung: user.NamaIbuKandung,
+			DeviceID:       user.DeviceID,
+			PrimaryAccount: primaryAccountNo,
+			IsActive:       user.IsActive,
 			CreatedAt:      user.CreatedAt,
 		},
 	}, nil

@@ -6,6 +6,7 @@ class ApiEndpoints {
 
   // API Paths
   static const String login = '/api/v1/auth/login';
+  static const String refresh = '/api/v1/auth/refresh';
   static const String activateVerify = '/api/v1/auth/activate/verify';
   static const String activateOtp = '/api/v1/auth/activate/otp';
   static const String activateSetup = '/api/v1/auth/activate/setup';

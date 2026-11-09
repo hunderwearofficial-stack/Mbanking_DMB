@@ -12,6 +12,26 @@ class AuthCubit extends Cubit<AuthState> {
     try {
       final isLoggedIn = await authRepository.isLoggedIn();
       if (isLoggedIn) {
+        // Attempt to refresh & validate session token with the server so expired tokens never get stuck on HomeScreen
+        try {
+          final refreshed = await authRepository.refreshSession();
+          if (refreshed != null) {
+            emit(AuthAuthenticated(refreshed.user));
+            return;
+          }
+        } catch (e) {
+          // If server explicitly rejected refresh token (401), require clean re-login
+          final errStr = e.toString().toLowerCase();
+          if (errStr.contains('berakhir') ||
+              errStr.contains('kadaluarsa') ||
+              errStr.contains('tidak valid') ||
+              errStr.contains('401')) {
+            await authRepository.secureStorage.clearSessionTokens();
+            emit(AuthUnauthenticated());
+            return;
+          }
+        }
+
         final phone = await authRepository.secureStorage.getPhoneNumber() ?? '';
         final cif = await authRepository.secureStorage.getCIF() ?? '';
         final fullName = await authRepository.secureStorage.getFullName() ?? '';

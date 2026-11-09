@@ -11,15 +11,29 @@ import 'data/repositories/transaction_repository.dart';
 import 'presentation/blocs/account/account_cubit.dart';
 import 'presentation/blocs/auth/auth_cubit.dart';
 import 'presentation/blocs/transfer/transfer_cubit.dart';
+import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/home/home_screen.dart';
 import 'presentation/screens/splash/splash_screen.dart';
+
+final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // 1. Core Services Initialization
   final secureStorage = SecureStorageService();
-  final apiClient = ApiClient(secureStorage: secureStorage);
+  final apiClient = ApiClient(
+    secureStorage: secureStorage,
+    onUnauthorized: () {
+      final nav = appNavigatorKey.currentState;
+      if (nav != null) {
+        nav.pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+        );
+      }
+    },
+  );
 
   // 2. Data Repositories
   final authRepository = AuthRepository(apiClient: apiClient, secureStorage: secureStorage);
@@ -68,6 +82,7 @@ class MBankingBPRApp extends StatelessWidget {
           ),
         ],
         child: MaterialApp(
+          navigatorKey: appNavigatorKey,
           title: 'Mobile BPR',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightTheme,

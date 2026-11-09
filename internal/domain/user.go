@@ -69,3 +69,8 @@ type ActivateSetupRequest struct {
 	PIN       string `json:"pin" binding:"required"`
 	DeviceID  string `json:"device_id"`
 }
+
+type RefreshTokenRequest struct {
+	RefreshToken string `json:"refresh_token" binding:"required"`
+	DeviceID     string `json:"device_id"`
+}

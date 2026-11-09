@@ -49,16 +49,84 @@ class ApiClient {
         onError: (DioException error, handler) async {
           log('[DIO ERROR] ${error.response?.statusCode} ${error.requestOptions.uri}: ${error.message}');
 
-          // Handle 401 Unauthorized (Invalid Token or Device Mismatch)
+          // Handle 401 Unauthorized (Expired Access Token or Device Mismatch)
           if (error.response?.statusCode == 401) {
+            final reqPath = error.requestOptions.path;
+            final isAuthEndpoint = reqPath.contains(ApiEndpoints.login) ||
+                reqPath.contains(ApiEndpoints.refresh);
+
+            // Attempt automatic background token rotation using RefreshToken
+            if (!isAuthEndpoint && error.requestOptions.extra['retried'] != true) {
+              final refreshToken = await secureStorage.getRefreshToken();
+              if (refreshToken != null && refreshToken.isNotEmpty) {
+                try {
+                  final deviceID = await secureStorage.getDeviceID();
+                  final refreshDio = Dio(
+                    BaseOptions(
+                      baseUrl: dio.options.baseUrl,
+                      connectTimeout: const Duration(seconds: 10),
+                      receiveTimeout: const Duration(seconds: 10),
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-Device-ID': deviceID,
+                      },
+                    ),
+                  );
+                  final refreshRes = await refreshDio.post(
+                    ApiEndpoints.refresh,
+                    data: {
+                      'refresh_token': refreshToken,
+                      'device_id': deviceID,
+                    },
+                  );
+                  final body = refreshRes.data;
+                  if (body is Map<String, dynamic> &&
+                      body['success'] == true &&
+                      body['data'] is Map<String, dynamic>) {
+                    final authData = body['data'] as Map<String, dynamic>;
+                    final newAccess = (authData['access_token'] ?? '').toString();
+                    final newRefresh = (authData['refresh_token'] ?? '').toString();
+                    final userMap = authData['user'] is Map<String, dynamic>
+                        ? authData['user'] as Map<String, dynamic>
+                        : <String, dynamic>{};
+
+                    if (newAccess.isNotEmpty) {
+                      await secureStorage.saveAuthData(
+                        accessToken: newAccess,
+                        refreshToken: newRefresh.isNotEmpty ? newRefresh : refreshToken,
+                        phoneNumber: (userMap['phone_number'] ?? await secureStorage.getPhoneNumber() ?? '').toString(),
+                        cif: (userMap['cif'] ?? await secureStorage.getCIF() ?? '').toString(),
+                        fullName: (userMap['full_name'] ?? await secureStorage.getFullName() ?? '').toString(),
+                        primaryAccount: (userMap['primary_account'] ?? await secureStorage.getPrimaryAccount() ?? '').toString(),
+                      );
+
+                      // Retry original failed request with the fresh JWT token
+                      final opts = error.requestOptions;
+                      opts.extra['retried'] = true;
+                      opts.headers['Authorization'] = 'Bearer $newAccess';
+                      opts.headers['X-Device-ID'] = deviceID;
+                      final clonedResponse = await dio.fetch(opts);
+                      return handler.resolve(clonedResponse);
+                    }
+                  }
+                } catch (_) {
+                  // Refresh token also expired or device unbound -> proceed to clear session & redirect to Login
+                }
+              }
+            }
+
             final data = error.response?.data;
             String message = 'Sesi Anda telah berakhir, silakan login kembali.';
             if (data is Map && data['message'] != null) {
               message = data['message'].toString();
             }
 
-            if (onUnauthorized != null) {
-              onUnauthorized!();
+            if (!isAuthEndpoint) {
+              await secureStorage.clearSessionTokens();
+              if (onUnauthorized != null) {
+                onUnauthorized!();
+              }
             }
 
             return handler.reject(

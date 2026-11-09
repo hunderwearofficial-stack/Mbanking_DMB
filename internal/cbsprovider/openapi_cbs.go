@@ -291,13 +291,20 @@ func (p *OpenAPICBSProvider) RefreshToken(ctx context.Context) error {
 	if err := json.Unmarshal(env.Data, &tokenData); err != nil {
 		return err
 	}
+	if strings.TrimSpace(tokenData.AccessToken) == "" {
+		p.accessToken = ""
+		p.refreshToken = ""
+		return errors.New("refresh token CBS mengembalikan accessToken kosong")
+	}
 
 	expSec := tokenData.ExpiresIn
 	if expSec <= 0 {
 		expSec = 900
 	}
 	p.accessToken = tokenData.AccessToken
-	p.refreshToken = tokenData.RefreshToken
+	if strings.TrimSpace(tokenData.RefreshToken) != "" {
+		p.refreshToken = tokenData.RefreshToken
+	}
 	p.tokenExpiresAt = time.Now().Add(time.Duration(expSec) * time.Second)
 
 	logger.GetLogger().Info("CBS OpenAPI Token berhasil di-refresh via /api/oauth/refresh-token", map[string]interface{}{
@@ -337,10 +344,20 @@ func (p *OpenAPICBSProvider) doSignedPost(ctx context.Context, path string, payl
 	}
 	defer resp.Body.Close()
 
-	// If 401 Unauthorized due to token expiry, force refresh token once and retry
-	if resp.StatusCode == http.StatusUnauthorized {
+	raw, _ := io.ReadAll(resp.Body)
+	var env cbsEnvelope
+	_ = json.Unmarshal(raw, &env)
+
+	msgLower := strings.ToLower(env.Message)
+	isTokenExpired := resp.StatusCode == http.StatusUnauthorized ||
+		resp.StatusCode == http.StatusForbidden ||
+		(env.Code != 10000 && (strings.Contains(msgLower, "token") || strings.Contains(msgLower, "unauthorized") || strings.Contains(msgLower, "expired")))
+
+	// If token expired or rejected by CBS, force a brand-new access token once and retry
+	if isTokenExpired {
 		p.tokenMu.Lock()
 		p.accessToken = ""
+		p.refreshToken = ""
 		p.tokenMu.Unlock()
 
 		newToken, tokErr := p.requestNewAccessToken(ctx)
@@ -363,10 +380,10 @@ func (p *OpenAPICBSProvider) doSignedPost(ctx context.Context, path string, payl
 		}
 	}
 
-	raw, _ := io.ReadAll(resp.Body)
-	var env cbsEnvelope
-	if err := json.Unmarshal(raw, &env); err != nil {
-		return nil, resp.StatusCode, fmt.Errorf("respons JSON CBS tidak valid: %w", err)
+	if env.Status == "" && env.Code == 0 && len(raw) > 0 {
+		if err := json.Unmarshal(raw, &env); err != nil {
+			return nil, resp.StatusCode, fmt.Errorf("respons JSON CBS tidak valid: %w", err)
+		}
 	}
 
 	return &env, resp.StatusCode, nil
@@ -532,19 +549,26 @@ func (p *OpenAPICBSProvider) GetBalance(ctx context.Context, accountNo string) (
 	}
 
 	// Fallback to local PostgreSQL if account is a local/deposit account or CBS is unreachable
-	if p.db != nil {
+	if p.db != nil && accNo != "" {
 		var account model.Account
 		if dbErr := p.db.WithContext(ctx).Preload("User").Where("account_number = ?", accNo).First(&account).Error; dbErr == nil {
-			holderName := ""
-			if account.User != nil {
+			holderName := account.HolderName
+			if holderName == "" && account.User != nil {
 				holderName = account.User.FullName
+			}
+			effBal := account.EffectiveBalance
+			if effBal == 0 && account.Balance > 0 {
+				effBal = account.Balance
 			}
 			return &domain.BalanceResponse{
 				AccountNumber:    account.AccountNumber,
 				HolderName:       holderName,
+				ProductCode:      account.ProductCode,
 				AccountType:      account.AccountType,
 				Balance:          account.Balance,
-				EffectiveBalance: account.Balance,
+				MinimumBalance:   account.MinimumBalance,
+				BlockedBalance:   account.BlockedBalance,
+				EffectiveBalance: effBal,
 				Status:           account.Status,
 				UpdatedAt:        account.UpdatedAt,
 			}, nil

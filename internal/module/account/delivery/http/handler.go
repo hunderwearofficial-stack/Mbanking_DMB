@@ -19,20 +19,32 @@ func NewAccountHandler(accountService service.AccountService) *AccountHandler {
 
 // GetBalance handles GET /api/v1/account/balance
 func (h *AccountHandler) GetBalance(c *gin.Context) {
-	// Account number can be inferred from JWT context or passed via query
+	// Account number, CIF, and UserID can be inferred from JWT context or passed via query
 	accountNo := c.Query("account_number")
 	if accountNo == "" {
 		if val, exists := c.Get(middleware.CtxAccountNo); exists {
-			accountNo = val.(string)
+			accountNo, _ = val.(string)
 		}
 	}
 
-	if accountNo == "" {
-		response.BadRequest(c, "Nomor rekening tidak ditemukan", nil)
+	cifNo := c.Query("cif_number")
+	if cifNo == "" {
+		if val, exists := c.Get(middleware.CtxCIF); exists {
+			cifNo, _ = val.(string)
+		}
+	}
+
+	userID := ""
+	if val, exists := c.Get(middleware.CtxUserID); exists {
+		userID, _ = val.(string)
+	}
+
+	if accountNo == "" && cifNo == "" && userID == "" {
+		response.BadRequest(c, "Identitas rekening atau nasabah tidak ditemukan", nil)
 		return
 	}
 
-	res, err := h.accountService.GetBalance(c.Request.Context(), accountNo)
+	res, err := h.accountService.GetBalance(c.Request.Context(), accountNo, cifNo, userID)
 	if err != nil {
 		response.NotFound(c, err.Error())
 		return
@@ -51,16 +63,26 @@ func (h *AccountHandler) GetMutations(c *gin.Context) {
 
 	if query.AccountNumber == "" {
 		if val, exists := c.Get(middleware.CtxAccountNo); exists {
-			query.AccountNumber = val.(string)
+			query.AccountNumber, _ = val.(string)
 		}
 	}
 
-	if query.AccountNumber == "" {
+	cifNo := ""
+	if val, exists := c.Get(middleware.CtxCIF); exists {
+		cifNo, _ = val.(string)
+	}
+
+	userID := ""
+	if val, exists := c.Get(middleware.CtxUserID); exists {
+		userID, _ = val.(string)
+	}
+
+	if query.AccountNumber == "" && cifNo == "" && userID == "" {
 		response.BadRequest(c, "Nomor rekening wajib disertakan", nil)
 		return
 	}
 
-	mutations, err := h.accountService.GetMutations(c.Request.Context(), query.AccountNumber, query)
+	mutations, err := h.accountService.GetMutations(c.Request.Context(), query.AccountNumber, cifNo, userID, query)
 	if err != nil {
 		response.NotFound(c, err.Error())
 		return
@@ -81,7 +103,7 @@ func (h *AccountHandler) InquiryAccount(c *gin.Context) {
 		return
 	}
 
-	res, err := h.accountService.GetBalance(c.Request.Context(), accountNo)
+	res, err := h.accountService.GetBalance(c.Request.Context(), accountNo, "", "")
 	if err != nil || res == nil {
 		response.NotFound(c, "Nomor rekening tujuan tidak ditemukan di Core Banking")
 		return

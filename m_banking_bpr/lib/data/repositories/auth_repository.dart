@@ -52,6 +52,31 @@ class AuthRepository {
     return await secureStorage.hasValidToken();
   }
 
+  Future<AuthResponseModel?> refreshSession() async {
+    final refreshToken = await secureStorage.getRefreshToken();
+    if (refreshToken == null || refreshToken.isEmpty) {
+      return null;
+    }
+    final devId = await secureStorage.getDeviceID();
+    final response = await apiClient.post(
+      ApiEndpoints.refresh,
+      data: {
+        'refresh_token': refreshToken,
+        'device_id': devId,
+      },
+    );
+    final authResponse = AuthResponseModel.fromJson(response);
+    await secureStorage.saveAuthData(
+      accessToken: authResponse.accessToken,
+      refreshToken: authResponse.refreshToken,
+      phoneNumber: authResponse.user.phoneNumber,
+      cif: authResponse.user.cif,
+      fullName: authResponse.user.fullName,
+      primaryAccount: authResponse.user.primaryAccount,
+    );
+    return authResponse;
+  }
+
   // ==================== SELF-ACTIVATION FLOW ====================
 
   Future<Map<String, dynamic>> verifyActivationAccount({

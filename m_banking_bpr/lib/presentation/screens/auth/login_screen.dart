@@ -22,6 +22,23 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
 
   @override
+  void initState() {
+    super.initState();
+    _loadSavedPhone();
+  }
+
+  Future<void> _loadSavedPhone() async {
+    try {
+      final savedPhone = await context.read<AuthCubit>().authRepository.secureStorage.getPhoneNumber();
+      if (mounted && savedPhone != null && savedPhone.isNotEmpty && _phoneController.text.isEmpty) {
+        setState(() {
+          _phoneController.text = savedPhone;
+        });
+      }
+    } catch (_) {}
+  }
+
+  @override
   void dispose() {
     _phoneController.dispose();
     _passwordController.dispose();

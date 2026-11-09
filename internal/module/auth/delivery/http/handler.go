@@ -49,6 +49,27 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	response.Success(c, "Login nasabah berhasil", res)
 }
 
+// RefreshToken handles POST /api/v1/auth/refresh
+func (h *AuthHandler) RefreshToken(c *gin.Context) {
+	var req domain.RefreshTokenRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Refresh token wajib disertakan", err.Error())
+		return
+	}
+
+	if req.DeviceID == "" {
+		req.DeviceID = c.GetHeader(middleware.HeaderDeviceID)
+	}
+
+	res, err := h.authService.RefreshToken(c.Request.Context(), req)
+	if err != nil {
+		response.Unauthorized(c, response.CodeUnauthorized, err.Error())
+		return
+	}
+
+	response.Success(c, "Sesi berhasil diperbarui", res)
+}
+
 // VerifyActivation handles POST /api/v1/auth/activate/verify
 func (h *AuthHandler) VerifyActivation(c *gin.Context) {
 	var req domain.ActivateVerifyRequest

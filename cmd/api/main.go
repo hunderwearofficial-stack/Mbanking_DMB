@@ -161,6 +161,7 @@ func main() {
 		authGroup := v1.Group("/auth")
 		{
 			authGroup.POST("/login", middleware.RateLimiter(redisClient, 5, 60, "auth_login"), authHandler.Login)
+			authGroup.POST("/refresh", authHandler.RefreshToken)
 			authGroup.POST("/activate/verify", authHandler.VerifyActivation)
 			authGroup.POST("/activate/otp", authHandler.VerifyActivationOTP)
 			authGroup.POST("/activate/setup", authHandler.CompleteActivation)

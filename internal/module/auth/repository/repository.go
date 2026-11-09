@@ -15,7 +15,9 @@ import (
 
 type AuthRepository interface {
 	FindByIdentifier(ctx context.Context, identifier string) (*model.User, error)
+	FindByID(ctx context.Context, id string) (*model.User, error)
 	FindPrimaryAccount(ctx context.Context, userID string) (*model.Account, error)
+	EnsurePrimaryAccount(ctx context.Context, user *model.User, preferredAccountNo string) (*model.Account, error)
 	FindAccountWithUser(ctx context.Context, accountNo string) (*model.Account, *model.User, error)
 	UpdateUserCredentials(ctx context.Context, userID, passwordHash, pinHash, phoneNumber, deviceID string) error
 	UpdateDeviceID(ctx context.Context, userID, deviceID string) error
@@ -46,6 +48,17 @@ func (r *authRepository) FindByIdentifier(ctx context.Context, identifier string
 	return &user, nil
 }
 
+func (r *authRepository) FindByID(ctx context.Context, id string) (*model.User, error) {
+	if r.db == nil {
+		return nil, gorm.ErrRecordNotFound
+	}
+	var user model.User
+	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&user).Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
 func (r *authRepository) FindPrimaryAccount(ctx context.Context, userID string) (*model.Account, error) {
 	if r.db == nil {
 		return nil, gorm.ErrRecordNotFound
@@ -59,6 +72,59 @@ func (r *authRepository) FindPrimaryAccount(ctx context.Context, userID string) 
 		return nil, err
 	}
 	return &account, nil
+}
+
+func deriveAccountNoFromCIF(cif string) string {
+	if len(cif) >= 8 {
+		return "00101" + cif[len(cif)-8:]
+	}
+	if cif != "" {
+		return "00101" + cif
+	}
+	return fmt.Sprintf("00101%d", time.Now().Unix()%100000000)
+}
+
+func (r *authRepository) EnsurePrimaryAccount(ctx context.Context, user *model.User, preferredAccountNo string) (*model.Account, error) {
+	if r.db == nil || user == nil {
+		return nil, gorm.ErrInvalidDB
+	}
+	if existing, err := r.FindPrimaryAccount(ctx, user.ID); err == nil && existing != nil {
+		return existing, nil
+	}
+	accNo := preferredAccountNo
+	if accNo == "" || accNo == user.CIF {
+		accNo = deriveAccountNoFromCIF(user.CIF)
+	}
+	var acc model.Account
+	if err := r.db.WithContext(ctx).Where("account_number = ?", accNo).First(&acc).Error; err == nil {
+		_ = r.db.WithContext(ctx).Model(&acc).Updates(map[string]interface{}{
+			"user_id":     user.ID,
+			"holder_name": user.FullName,
+			"status":      model.AccountStatusActive,
+			"updated_at":  time.Now(),
+		}).Error
+		return &acc, nil
+	}
+	now := time.Now()
+	newAcc := model.Account{
+		ID:               uuid.NewString(),
+		UserID:           user.ID,
+		AccountNumber:    accNo,
+		HolderName:       user.FullName,
+		ProductCode:      "01",
+		AccountType:      "Tabungan Mandiri DMB",
+		Balance:          0,
+		MinimumBalance:   0,
+		BlockedBalance:   0,
+		EffectiveBalance: 0,
+		Status:           model.AccountStatusActive,
+		CreatedAt:        now,
+		UpdatedAt:        now,
+	}
+	if err := r.db.WithContext(ctx).Create(&newAcc).Error; err != nil {
+		return nil, err
+	}
+	return &newAcc, nil
 }
 
 func (r *authRepository) FindAccountWithUser(ctx context.Context, accountNo string) (*model.Account, *model.User, error) {
@@ -239,7 +305,10 @@ func (r *authRepository) UpsertCBSUserAndAccount(ctx context.Context, nasabah *d
 	}
 
 	if accountNo == "" {
-		return &user, nil, nil
+		if existing, findErr := r.FindPrimaryAccount(ctx, user.ID); findErr == nil && existing != nil {
+			return &user, existing, nil
+		}
+		accountNo = deriveAccountNoFromCIF(user.CIF)
 	}
 
 	var acc model.Account
