@@ -93,15 +93,11 @@ func (s *authService) Login(ctx context.Context, req domain.LoginRequest) (*doma
 			return nil, ErrUserInactive
 		}
 
-		// Device Binding Validation & Auto-Binding (also auto-upgrades legacy DEVICE-DEMO-001 to real hardware ID)
-		if req.DeviceID != "" {
-			if user.DeviceID == "" || (user.DeviceID == "DEVICE-DEMO-001" && req.DeviceID != "DEVICE-DEMO-001") {
-				// First login on a device or upgrading from demo ID: bind this real hardware device
-				user.DeviceID = req.DeviceID
-				_ = s.repo.UpdateDeviceID(ctx, user.ID, req.DeviceID)
-			} else if user.DeviceID != req.DeviceID {
-				return nil, ErrDeviceBindingMismatch
-			}
+		// Single Active Device Session (Auto-Logout Old Device):
+		// Logging in on a new device binds the new device_id in PostgreSQL, automatically invalidating any old device's session.
+		if req.DeviceID != "" && user.DeviceID != req.DeviceID {
+			user.DeviceID = req.DeviceID
+			_ = s.repo.UpdateDeviceID(ctx, user.ID, req.DeviceID)
 		}
 
 		// Find user's primary account

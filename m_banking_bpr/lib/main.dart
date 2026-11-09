@@ -31,6 +31,16 @@ void main() async {
           MaterialPageRoute(builder: (_) => const LoginScreen()),
           (route) => false,
         );
+        final ctx = appNavigatorKey.currentContext;
+        if (ctx != null) {
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            const SnackBar(
+              content: Text('Sesi berakhir atau akun Anda telah login di perangkat lain.'),
+              backgroundColor: Color(0xFFE11D48),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       }
     },
   );

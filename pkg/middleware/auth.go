@@ -88,7 +88,7 @@ func AuthMiddleware(cfg AuthConfig) gin.HandlerFunc {
 					_ = cfg.DB.WithContext(c.Request.Context()).Model(&model.User{}).Where("id = ?", user.ID).Update("device_id", headerDeviceID).Error
 					user.DeviceID = headerDeviceID
 				} else if user.DeviceID != "" && user.DeviceID != headerDeviceID {
-					response.Unauthorized(c, response.CodeUnauthorized, "Perangkat ini tidak terdaftar untuk akun Anda (Device Binding Terkunci)")
+					response.Unauthorized(c, response.CodeUnauthorized, "Akun Anda telah login di perangkat lain. Sesi di perangkat ini otomatis berakhir.")
 					c.Abort()
 					return
 				}
