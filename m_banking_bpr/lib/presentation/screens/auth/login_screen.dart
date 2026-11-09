@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../../core/constants/api_endpoints.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../blocs/auth/auth_cubit.dart';
@@ -22,6 +23,14 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   bool _rememberMe = true;
   String _uploadedLogoUrl = '';
+
+  // DMB Green Color Palette
+  static const Color dmbGreen = Color(0xFF16984B); // Vibrant DMB Green
+  static const Color dmbGreenDark = Color(0xFF0E6832); // Deep Bank Green
+  static const Color dmbMint = Color(0xFFF0FDF4); // Mint Accent Tint
+  static const Color textDark = Color(0xFF0F172A);
+  static const Color textMuted = Color(0xFF64748B);
+  static const Color borderColor = Color(0xFFE2E8F0);
 
   @override
   void initState() {
@@ -91,7 +100,7 @@ class _LoginScreenState extends State<LoginScreen> {
             Expanded(child: Text(msg)),
           ],
         ),
-        backgroundColor: AppColors.danger,
+        backgroundColor: const Color(0xFFDC2626),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -107,7 +116,7 @@ class _LoginScreenState extends State<LoginScreen> {
           padding: const EdgeInsets.all(24),
           decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -115,24 +124,24 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               Center(
                 child: Container(
-                  width: 44,
-                  height: 5,
+                  width: 40,
+                  height: 4,
                   decoration: BoxDecoration(
-                    color: AppColors.border,
+                    color: const Color(0xFFCBD5E1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 18),
               Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFCCFBF1),
-                      borderRadius: BorderRadius.circular(14),
+                      color: dmbMint,
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.support_agent_rounded, color: Color(0xFF0F766E), size: 24),
+                    child: const Icon(Icons.support_agent_rounded, color: dmbGreen, size: 24),
                   ),
                   const SizedBox(width: 12),
                   const Expanded(
@@ -141,40 +150,40 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         Text(
                           'Pusat Bantuan & CS Bank DMB',
-                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: textDark),
                         ),
                         Text(
-                          'Layanan resmi bantuan nasabah Mobile Banking',
-                          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          'Layanan resmi pengaduan nasabah Mobile Banking',
+                          style: TextStyle(fontSize: 12, color: textMuted),
                         ),
                       ],
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: 18),
               _buildHelpRow(Icons.phone_in_talk_rounded, 'Call Center Resmi', '(0251) 832-1234'),
-              const SizedBox(height: 12),
-              _buildHelpRow(Icons.chat_bubble_rounded, 'WhatsApp Customer Service', '081199887766'),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
+              _buildHelpRow(Icons.chat_bubble_rounded, 'WhatsApp Customer Service', '0811-9988-7766'),
+              const SizedBox(height: 10),
               _buildHelpRow(Icons.mail_outline_rounded, 'Email Pengaduan', 'layanan@bprdanamandiribogor.co.id'),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               _buildHelpRow(Icons.schedule_rounded, 'Jam Operasional Kantor', 'Senin - Jumat (08.00 - 15.00 WIB)'),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
+                    backgroundColor: dmbGreen,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     padding: const EdgeInsets.symmetric(vertical: 13),
+                    elevation: 0,
                   ),
                   onPressed: () => Navigator.pop(ctx),
                   child: const Text('Tutup Bantuan', style: TextStyle(fontWeight: FontWeight.w700)),
                 ),
               ),
-              const SizedBox(height: 8),
             ],
           ),
         ),
@@ -184,24 +193,25 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Widget _buildHelpRow(IconData icon, String label, String value) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: AppColors.primary),
+          Icon(icon, size: 18, color: dmbGreen),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                Text(label, style: const TextStyle(fontSize: 11, color: textMuted)),
+                const SizedBox(height: 1),
                 Text(
                   value,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: textDark),
                 ),
               ],
             ),
@@ -243,7 +253,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     Expanded(child: Text(state.message)),
                   ],
                 ),
-                backgroundColor: AppColors.danger,
+                backgroundColor: const Color(0xFFDC2626),
                 behavior: SnackBarBehavior.floating,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
@@ -254,19 +264,19 @@ class _LoginScreenState extends State<LoginScreen> {
           final isLoading = state is AuthLoading;
 
           return Scaffold(
-            backgroundColor: const Color(0xFFF8FAFC),
+            backgroundColor: Colors.white,
             body: SafeArea(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 1. Top Executive Header (Logo, Institution, Help button)
+                    // 1. Clean Top Header: Official Bank Logo + Divider + Institution + Help
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Left: Official Bank Logo + Corporate Entity Name
+                        // Left: Official Bank Logo + Entity Name
                         Row(
                           children: [
                             _uploadedLogoUrl.isNotEmpty
@@ -286,9 +296,27 @@ class _LoginScreenState extends State<LoginScreen> {
                                     'assets/images/bank_logo.png',
                                     height: 38,
                                     fit: BoxFit.contain,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      width: 38,
+                                      height: 38,
+                                      decoration: BoxDecoration(
+                                        color: dmbMint,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Center(
+                                        child: Text(
+                                          'DMB',
+                                          style: TextStyle(
+                                            color: dmbGreenDark,
+                                            fontWeight: FontWeight.w900,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
                                   ),
                             const SizedBox(width: 10),
-                            Container(width: 1.5, height: 28, color: const Color(0xFFCBD5E1)),
+                            Container(width: 1.2, height: 26, color: const Color(0xFFCBD5E1)),
                             const SizedBox(width: 10),
                             const Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -296,19 +324,19 @@ class _LoginScreenState extends State<LoginScreen> {
                                 Text(
                                   'BANK DMB',
                                   style: TextStyle(
-                                    fontSize: 13,
+                                    fontSize: 12.5,
                                     fontWeight: FontWeight.w900,
-                                    color: Color(0xFF0A3B66),
+                                    color: dmbGreenDark,
                                     letterSpacing: 0.5,
                                   ),
                                 ),
                                 Text(
-                                  'Mobile Banking',
+                                  'PT BPR DANA MANDIRI BOGOR',
                                   style: TextStyle(
-                                    fontSize: 10.5,
+                                    fontSize: 9.5,
                                     fontWeight: FontWeight.w700,
-                                    color: Color(0xFF00897B),
-                                    letterSpacing: 0.8,
+                                    color: dmbGreen,
+                                    letterSpacing: 0.6,
                                   ),
                                 ),
                               ],
@@ -316,34 +344,28 @@ class _LoginScreenState extends State<LoginScreen> {
                           ],
                         ),
 
-                        // Right: Helpdesk / CS Contact Button
+                        // Right: Minimal "Bantuan" button
                         InkWell(
                           onTap: _showHelpdeskModal,
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(10),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                             decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: const Color(0xFFE2E8F0)),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.03),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
+                              color: dmbMint,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: const Color(0xFFBBF7D0)),
                             ),
                             child: const Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.headset_mic_rounded, color: Color(0xFF00897B), size: 16),
-                                SizedBox(width: 6),
+                                Icon(Icons.headset_mic_rounded, color: dmbGreen, size: 15),
+                                SizedBox(width: 5),
                                 Text(
                                   'Bantuan',
                                   style: TextStyle(
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: Color(0xFF00897B),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: dmbGreenDark,
                                   ),
                                 ),
                               ],
@@ -353,382 +375,275 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
 
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 36),
 
-                    // 2. Inspiring Typography Hero Title (Wondr Style)
+                    // 2. Direct Clean Title & Subtitle (No stacked AI banners)
                     const Text(
-                      'Selamat Datang,',
+                      'Masuk',
                       style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Solusi Finansial Cerdas',
-                      style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.textPrimary,
-                        letterSpacing: -0.5,
-                        height: 1.2,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: textDark,
+                        letterSpacing: -0.4,
                       ),
                     ),
                     const SizedBox(height: 6),
-                    Text(
-                      'Masuk ke akun Mobile DMB untuk mengakses saldo tabungan, mutasi, dan transfer dana aman.',
+                    const Text(
+                      'Silakan masukkan nomor handphone dan kata sandi akun Mobile Banking Anda.',
                       style: TextStyle(
                         fontSize: 13,
-                        color: AppColors.textSecondary.withOpacity(0.9),
-                        height: 1.45,
+                        color: textMuted,
+                        height: 1.4,
                       ),
                     ),
 
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 28),
 
-                    // 3. Modern Luxury Form Card
-                    Container(
-                      padding: const EdgeInsets.all(22),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(26),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF0A3B66).withOpacity(0.05),
-                            blurRadius: 20,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
+                    // 3. Form Input 1: Nomor Handphone
+                    const Text(
+                      'Nomor Handphone',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: textDark,
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Input 1: Nomor Handphone
-                          const Text(
-                            'Nomor Handphone Terdaftar',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textPrimary,
-                            ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: borderColor),
+                      ),
+                      child: TextField(
+                        controller: _phoneController,
+                        keyboardType: TextInputType.phone,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        style: const TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
+                          color: textDark,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'Contoh: 081234567890',
+                          hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13.5, fontWeight: FontWeight.normal),
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: dmbGreen, width: 1.6),
                           ),
-                          const SizedBox(height: 8),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF8FAFC),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: const Color(0xFFE2E8F0)),
-                            ),
-                            child: TextField(
-                              controller: _phoneController,
-                              keyboardType: TextInputType.phone,
-                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.textPrimary,
-                                letterSpacing: 0.5,
-                              ),
-                              decoration: InputDecoration(
-                                hintText: '081234567890',
-                                hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14, fontWeight: FontWeight.normal),
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                  borderSide: const BorderSide(color: Color(0xFF00897B), width: 1.8),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-                                prefixIcon: Container(
-                                  padding: const EdgeInsets.all(10),
-                                  margin: const EdgeInsets.only(left: 8, right: 8),
-                                  child: Container(
-                                    width: 32,
-                                    height: 32,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFCCFBF1),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: const Icon(Icons.phone_android_rounded, color: Color(0xFF0F766E), size: 18),
-                                  ),
-                                ),
-                                suffixIcon: _phoneController.text.isNotEmpty
-                                    ? IconButton(
-                                        icon: const Icon(Icons.cancel_rounded, color: Color(0xFF94A3B8), size: 18),
-                                        onPressed: () => setState(() => _phoneController.clear()),
-                                      )
-                                    : null,
-                              ),
-                              onChanged: (_) => setState(() {}),
-                            ),
-                          ),
-                          const SizedBox(height: 18),
-
-                          // Input 2: Kata Sandi
-                          const Text(
-                            'Kata Sandi Akun',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF8FAFC),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: const Color(0xFFE2E8F0)),
-                            ),
-                            child: TextField(
-                              controller: _passwordController,
-                              obscureText: _obscurePassword,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary,
-                              ),
-                              decoration: InputDecoration(
-                                hintText: 'Masukkan kata sandi',
-                                hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14, fontWeight: FontWeight.normal),
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                  borderSide: const BorderSide(color: Color(0xFF00897B), width: 1.8),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-                                prefixIcon: Container(
-                                  padding: const EdgeInsets.all(10),
-                                  margin: const EdgeInsets.only(left: 8, right: 8),
-                                  child: Container(
-                                    width: 32,
-                                    height: 32,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFCCFBF1),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: const Icon(Icons.lock_outline_rounded, color: Color(0xFF0F766E), size: 18),
-                                  ),
-                                ),
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                                    color: const Color(0xFF00897B),
-                                    size: 20,
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _obscurePassword = !_obscurePassword;
-                                    });
-                                  },
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(height: 14),
-
-                          // Quick Actions Row: Remember Me & Forgot Password
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              InkWell(
-                                onTap: () => setState(() => _rememberMe = !_rememberMe),
-                                borderRadius: BorderRadius.circular(8),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 4),
-                                  child: Row(
-                                    children: [
-                                      SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: Checkbox(
-                                          value: _rememberMe,
-                                          activeColor: const Color(0xFF00897B),
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
-                                          onChanged: (val) => setState(() => _rememberMe = val ?? false),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      const Text(
-                                        'Ingat Nomor HP',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColors.textSecondary,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-
-                              InkWell(
-                                onTap: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
-                                  );
-                                },
-                                borderRadius: BorderRadius.circular(8),
-                                child: const Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-                                  child: Text(
-                                    'Lupa Kata Sandi?',
-                                    style: TextStyle(
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w800,
-                                      color: Color(0xFF00897B),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 24),
-
-                          // Primary Button: Masuk ke Akun (Wondr Luxury Gradient)
-                          Container(
-                            width: double.infinity,
-                            height: 52,
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF005B4D), Color(0xFF00897B)],
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
-                              ),
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF00897B).withOpacity(0.35),
-                                  blurRadius: 14,
-                                  offset: const Offset(0, 6),
-                                ),
-                              ],
-                            ),
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.transparent,
-                                shadowColor: Colors.transparent,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              ),
-                              onPressed: isLoading ? null : _onLogin,
-                              child: isLoading
-                                  ? const SizedBox(
-                                      width: 22,
-                                      height: 22,
-                                      child: CircularProgressIndicator(
-                                        color: Colors.white,
-                                        strokeWidth: 2.5,
-                                      ),
-                                    )
-                                  : const Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          'Masuk ke Akun',
-                                          style: TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w800,
-                                            color: Colors.white,
-                                            letterSpacing: 0.3,
-                                          ),
-                                        ),
-                                        SizedBox(width: 8),
-                                        Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
-                                      ],
-                                    ),
-                            ),
-                          ),
-                        ],
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                          prefixIcon: const Icon(Icons.phone_android_rounded, color: dmbGreen, size: 20),
+                          suffixIcon: _phoneController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.cancel_rounded, color: Color(0xFF94A3B8), size: 18),
+                                  onPressed: () => setState(() => _phoneController.clear()),
+                                )
+                              : null,
+                        ),
+                        onChanged: (_) => setState(() {}),
                       ),
                     ),
 
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 18),
 
-                    // 4. Secondary Action: Aktivasi Nasabah Baru
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(22),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                    // 4. Form Input 2: Kata Sandi
+                    const Text(
+                      'Kata Sandi',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: textDark,
                       ),
-                      child: InkWell(
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const ActivationScreen()),
-                          );
-                        },
-                        borderRadius: BorderRadius.circular(16),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 44,
-                              height: 44,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF0FDF4),
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: const Color(0xFFBBF7D0)),
-                              ),
-                              child: const Icon(Icons.person_add_alt_1_rounded, color: Color(0xFF16984B), size: 22),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: borderColor),
+                      ),
+                      child: TextField(
+                        controller: _passwordController,
+                        obscureText: _obscurePassword,
+                        style: const TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
+                          color: textDark,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'Masukkan kata sandi',
+                          hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13.5, fontWeight: FontWeight.normal),
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: dmbGreen, width: 1.6),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                          prefixIcon: const Icon(Icons.lock_outline_rounded, color: dmbGreen, size: 20),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                              color: const Color(0xFF64748B),
+                              size: 20,
                             ),
-                            const SizedBox(width: 14),
-                            const Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Aktivasi M-Banking / Buka Akun',
-                                    style: TextStyle(
-                                      fontSize: 13.5,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                  SizedBox(height: 2),
-                                  Text(
-                                    'Daftarkan nomor rekening tabungan Anda secara mandiri dengan verifikasi OTP.',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: AppColors.textSecondary,
-                                      height: 1.3,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Color(0xFF94A3B8)),
-                          ],
+                            onPressed: () {
+                              setState(() {
+                                _obscurePassword = !_obscurePassword;
+                              });
+                            },
+                          ),
                         ),
                       ),
                     ),
 
+                    const SizedBox(height: 12),
+
+                    // 5. Utility Row: Remember Me & Forgot Password
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        InkWell(
+                          onTap: () => setState(() => _rememberMe = !_rememberMe),
+                          borderRadius: BorderRadius.circular(6),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              children: [
+                                SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: Checkbox(
+                                    value: _rememberMe,
+                                    activeColor: dmbGreen,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                    onChanged: (val) => setState(() => _rememberMe = val ?? false),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Ingat nomor HP',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: textMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        InkWell(
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(6),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                            child: Text(
+                              'Lupa kata sandi?',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                                color: dmbGreen,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
                     const SizedBox(height: 24),
 
-                    // 5. Security & Device Binding Guarantee
+                    // 6. Solid DMB Green Action Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: dmbGreen,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: isLoading ? null : _onLogin,
+                        child: isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2.2,
+                                ),
+                              )
+                            : const Text(
+                                'Masuk',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // 7. Clean Secondary Link: Aktivasi M-Banking (Simple inline text, NOT a big box)
+                    Center(
+                      child: Wrap(
+                        alignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          const Text(
+                            'Belum memiliki akun Mobile Banking? ',
+                            style: TextStyle(fontSize: 12.5, color: textMuted),
+                          ),
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const ActivationScreen()),
+                              );
+                            },
+                            child: const Text(
+                              'Aktivasi Sekarang',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w800,
+                                color: dmbGreen,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 32),
+
+                    // 8. Subtle Single Device Security Banner
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(14),
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: borderColor),
                       ),
-                      child: Row(
+                      child: const Row(
                         children: [
-                          const Icon(Icons.shield_outlined, color: Color(0xFF0F766E), size: 18),
-                          const SizedBox(width: 8),
+                          Icon(Icons.verified_user_outlined, color: dmbGreen, size: 16),
+                          SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Proteksi Single Active Device: Akun Anda terikat aman pada satu smartphone aktif.',
+                              'Proteksi Single Active Device: Akun terikat aman pada satu smartphone aktif.',
                               style: TextStyle(
                                 fontSize: 10.5,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF0F172A).withOpacity(0.8),
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF475569),
                                 height: 1.3,
                               ),
                             ),
@@ -737,73 +652,64 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 28),
 
-                    // 6. Regulatory Compliance Footer (OJK & LPS)
-                    Center(
-                      child: Column(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0xFFE2E8F0)),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  'OJK',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w900,
-                                    color: Color(0xFFDC2626), // OJK Red
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                                SizedBox(width: 8),
-                                Text(
-                                  '•',
-                                  style: TextStyle(color: Color(0xFF94A3B8)),
-                                ),
-                                SizedBox(width: 8),
-                                Text(
-                                  'LPS',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w900,
-                                    color: Color(0xFF0F766E), // LPS Teal
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Terdaftar & Dijamin',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFF64748B),
-                                  ),
-                                ),
-                              ],
-                            ),
+                    // 9. Regulatory Compliance Footer (matching Backoffice)
+                    Container(
+                      height: 1,
+                      color: const Color(0xFFF1F5F9),
+                      margin: const EdgeInsets.only(bottom: 14),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text(
+                          'Terdaftar & Diawasi:',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: textMuted,
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'PT BPR Dana Mandiri Bogor berizin & diawasi oleh OJK\nserta merupakan peserta penjaminan LPS.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                              color: const Color(0xFF64748B).withOpacity(0.85),
-                              height: 1.4,
-                            ),
+                        ),
+                        const SizedBox(width: 8),
+                        SvgPicture.asset(
+                          'assets/images/logo_ojk.svg',
+                          height: 24,
+                          fit: BoxFit.contain,
+                        ),
+                        const SizedBox(width: 14),
+                        Container(width: 1, height: 16, color: const Color(0xFFE2E8F0)),
+                        const SizedBox(width: 14),
+                        const Text(
+                          'Peserta:',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: textMuted,
                           ),
-                          const SizedBox(height: 14),
-                        ],
+                        ),
+                        const SizedBox(width: 8),
+                        SvgPicture.asset(
+                          'assets/images/logo_lps.svg',
+                          height: 22,
+                          fit: BoxFit.contain,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    const Center(
+                      child: Text(
+                        'PT BPR Dana Mandiri Bogor berizin & diawasi oleh OJK\nserta merupakan peserta penjaminan LPS.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w400,
+                          color: Color(0xFF94A3B8),
+                          height: 1.35,
+                        ),
                       ),
                     ),
+                    const SizedBox(height: 12),
                   ],
                 ),
               ),
