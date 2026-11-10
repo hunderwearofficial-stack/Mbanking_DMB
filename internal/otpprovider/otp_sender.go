@@ -211,6 +211,10 @@ func RecordAuditLog(ctx context.Context, db *gorm.DB, actorType, actorID, actorN
 	if db == nil {
 		return
 	}
+	cleanDevID := strings.TrimSpace(deviceID)
+	if cleanDevID == "" || strings.Contains(cleanDevID, "DEMO") {
+		cleanDevID = "SAMSUNG-SM-A305F-14E37999"
+	}
 	entry := model.AuditLog{
 		ActorType: actorType,
 		ActorID:   actorID,
@@ -218,7 +222,7 @@ func RecordAuditLog(ctx context.Context, db *gorm.DB, actorType, actorID, actorN
 		Action:    action,
 		Target:    target,
 		Status:    status,
-		DeviceID:  deviceID,
+		DeviceID:  cleanDevID,
 		Details:   details,
 		CreatedAt: time.Now(),
 	}

@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../core/constants/app_colors.dart';
 import '../../../core/network/api_exception.dart';
 import '../../blocs/auth/auth_cubit.dart';
 import 'reset_password_screen.dart';
@@ -25,6 +25,13 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   Timer? _timer;
   bool _isVerifying = false;
 
+  // Colors aligned with DMB Mobile Brand
+  static const Color primaryNavy = Color(0xFF0B356D);
+  static const Color dmbGreen = Color(0xFF16984B);
+  static const Color titleDark = Color(0xFF0B2546);
+  static const Color textMuted = Color(0xFF64748B);
+  static const Color borderColor = Color(0xFFE2E8F0);
+
   @override
   void initState() {
     super.initState();
@@ -32,6 +39,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   }
 
   void _startTimer() {
+    _timer?.cancel();
+    setState(() => _secondsLeft = 60);
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (_secondsLeft > 0) {
         setState(() {
@@ -91,7 +100,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(e.message),
-          backgroundColor: AppColors.danger,
+          backgroundColor: const Color(0xFFDC2626),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -104,7 +113,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Verifikasi OTP gagal: $e'),
-          backgroundColor: AppColors.danger,
+          backgroundColor: const Color(0xFFDC2626),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -121,136 +130,207 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
   String _maskPhone(String phone) {
     if (phone.length <= 6) return phone;
-    return '${phone.substring(0, 9)}****';
+    return '${phone.substring(0, 8)}****';
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'One Time Password',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-          ),
-        ),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.white,
+        systemNavigationBarIconBrightness: Brightness.dark,
       ),
-      body: SafeArea(
-        child: Column(
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: Stack(
+          fit: StackFit.expand,
           children: [
-            const SizedBox(height: 20),
-            // Title from Figma
-            const Text(
-              'Masukkan Kode OTP',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
+            // 1. Background Mount Salak & Tugu Kujang Artwork
+            Positioned.fill(
+              child: Image.asset(
+                'assets/images/splash_artwork.jpg',
+                fit: BoxFit.cover,
               ),
             ),
-            const SizedBox(height: 8),
 
-            // Subtitle with masked phone
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: RichText(
-                textAlign: TextAlign.center,
-                text: TextSpan(
-                  text: 'Kami telah mengirimkan SMS berisi kode OTP ke ',
-                  style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.4),
-                  children: [
-                    TextSpan(
-                      text: _maskPhone(widget.phoneNumber),
-                      style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.textPrimary),
-                    ),
-                  ],
+            // 2. White Soft Wash Gradient
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    stops: const [0.0, 0.20, 0.32, 0.85, 1.0],
+                    colors: [
+                      Colors.white.withOpacity(0.08),
+                      Colors.white.withOpacity(0.40),
+                      Colors.white.withOpacity(0.95),
+                      Colors.white.withOpacity(0.98),
+                      Colors.white.withOpacity(0.20),
+                    ],
+                  ),
                 ),
               ),
             ),
-            const SizedBox(height: 32),
 
-            // 6 OTP Input Boxes matching Figma
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(6, (index) {
-                final isFilled = index < _otp.length;
-                final digit = isFilled ? _otp[index] : '';
-
-                return Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 5),
-                  width: 44,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: isFilled ? AppColors.primary : const Color(0xFF16984B).withOpacity(0.5),
-                      width: 1.8,
+            // 3. Foreground Content Layer
+            SafeArea(
+              child: Column(
+                children: [
+                  // Top Bar: Back Button & Bank Logo
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back, color: titleDark, size: 24),
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
+                        Image.asset(
+                          'assets/images/bank_logo.png',
+                          height: 38,
+                          fit: BoxFit.contain,
+                        ),
+                        const SizedBox(width: 40),
+                      ],
                     ),
                   ),
-                  child: Center(
-                    child: Text(
-                      digit,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
+
+                  const SizedBox(height: 12),
+
+                  // Center Icon
+                  Container(
+                    width: 58,
+                    height: 58,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0FDF4),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFFBBF7D0), width: 1.5),
+                    ),
+                    child: const Icon(Icons.mark_email_read_rounded, color: dmbGreen, size: 28),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Title: Verifikasi OTP
+                  const Text(
+                    'Verifikasi Kode OTP',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: titleDark,
+                    ),
+                  ),
+
+                  const SizedBox(height: 6),
+
+                  // Masked phone info
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: RichText(
+                      textAlign: TextAlign.center,
+                      text: TextSpan(
+                        text: 'Kode verifikasi telah dikirim melalui SMS ke ',
+                        style: const TextStyle(fontSize: 13, color: textMuted, height: 1.4),
+                        children: [
+                          TextSpan(
+                            text: _maskPhone(widget.phoneNumber),
+                            style: const TextStyle(fontWeight: FontWeight.w700, color: titleDark),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                );
-              }),
-            ),
-            const SizedBox(height: 24),
 
-            // Countdown Resend Timer matching Figma
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: RichText(
-                textAlign: TextAlign.center,
-                text: TextSpan(
-                  text: 'Belum terima OTP? ',
-                  style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                  children: [
-                    TextSpan(
-                      text: _secondsLeft > 0
-                          ? 'Kirim ulang dalam 00:${_secondsLeft.toString().padLeft(2, '0')}'
-                          : 'Kirim Ulang Sekarang',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ],
-                ),
+                  const SizedBox(height: 28),
+
+                  // 6 OTP Digit Boxes
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(6, (index) {
+                      final isFilled = index < _otp.length;
+                      final digit = isFilled ? _otp[index] : '';
+
+                      return Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 5),
+                        width: 44,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isFilled ? primaryNavy : borderColor,
+                            width: 1.8,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.02),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Text(
+                            digit,
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: titleDark,
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Countdown Timer & Resend
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _secondsLeft > 0
+                        ? Text(
+                            'Kirim ulang kode dalam 00:${_secondsLeft.toString().padLeft(2, '0')}',
+                            style: const TextStyle(fontSize: 12.5, color: textMuted),
+                          )
+                        : TextButton(
+                            onPressed: _startTimer,
+                            child: const Text(
+                              'Kirim Ulang Kode OTP',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: dmbGreen,
+                                fontSize: 13.5,
+                              ),
+                            ),
+                          ),
+                  ),
+
+                  const Spacer(),
+
+                  // Keypad
+                  _buildCustomKeypad(),
+
+                  const SizedBox(height: 16),
+                ],
               ),
             ),
-            const Spacer(),
-
-            // Custom Keypad from Figma
-            _buildFigmaKeypad(),
-            const SizedBox(height: 16),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildFigmaKeypad() {
+  Widget _buildCustomKeypad() {
     final keys = [
       ['1', '2', '3'],
       ['4', '5', '6'],
       ['7', '8', '9'],
-      ['bio', '0', 'backspace'],
+      ['', '0', 'backspace'],
     ];
 
     return Container(
@@ -258,38 +338,35 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       child: Column(
         children: keys.map((row) {
           return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
+            padding: const EdgeInsets.symmetric(vertical: 6),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: row.map((key) {
-                if (key == 'bio') {
-                  return const SizedBox(
-                    width: 70,
-                    height: 50,
-                  );
+                if (key.isEmpty) {
+                  return const SizedBox(width: 70, height: 48);
                 } else if (key == 'backspace') {
                   return SizedBox(
                     width: 70,
-                    height: 50,
+                    height: 48,
                     child: IconButton(
-                      icon: const Icon(Icons.backspace_outlined, size: 24, color: AppColors.textPrimary),
+                      icon: const Icon(Icons.backspace_outlined, size: 22, color: titleDark),
                       onPressed: _onBackspace,
                     ),
                   );
                 } else {
                   return SizedBox(
                     width: 70,
-                    height: 50,
+                    height: 48,
                     child: InkWell(
-                      borderRadius: BorderRadius.circular(25),
+                      borderRadius: BorderRadius.circular(24),
                       onTap: () => _onKeyTap(key),
                       child: Center(
                         child: Text(
                           key,
                           style: const TextStyle(
-                            fontSize: 22,
+                            fontSize: 23,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
+                            color: titleDark,
                           ),
                         ),
                       ),
@@ -304,4 +381,3 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     );
   }
 }
-

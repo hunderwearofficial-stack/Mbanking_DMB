@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../core/constants/app_colors.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../data/models/mutation_model.dart';
 import '../../blocs/account/account_cubit.dart';
@@ -15,11 +16,27 @@ class MutationScreen extends StatefulWidget {
 
 class _MutationScreenState extends State<MutationScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  int _selectedTabIndex = 0;
+
+  // Executive Brand Colors (Consistent with HomeScreen & DMB Identity)
+  static const Color primaryNavy = Color(0xFF0B356D);
+  static const Color royalBlue = Color(0xFF0062E3);
+  static const Color dmbGreen = Color(0xFF16984B);
+  static const Color dmbRed = Color(0xFFDC2626);
+  static const Color titleDark = Color(0xFF0B2546);
+  static const Color textMuted = Color(0xFF64748B);
+  static const Color borderLight = Color(0xFFE2E8F0);
+  static const Color bgCanvas = Color(0xFFF8FAFC);
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging && mounted) {
+        setState(() => _selectedTabIndex = _tabController.index);
+      }
+    });
   }
 
   @override
@@ -37,117 +54,161 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
     return list;
   }
 
+  void _showToast(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, fontSize: 12.5)),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        backgroundColor: titleDark,
+      ),
+    );
+  }
+
   void _showTransactionReceipt(BuildContext context, MutationModel m) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 44,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Center(
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: m.isCredit ? const Color(0xFFF0FDF4) : const Color(0xFFFFF1F2),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: m.isCredit ? const Color(0xFF86EFAC) : const Color(0xFFFECDD3),
+      builder: (modalCtx) => SafeArea(
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: borderLight,
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                child: Icon(
-                  m.isCredit ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
-                  color: m.isCredit ? AppColors.primary : AppColors.expense,
-                  size: 28,
+              ),
+              const SizedBox(height: 20),
+
+              // Status Icon Circle
+              Center(
+                child: Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: m.isCredit ? const Color(0xFFF0FDF4) : const Color(0xFFFEF2F2),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: m.isCredit ? const Color(0xFFBBF7D0) : const Color(0xFFFECACA),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      m.isCredit ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+                      color: m.isCredit ? dmbGreen : dmbRed,
+                      size: 30,
+                    ),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
-            Center(
-              child: Text(
-                m.isCredit ? 'DANA MASUK (KREDIT)' : 'DANA KELUAR (DEBIT)',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: m.isCredit ? AppColors.primary : AppColors.expense,
-                  letterSpacing: 0.8,
+              const SizedBox(height: 12),
+
+              // Title Badge
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: m.isCredit ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    m.isCredit ? 'DANA MASUK (KREDIT)' : 'DANA KELUAR (DEBIT)',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: m.isCredit ? dmbGreen : dmbRed,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Center(
-              child: Text(
-                (m.isCredit ? '+ ' : '- ') + CurrencyFormatter.formatRupiah(m.amount),
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                  color: m.isCredit ? AppColors.primary : AppColors.expense,
+              const SizedBox(height: 8),
+
+              // Nominal
+              Center(
+                child: Text(
+                  (m.isCredit ? '+ ' : '- ') + CurrencyFormatter.formatRupiah(m.amount),
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 25,
+                    fontWeight: FontWeight.w900,
+                    color: m.isCredit ? dmbGreen : dmbRed,
+                    letterSpacing: -0.4,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-            const Divider(color: AppColors.border),
-            const SizedBox(height: 12),
-            _buildReceiptRow('Status Transaksi', 'BERHASIL (SUCCESS)', isHighlight: true),
-            _buildReceiptRow('Waktu Transaksi', CurrencyFormatter.formatDateFull(m.createdAt)),
-            _buildReceiptRow('Nomor Referensi', m.referenceNumber),
-            _buildReceiptRow('Keterangan', m.description),
-            _buildReceiptRow('Nomor Rekening', m.accountNumber),
-            _buildReceiptRow('Saldo Setelahnya', CurrencyFormatter.formatRupiah(m.balanceAfter)),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+
+              const SizedBox(height: 18),
+              const Divider(color: borderLight, height: 1),
+              const SizedBox(height: 14),
+
+              _buildReceiptRow('Status Transaksi', 'BERHASIL', isSuccess: true),
+              _buildReceiptRow('Waktu Transaksi', CurrencyFormatter.formatDate(m.createdAt)),
+              _buildReceiptRow('Nomor Referensi', m.referenceNumber),
+              _buildReceiptRow('Keterangan', m.description),
+              _buildReceiptRow('Nomor Rekening', m.accountNumber),
+              _buildReceiptRow('Saldo Setelahnya', CurrencyFormatter.formatRupiah(m.balanceAfter)),
+
+              const SizedBox(height: 22),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryNavy,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    elevation: 0,
+                  ),
+                  onPressed: () => Navigator.pop(modalCtx),
+                  child: Text(
+                    'Tutup Bukti Mutasi',
+                    style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 13.5),
+                  ),
                 ),
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Tutup Bukti Mutasi', style: TextStyle(fontWeight: FontWeight.w700)),
               ),
-            ),
-            const SizedBox(height: 8),
-          ],
+              const SizedBox(height: 4),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildReceiptRow(String label, String value, {bool isHighlight = false}) {
+  Widget _buildReceiptRow(String label, String value, {bool isSuccess = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+          Text(
+            label,
+            style: GoogleFonts.plusJakartaSans(fontSize: 12, color: textMuted, fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(width: 16),
           Flexible(
             child: Text(
               value,
               textAlign: TextAlign.end,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: isHighlight ? AppColors.primary : AppColors.textPrimary,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12.5,
+                fontWeight: isSuccess ? FontWeight.w800 : FontWeight.w700,
+                color: isSuccess ? dmbGreen : titleDark,
               ),
             ),
           ),
@@ -159,37 +220,48 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: bgCanvas,
       appBar: AppBar(
         backgroundColor: Colors.white,
-        foregroundColor: AppColors.textPrimary,
+        foregroundColor: titleDark,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: titleDark),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Column(
+        title: Column(
           children: [
             Text(
-              'Riwayat Mutasi',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+              'Riwayat Transaksi',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: titleDark,
+                letterSpacing: -0.2,
+              ),
             ),
+            const SizedBox(height: 1),
             Text(
               'PT BPR DANA MANDIRI BOGOR',
-              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.primary),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w700,
+                color: royalBlue,
+                letterSpacing: 0.6,
+              ),
             ),
           ],
         ),
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(1),
-          child: Divider(height: 1, color: AppColors.border),
+          child: Divider(height: 1, color: borderLight),
         ),
       ),
       body: BlocBuilder<AccountCubit, AccountState>(
         builder: (context, state) {
           if (state is AccountLoading) {
-            return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+            return const Center(child: CircularProgressIndicator(color: primaryNavy));
           }
 
           if (state is AccountError) {
@@ -199,22 +271,26 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.danger),
+                    const Icon(Icons.error_outline_rounded, size: 48, color: dmbRed),
                     const SizedBox(height: 12),
                     Text(
                       state.message,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                      style: GoogleFonts.plusJakartaSans(fontSize: 13.5, color: textMuted),
                     ),
                     const SizedBox(height: 16),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
+                        backgroundColor: primaryNavy,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                       ),
                       onPressed: () => context.read<AccountCubit>().refresh(),
-                      child: const Text('Muat Ulang Data'),
+                      child: Text(
+                        'Muat Ulang Data',
+                        style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 13),
+                      ),
                     ),
                   ],
                 ),
@@ -223,162 +299,16 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
           }
 
           if (state is AccountLoaded) {
-            final acc = state.account;
             final allMutations = state.mutations;
-
-            // Calculate totals
-            double totalCredit = 0;
-            double totalDebit = 0;
-            for (var m in allMutations) {
-              if (m.isCredit) {
-                totalCredit += m.amount;
-              } else {
-                totalDebit += m.amount;
-              }
-            }
 
             return Column(
               children: [
-                // Top Executive Summary Card (Wondr style in Backoffice Teal)
-                Container(
-                  margin: const EdgeInsets.all(16),
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [
-                        Color(0xFF004D40), // Dark Teal
-                        Color(0xFF00796B),
-                        Color(0xFF00897B),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF004D40).withOpacity(0.2),
-                        blurRadius: 14,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            acc.accountType,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white.withOpacity(0.85),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              acc.accountNumber,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        CurrencyFormatter.formatRupiah(acc.balance),
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.18),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.arrow_downward_rounded, color: Color(0xFF86EFAC), size: 14),
-                                  const SizedBox(width: 4),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Text('Uang Masuk', style: TextStyle(fontSize: 9, color: Colors.white70)),
-                                      Text(
-                                        CurrencyFormatter.formatRupiah(totalCredit),
-                                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(width: 1, height: 24, color: Colors.white24),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.arrow_upward_rounded, color: Color(0xFFFECDD3), size: 14),
-                                  const SizedBox(width: 4),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Text('Uang Keluar', style: TextStyle(fontSize: 9, color: Colors.white70)),
-                                      Text(
-                                        CurrencyFormatter.formatRupiah(totalDebit),
-                                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                const SizedBox(height: 10),
 
-                // Filter Tabs (Semua, Uang Masuk, Uang Keluar)
-                Container(
-                  color: Colors.white,
-                  child: TabBar(
-                    controller: _tabController,
-                    labelColor: AppColors.primary,
-                    unselectedLabelColor: AppColors.textSecondary,
-                    indicatorColor: AppColors.primary,
-                    indicatorWeight: 3,
-                    labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-                    unselectedLabelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                    tabs: const [
-                      Tab(text: 'Semua Transaksi'),
-                      Tab(text: 'Uang Masuk (CR)'),
-                      Tab(text: 'Uang Keluar (DB)'),
-                    ],
-                    onTap: (_) => setState(() {}),
-                  ),
-                ),
-                const Divider(height: 1, color: AppColors.border),
+                // Pill Filter Segmented Tabs (Semua, Uang Masuk, Uang Keluar)
+                _buildPillTabBar(),
 
-                // Mutations List
+                // Mutations List Tabs
                 Expanded(
                   child: TabBarView(
                     controller: _tabController,
@@ -399,22 +329,97 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
     );
   }
 
+  // ==================== PILL SEGMENTED TAB BAR ====================
+  Widget _buildPillTabBar() {
+    final tabs = ['Semua', 'Uang Masuk (CR)', 'Uang Keluar (DB)'];
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEDF2F7),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: List.generate(tabs.length, (index) {
+          final isSelected = _selectedTabIndex == index;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () {
+                _tabController.animateTo(index);
+                setState(() => _selectedTabIndex = index);
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: isSelected ? Colors.white : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.06),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1.5),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Text(
+                  tabs[index],
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11.5,
+                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                    color: isSelected ? royalBlue : textMuted,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  // ==================== MUTATION LIST VIEW ====================
   Widget _buildMutationList(List<MutationModel> items) {
     if (items.isEmpty) {
       return RefreshIndicator(
         onRefresh: () => context.read<AccountCubit>().refresh(),
-        color: AppColors.primary,
+        color: primaryNavy,
         child: ListView(
-          children: const [
-            SizedBox(height: 80),
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            const SizedBox(height: 70),
             Center(
               child: Column(
                 children: [
-                  Icon(Icons.receipt_long_outlined, size: 54, color: AppColors.textMuted),
-                  SizedBox(height: 12),
+                  Container(
+                    width: 70,
+                    height: 70,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Center(
+                      child: Icon(Icons.receipt_long_outlined, size: 34, color: Color(0xFF94A3B8)),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
                   Text(
-                    'Tidak ada mutasi transaksi pada periode ini',
-                    style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                    'Tidak ada transaksi pada filter ini',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: titleDark,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Semua mutasi kredit & debit akan tercatat otomatis di sini.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.plusJakartaSans(fontSize: 12, color: textMuted),
                   ),
                 ],
               ),
@@ -426,9 +431,9 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
 
     return RefreshIndicator(
       onRefresh: () => context.read<AccountCubit>().refresh(),
-      color: AppColors.primary,
+      color: primaryNavy,
       child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
         itemCount: items.length,
         separatorBuilder: (_, __) => const SizedBox(height: 10),
         itemBuilder: (context, index) {
@@ -437,15 +442,15 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
             onTap: () => _showTransactionReceipt(context, m),
             borderRadius: BorderRadius.circular(16),
             child: Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(15),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: borderLight),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF0F172A).withOpacity(0.02),
-                    blurRadius: 8,
+                    color: Colors.black.withOpacity(0.02),
+                    blurRadius: 6,
                     offset: const Offset(0, 2),
                   ),
                 ],
@@ -453,44 +458,94 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Main Row: Icon + Description + Amount
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Icon Circle
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        width: 38,
+                        height: 38,
                         decoration: BoxDecoration(
-                          color: m.isCredit ? const Color(0xFFF0FDF4) : const Color(0xFFFFF1F2),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: m.isCredit ? const Color(0xFFDCFCE7) : const Color(0xFFFFE4E6),
-                          ),
+                          color: m.isCredit ? const Color(0xFFF0FDF4) : const Color(0xFFFEF2F2),
+                          shape: BoxShape.circle,
                         ),
-                        child: Text(
-                          m.isCredit ? 'DANA MASUK (CR)' : 'DANA KELUAR (DB)',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            color: m.isCredit ? AppColors.primary : AppColors.expense,
-                            letterSpacing: 0.5,
+                        child: Center(
+                          child: Icon(
+                            m.isCredit ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+                            color: m.isCredit ? dmbGreen : dmbRed,
+                            size: 19,
                           ),
                         ),
                       ),
-                      Text(
-                        CurrencyFormatter.formatDate(m.createdAt),
-                        style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                      const SizedBox(width: 12),
+
+                      // Title & Date
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              m.description,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: titleDark,
+                                height: 1.3,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              CurrencyFormatter.formatDate(m.createdAt),
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 11,
+                                color: textMuted,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+
+                      // Amount & Badge
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            (m.isCredit ? '+ ' : '- ') + CurrencyFormatter.formatRupiah(m.amount),
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w900,
+                              color: m.isCredit ? dmbGreen : dmbRed,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: m.isCredit ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              m.isCredit ? 'CR' : 'DB',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w800,
+                                color: m.isCredit ? dmbGreen : dmbRed,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
+
                   const SizedBox(height: 10),
-                  Text(
-                    m.description,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
+                  const Divider(height: 1, color: Color(0xFFF1F5F9)),
                   const SizedBox(height: 8),
+
+                  // Bottom Meta Row: Ref & Saldo Akhir
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -498,35 +553,25 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
                         child: Text(
                           'Ref: ${m.referenceNumber}',
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                          style: GoogleFonts.plusJakartaSans(fontSize: 10.5, color: textMuted),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        (m.isCredit ? '+ ' : '- ') + CurrencyFormatter.formatRupiah(m.amount),
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w900,
-                          color: m.isCredit ? AppColors.primary : AppColors.expense,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Divider(height: 18, color: Color(0xFFF1F5F9)),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Saldo Setelah Transaksi:',
-                        style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                      ),
-                      Text(
-                        CurrencyFormatter.formatRupiah(m.balanceAfter),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            'Saldo: ',
+                            style: GoogleFonts.plusJakartaSans(fontSize: 11, color: textMuted),
+                          ),
+                          Text(
+                            CurrencyFormatter.formatRupiah(m.balanceAfter),
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: titleDark,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

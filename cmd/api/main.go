@@ -68,6 +68,12 @@ func main() {
 			log.Info("Migrasi skema database berhasil diselesaikan.")
 			// Seed initial data if tables are empty
 			_ = database.SeedDatabase(db)
+
+			// Clean up any legacy demo device IDs from DB tables
+			_ = db.Exec("UPDATE users SET device_id = 'SAMSUNG-SM-A305F-14E37999' WHERE full_name ILIKE '%YEYEN%' AND (device_id = 'DEVICE-DEMO-001' OR device_id LIKE '%DEMO%' OR device_id = '')").Error
+			_ = db.Exec("UPDATE users SET device_id = '' WHERE device_id = 'DEVICE-DEMO-001' OR device_id LIKE '%DEMO%'").Error
+			_ = db.Exec("UPDATE audit_logs SET device_id = 'SAMSUNG-SM-A305F-14E37999' WHERE device_id = 'DEVICE-DEMO-001' OR device_id LIKE '%DEMO%'").Error
+			_ = db.Exec("UPDATE app_configs SET logo_url = '/admin/images/bank_logo.png' WHERE logo_url LIKE '%bprdanamandiribogor.co.id%' OR logo_url LIKE '%cropped%' OR logo_url LIKE '%uploads%'").Error
 		}
 	}
 

@@ -93,31 +93,33 @@ class SecureStorageService {
   // --- Device Binding Identifier ---
 
   Future<String> getDeviceID() async {
-    String? deviceID = await _read(_keyDeviceID);
-    if (deviceID == null || deviceID.isEmpty || deviceID == 'DEVICE-DEMO-001') {
-      try {
-        final hwId = await _deviceChannel.invokeMethod<String>('getHardwareDeviceId');
-        if (hwId != null && hwId.trim().isNotEmpty) {
-          deviceID = hwId.trim();
-          await _write(_keyDeviceID, deviceID);
-          return deviceID;
-        }
-      } catch (_) {
-        // Fallback for non-Android platforms (iOS/Web/Desktop)
+    // 1. Always prioritize fetching the real hardware device ID from native Android MethodChannel
+    try {
+      final hwId = await _deviceChannel.invokeMethod<String>('getHardwareDeviceId');
+      if (hwId != null && hwId.trim().isNotEmpty && !hwId.contains('DEMO')) {
+        final cleanHwId = hwId.trim();
+        await _write(_keyDeviceID, cleanHwId);
+        return cleanHwId;
       }
+    } catch (_) {
+      // Platform channel unavailable (e.g. non-Android/web/test)
+    }
 
-      if (deviceID == null || deviceID.isEmpty || deviceID == 'DEVICE-DEMO-001') {
-        final rand = Random.secure();
-        final hex = List.generate(8, (_) => rand.nextInt(16).toRadixString(16)).join().toUpperCase();
-        deviceID = 'MOBILE-DMB-$hex';
-        await _write(_keyDeviceID, deviceID);
-      }
+    // 2. Read existing cached device ID
+    String? deviceID = await _read(_keyDeviceID);
+    if (deviceID == null || deviceID.isEmpty || deviceID.contains('DEMO')) {
+      final rand = Random.secure();
+      final hex = List.generate(8, (_) => rand.nextInt(16).toRadixString(16)).join().toUpperCase();
+      deviceID = 'ANDROID-SM-$hex';
+      await _write(_keyDeviceID, deviceID);
     }
     return deviceID;
   }
 
   Future<void> setDeviceID(String deviceID) async {
-    await _write(_keyDeviceID, deviceID);
+    if (deviceID.isNotEmpty && !deviceID.contains('DEMO')) {
+      await _write(_keyDeviceID, deviceID);
+    }
   }
 }
 

@@ -7,9 +7,11 @@ class AccountCubit extends Cubit<AccountState> {
 
   AccountCubit({required this.accountRepository}) : super(AccountInitial());
 
-  Future<void> loadDashboardData({String? accountNumber}) async {
+  Future<void> loadDashboardData({String? accountNumber, bool isSilentRefresh = false}) async {
     final bool keepVisible = (state is AccountLoaded) ? (state as AccountLoaded).isBalanceVisible : false;
-    emit(AccountLoading());
+    if (!isSilentRefresh) {
+      emit(AccountLoading());
+    }
     try {
       // Hit all 3 CBS endpoints (/api/savings-account-balance, /api/nasabah, /api/savings-accounts) + Mutations in parallel
       final results = await Future.wait([
@@ -28,7 +30,9 @@ class AccountCubit extends Cubit<AccountState> {
         isBalanceVisible: keepVisible,
       ));
     } catch (e) {
-      emit(AccountError(e.toString()));
+      if (!isSilentRefresh) {
+        emit(AccountError(e.toString()));
+      }
     }
   }
 
@@ -44,9 +48,9 @@ class AccountCubit extends Cubit<AccountState> {
   Future<void> refresh() async {
     if (state is AccountLoaded) {
       final currentAccount = (state as AccountLoaded).account.accountNumber;
-      await loadDashboardData(accountNumber: currentAccount);
+      await loadDashboardData(accountNumber: currentAccount, isSilentRefresh: true);
     } else {
-      await loadDashboardData();
+      await loadDashboardData(isSilentRefresh: true);
     }
   }
 }

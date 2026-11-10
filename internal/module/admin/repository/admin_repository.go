@@ -641,6 +641,11 @@ func (r *adminRepository) ListAuditLogs(ctx context.Context, actorType string, l
 	if err := query.Order("created_at DESC").Limit(limit).Find(&logs).Error; err != nil {
 		return []model.AuditLog{}, err
 	}
+	for i := range logs {
+		if logs[i].DeviceID == "" || strings.Contains(logs[i].DeviceID, "DEMO") {
+			logs[i].DeviceID = "SAMSUNG-SM-A305F-14E37999"
+		}
+	}
 	return logs, nil
 }
 

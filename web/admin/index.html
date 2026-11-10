@@ -63,7 +63,7 @@
       <!-- DUAL BRANDING HEADER WITH VERTICAL DIVIDER (Logo | PT BPR DANA MANDIRI BOGOR) -->
       <div class="flex items-center gap-4 mb-8">
         <!-- Official Bank Uploaded Logo -->
-        <img id="loginLogoImg" src="uploads/logo_1793871034646488200.png" alt="Logo Bank"
+        <img id="loginLogoImg" src="images/bank_logo.png" alt="Logo Bank"
           class="h-12 sm:h-14 w-auto max-w-[170px] object-contain drop-shadow-xs"
           onerror="this.classList.add('hidden'); document.getElementById('loginLogoFallback').classList.remove('hidden');">
         <div id="loginLogoFallback" class="h-12 w-12 rounded-xl bg-teal-50 border border-teal-200 flex items-center justify-center text-[#00897B] font-black text-base hidden shadow-sm">
@@ -116,18 +116,9 @@
         </div>
       </form>
 
-      <!-- Regulatory Compliance Footer with Official OJK & LPS Logos -->
-      <div class="mt-12 pt-5 border-t border-slate-200/80">
-        <div class="flex items-center justify-between gap-4">
-          <div class="flex items-center gap-2">
-            <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider hidden sm:inline">Terdaftar & Diawasi:</span>
-            <img src="images/logo_ojk.svg" alt="Otoritas Jasa Keuangan" class="h-7 w-auto object-contain hover:opacity-100 transition opacity-90">
-          </div>
-          <div class="flex items-center gap-2">
-            <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider hidden sm:inline">Peserta Penjaminan:</span>
-            <img src="images/logo_lps.svg" alt="Lembaga Penjamin Simpanan" class="h-7 w-auto object-contain hover:opacity-100 transition opacity-90">
-          </div>
-        </div>
+      <!-- Clean Footer -->
+      <div class="mt-12 pt-5 border-t border-slate-200/80 text-center">
+        <p class="text-[11px] text-slate-400 font-medium">PT BPR Dana Mandiri Bogor &bull; Portal Konsol Backoffice</p>
       </div>
     </div>
   </div>
@@ -142,7 +133,7 @@
         <!-- App Header with Dynamic Uploaded Bank Logo -->
         <div class="p-4 px-5 flex items-center gap-3 border-b border-slate-100 bg-[#FBFDFE]">
           <!-- Live Uploaded Bank Logo Image -->
-          <img id="sidebarLogoImg" src="/admin/uploads/logo_1793871034646488200.png" alt="Logo Bank"
+          <img id="sidebarLogoImg" src="images/bank_logo.png" alt="Logo Bank"
             class="h-10 w-auto max-w-[110px] object-contain drop-shadow-xs"
             onerror="this.classList.add('hidden'); document.getElementById('sidebarLogoFallback').classList.remove('hidden');">
           <!-- Fallback if logo not loaded -->
@@ -787,7 +778,7 @@
                   <div
                     class="w-24 h-24 rounded-2xl bg-slate-50 border-2 border-dashed border-slate-200 flex items-center justify-center p-2 mb-4 overflow-hidden relative shadow-inner">
                     <img id="cfgLogoPreview"
-                      src="https://bprdanamandiribogor.co.id/wp-content/uploads/2021/04/cropped-logo-dmb-1.png"
+                      src="images/bank_logo.png"
                       alt="Logo Bank" class="max-h-full max-w-full object-contain"
                       onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'><text y=\'.9em\' font-size=\'90\'>🏦</text></svg>';">
                   </div>
@@ -1014,20 +1005,8 @@
             &copy; 2026 <strong class="text-slate-700">PT BPR Dana Mandiri Bogor</strong>. Konsol Administrasi &
             Backoffice M-Banking.
           </div>
-          <div class="flex items-center gap-6">
-            <div class="flex items-center gap-2">
-              <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider hidden md:inline">Terdaftar
-                &
-                Diawasi:</span>
-              <img src="/admin/images/logo_ojk.svg" alt="OJK"
-                class="h-6 w-auto object-contain opacity-85 hover:opacity-100 transition">
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider hidden md:inline">Peserta
-                Penjaminan:</span>
-              <img src="/admin/images/logo_lps.svg" alt="LPS"
-                class="h-6 w-auto object-contain opacity-85 hover:opacity-100 transition">
-            </div>
+          <div class="text-xs text-slate-400">
+            Versi v1.0.0 &bull; Sistem Terenkripsi 256-Bit SSL
           </div>
         </footer>
       </main>

@@ -1,12 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../core/constants/app_colors.dart';
 import '../../../core/network/api_exception.dart';
-import '../../../data/repositories/auth_repository.dart';
-import '../../blocs/account/account_cubit.dart';
 import '../../blocs/auth/auth_cubit.dart';
-import '../../widgets/custom_button.dart';
 import '../home/home_screen.dart';
 
 class ActivationScreen extends StatefulWidget {
@@ -19,6 +16,13 @@ class ActivationScreen extends StatefulWidget {
 class _ActivationScreenState extends State<ActivationScreen> {
   int _currentStep = 1; // 1: Rekening, 2: OTP, 3: Password & PIN
   bool _isLoading = false;
+
+  // Colors aligned with DMB Mobile Executive Design
+  static const Color primaryNavy = Color(0xFF0B356D); // Official Deep Navy Blue
+  static const Color dmbGreen = Color(0xFF16984B); // Vibrant DMB Green
+  static const Color titleDark = Color(0xFF0B2546); // Executive Headline Navy
+  static const Color textMuted = Color(0xFF64748B); // Slate Muted
+  static const Color borderColor = Color(0xFFE2E8F0); // Subtle Border
 
   // Step 1 Controllers
   final _accountController = TextEditingController();
@@ -39,6 +43,8 @@ class _ActivationScreenState extends State<ActivationScreen> {
   final _confirmPinController = TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _obscurePin = true;
+  bool _obscureConfirmPin = true;
 
   @override
   void dispose() {
@@ -68,9 +74,16 @@ class _ActivationScreenState extends State<ActivationScreen> {
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
-        backgroundColor: AppColors.danger,
+        content: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: const Color(0xFFDC2626),
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
@@ -98,18 +111,19 @@ class _ActivationScreenState extends State<ActivationScreen> {
       );
 
       setState(() {
-        _sessionId = res['session_id'] as String? ?? '';
-        _maskedPhone = res['masked_phone'] as String? ?? phone;
-        _fullName = res['full_name'] as String? ?? 'Nasabah';
+        _sessionId = res['session_id'] ?? '';
+        _maskedPhone = res['masked_phone'] ?? phone;
+        _fullName = res['full_name'] ?? '';
         _currentStep = 2;
+        _isLoading = false;
       });
       _startOtpTimer();
     } on ApiException catch (e) {
+      setState(() => _isLoading = false);
       _showError(e.message);
     } catch (e) {
-      _showError('Gagal memverifikasi data rekening: $e');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+      setState(() => _isLoading = false);
+      _showError('Terjadi kesalahan koneksi. Silakan coba beberapa saat lagi.');
     }
   }
 
@@ -117,35 +131,32 @@ class _ActivationScreenState extends State<ActivationScreen> {
   Future<void> _handleStep2Submit() async {
     final otp = _otpController.text.trim();
     if (otp.length != 6) {
-      _showError('Masukkan 6 digit kode OTP verifikasi');
+      _showError('Kode OTP harus 6 digit');
       return;
     }
 
     setState(() => _isLoading = true);
     try {
       final authRepo = context.read<AuthCubit>().authRepository;
-      final ok = await authRepo.verifyActivationOtp(
+      await authRepo.verifyActivationOtp(
         sessionId: _sessionId,
         otpCode: otp,
       );
 
-      if (ok) {
-        setState(() {
-          _currentStep = 3;
-        });
-      } else {
-        _showError('Kode OTP tidak valid');
-      }
+      setState(() {
+        _currentStep = 3;
+        _isLoading = false;
+      });
     } on ApiException catch (e) {
+      setState(() => _isLoading = false);
       _showError(e.message);
     } catch (e) {
-      _showError('Gagal memverifikasi OTP: $e');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+      setState(() => _isLoading = false);
+      _showError('Verifikasi OTP gagal. Silakan periksa kembali kode Anda.');
     }
   }
 
-  // ==================== STEP 3: SETUP PASSWORD & PIN ====================
+  // ==================== STEP 3: BUAT PASSWORD & PIN ====================
   Future<void> _handleStep3Submit() async {
     final password = _passwordController.text.trim();
     final confirmPassword = _confirmPasswordController.text.trim();
@@ -153,15 +164,15 @@ class _ActivationScreenState extends State<ActivationScreen> {
     final confirmPin = _confirmPinController.text.trim();
 
     if (password.length < 8) {
-      _showError('Password minimal harus 8 karakter');
+      _showError('Kata sandi minimal 8 karakter');
       return;
     }
     if (password != confirmPassword) {
-      _showError('Konfirmasi password tidak cocok');
+      _showError('Konfirmasi kata sandi tidak cocok');
       return;
     }
     if (pin.length != 6) {
-      _showError('PIN transaksi harus tepat 6 digit angka');
+      _showError('PIN transaksi harus 6 digit angka');
       return;
     }
     if (pin != confirmPin) {
@@ -178,18 +189,21 @@ class _ActivationScreenState extends State<ActivationScreen> {
         pin: pin,
       );
 
-      // Notify AuthCubit & AccountCubit
+      setState(() => _isLoading = false);
+
       if (mounted) {
         context.read<AuthCubit>().checkAuthStatus();
-        context.read<AccountCubit>().loadDashboardData();
-        _showSuccessDialog(authResponse.user.fullName);
+        final name = authResponse.user.fullName.isNotEmpty
+            ? authResponse.user.fullName
+            : _fullName;
+        _showSuccessDialog(name);
       }
     } on ApiException catch (e) {
+      setState(() => _isLoading = false);
       _showError(e.message);
     } catch (e) {
-      _showError('Aktivasi gagal: $e');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+      setState(() => _isLoading = false);
+      _showError('Aktivasi gagal. Silakan coba kembali.');
     }
   }
 
@@ -197,54 +211,60 @@ class _ActivationScreenState extends State<ActivationScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        contentPadding: const EdgeInsets.all(24),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                color: const Color(0xFFDCFCE7),
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.primary, width: 2),
-              ),
-              child: const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 44),
-            ),
-            const SizedBox(height: 18),
-            Text(
-              'Aktivasi Berhasil!',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Selamat datang, $name.\nAkun M-Banking Bank DMB Anda telah aktif dan terikat aman dengan perangkat ini.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: Color(0xFF64748B), height: 1.4),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  elevation: 0,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0FDF4),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFBBF7D0), width: 1.5),
                 ),
-                onPressed: () {
-                  Navigator.of(ctx).pop();
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (_) => const HomeScreen()),
-                    (route) => false,
-                  );
-                },
-                child: const Text('Mulai Bertransaksi', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                child: const Icon(Icons.check_circle_rounded, color: dmbGreen, size: 40),
               ),
-            ),
-          ],
+              const SizedBox(height: 18),
+              const Text(
+                'Aktivasi Berhasil!',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: titleDark),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Selamat datang, $name.\nAkun Mobile Banking Bank DMB Anda telah aktif dan siap digunakan untuk bertransaksi.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 13, color: textMuted, height: 1.45),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryNavy,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+                    elevation: 2,
+                  ),
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const HomeScreen()),
+                      (route) => false,
+                    );
+                  },
+                  child: const Text(
+                    'Mulai Bertransaksi',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -252,38 +272,115 @@ class _ActivationScreenState extends State<ActivationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        title: const Text(
-          'Aktivasi M-Banking',
-          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: Colors.white),
-        ),
-        backgroundColor: AppColors.primary,
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-          onPressed: () {
-            if (_currentStep > 1) {
-              setState(() => _currentStep--);
-            } else {
-              Navigator.of(context).pop();
-            }
-          },
-        ),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.white,
+        systemNavigationBarIconBrightness: Brightness.dark,
       ),
-      body: SafeArea(
-        child: Column(
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: Stack(
+          fit: StackFit.expand,
           children: [
-            // STEP PROGRESS HEADER
-            _buildStepIndicator(),
+            // 1. Background Mount Salak & Tugu Kujang Artwork
+            Positioned.fill(
+              child: Image.asset(
+                'assets/images/splash_artwork.jpg',
+                fit: BoxFit.cover,
+              ),
+            ),
 
-            // SCROLLABLE STEP FORM
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: _buildCurrentStepContent(),
+            // 2. White Soft Wash Gradient
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    stops: const [0.0, 0.20, 0.32, 0.85, 1.0],
+                    colors: [
+                      Colors.white.withOpacity(0.08),
+                      Colors.white.withOpacity(0.40),
+                      Colors.white.withOpacity(0.95),
+                      Colors.white.withOpacity(0.98),
+                      Colors.white.withOpacity(0.20),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // 3. Foreground Content Layer
+            SafeArea(
+              child: Column(
+                children: [
+                  // Top Bar: Back & Step Indicator
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back, color: titleDark, size: 24),
+                          onPressed: () {
+                            if (_currentStep > 1) {
+                              setState(() => _currentStep--);
+                            } else {
+                              Navigator.of(context).pop();
+                            }
+                          },
+                        ),
+                        Image.asset(
+                          'assets/images/bank_logo.png',
+                          height: 38,
+                          fit: BoxFit.contain,
+                        ),
+                        const SizedBox(width: 40), // Balance spacing
+                      ],
+                    ),
+                  ),
+
+                  // Modern Segmented Step Indicator
+                  _buildStepIndicator(),
+
+                  // Scrollable Form
+                  Expanded(
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildCurrentStepContent(),
+                          const SizedBox(height: 32),
+
+                          // Bottom Security Notice
+                          Center(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                Icon(Icons.shield_outlined, size: 16, color: primaryNavy),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Transaksi Anda aman bersama DMB',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF475569),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -293,68 +390,100 @@ class _ActivationScreenState extends State<ActivationScreen> {
   }
 
   Widget _buildStepIndicator() {
-    Widget buildStepCircle(int step, String label) {
-      final isActive = _currentStep == step;
-      final isDone = _currentStep > step;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 8),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              _buildStepNode(1),
+              Expanded(child: _buildStepLine(1)),
+              _buildStepNode(2),
+              Expanded(child: _buildStepLine(2)),
+              _buildStepNode(3),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            _currentStep == 1
+                ? 'Langkah 1: Verifikasi Nomor Rekening'
+                : (_currentStep == 2
+                    ? 'Langkah 2: Verifikasi Kode OTP'
+                    : 'Langkah 3: Buat Kata Sandi & PIN'),
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: titleDark,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-      return Expanded(
-        child: Column(
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: isDone
-                    ? AppColors.primary
-                    : isActive
-                        ? const Color(0xFFE0F2FE)
-                        : const Color(0xFFF1F5F9),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isDone || isActive ? AppColors.primary : const Color(0xFFCBD5E1),
-                  width: 2,
-                ),
-              ),
-              child: Center(
-                child: isDone
-                    ? const Icon(Icons.check, size: 18, color: Colors.white)
-                    : Text(
-                        '$step',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: isActive ? AppColors.primary : const Color(0xFF64748B),
-                        ),
-                      ),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: isActive || isDone ? FontWeight.w700 : FontWeight.w500,
-                color: isActive || isDone ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
-              ),
-            ),
-          ],
+  Widget _buildStepNode(int step) {
+    final isCurrent = _currentStep == step;
+    final isCompleted = _currentStep > step;
+
+    Color bgColor;
+    Widget content;
+
+    if (isCompleted) {
+      bgColor = const Color(0xFF0761DB);
+      content = const Icon(Icons.check_rounded, size: 16, color: Colors.white);
+    } else if (isCurrent) {
+      bgColor = const Color(0xFF0761DB);
+      content = Text(
+        '$step',
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+        ),
+      );
+    } else {
+      bgColor = const Color(0xFFE2E8F2);
+      content = Text(
+        '$step',
+        style: const TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF64748B),
         ),
       );
     }
 
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        children: [
-          buildStepCircle(1, 'Data Rekening'),
-          Container(width: 24, height: 2, color: _currentStep > 1 ? AppColors.primary : const Color(0xFFE2E8F0)),
-          buildStepCircle(2, 'Verifikasi OTP'),
-          Container(width: 24, height: 2, color: _currentStep > 2 ? AppColors.primary : const Color(0xFFE2E8F0)),
-          buildStepCircle(3, 'Password & PIN'),
-        ],
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      width: 30,
+      height: 30,
+      decoration: BoxDecoration(
+        color: bgColor,
+        shape: BoxShape.circle,
+        boxShadow: isCurrent
+            ? [
+                BoxShadow(
+                  color: const Color(0xFF0761DB).withOpacity(0.28),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ]
+            : null,
+      ),
+      child: Center(child: content),
+    );
+  }
+
+  Widget _buildStepLine(int afterStep) {
+    final isPassed = _currentStep > afterStep;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      height: 2,
+      margin: const EdgeInsets.symmetric(horizontal: 6),
+      decoration: BoxDecoration(
+        color: isPassed ? const Color(0xFF0761DB) : const Color(0xFFD3DBE8),
+        borderRadius: BorderRadius.circular(2),
       ),
     );
   }
@@ -377,99 +506,168 @@ class _ActivationScreenState extends State<ActivationScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Hero Card
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF0FDF4),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFBBF7D0)),
+        const SizedBox(height: 10),
+        const Text(
+          'Daftar & Aktivasi Akun',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w800,
+            color: titleDark,
+            letterSpacing: -0.4,
           ),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.account_balance_rounded, color: AppColors.primary, size: 24),
-              ),
-              const SizedBox(width: 14),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Aktivasi Nasabah Bank DMB',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF166534)),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      'Masukkan data rekening tabungan fisik Anda yang terdaftar di kantor cabang.',
-                      style: TextStyle(fontSize: 11, color: Color(0xFF15803D), height: 1.3),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Masukkan nomor rekening dan nomor handphone terdaftar Anda di Bank DMB untuk memulai aktivasi.',
+          style: TextStyle(
+            fontSize: 13.5,
+            color: textMuted,
+            height: 1.45,
           ),
         ),
         const SizedBox(height: 24),
 
         // Input 1: Nomor Rekening
         const Text(
-          'Nomor Rekening Tabungan / CIF',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+          'Nomor Rekening Tabungan',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: titleDark),
         ),
         const SizedBox(height: 8),
-        TextField(
-          controller: _accountController,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-            hintText: 'Masukkan Nomor Rekening atau CIF',
-            prefixIcon: const Icon(Icons.wallet_rounded, color: Color(0xFF94A3B8), size: 20),
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderColor, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.02),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: TextField(
+            controller: _accountController,
+            keyboardType: TextInputType.number,
+            style: const TextStyle(
+              fontSize: 14.5,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF0F172A),
+            ),
+            decoration: const InputDecoration(
+              hintText: 'Contoh: 1001002003',
+              hintStyle: TextStyle(
+                color: Color(0xFF94A3B8),
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+              ),
+              prefixIcon: Icon(
+                Icons.account_balance_wallet_outlined,
+                color: Color(0xFF4A607A),
+                size: 22,
+              ),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+            ),
           ),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 16),
 
         // Input 2: Nomor Handphone
         const Text(
           'Nomor Handphone Terdaftar',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: titleDark),
         ),
         const SizedBox(height: 8),
-        TextField(
-          controller: _phoneController,
-          keyboardType: TextInputType.phone,
-          decoration: InputDecoration(
-            hintText: 'Masukkan Nomor Handphone Aktif',
-            prefixIcon: const Icon(Icons.phone_android_rounded, color: Color(0xFF94A3B8), size: 20),
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderColor, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.02),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: TextField(
+            controller: _phoneController,
+            keyboardType: TextInputType.phone,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            style: const TextStyle(
+              fontSize: 14.5,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF0F172A),
+            ),
+            decoration: const InputDecoration(
+              hintText: 'Contoh: 081234567890',
+              hintStyle: TextStyle(
+                color: Color(0xFF94A3B8),
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+              ),
+              prefixIcon: Icon(
+                Icons.phone_android_rounded,
+                color: Color(0xFF4A607A),
+                size: 22,
+              ),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+            ),
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
-          '* Pastikan nomor handphone aktif untuk menerima kode OTP verifikasi SMS/WA.',
-          style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+        const Row(
+          children: [
+            Icon(Icons.info_outline_rounded, size: 14, color: dmbGreen),
+            SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                'Pastikan nomor handphone aktif untuk menerima kode OTP verifikasi SMS.',
+                style: TextStyle(fontSize: 11.5, color: textMuted),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 28),
+        const SizedBox(height: 32),
 
-        CustomButton(
-          text: 'Verifikasi Rekening',
-          isLoading: _isLoading,
-          backgroundColor: AppColors.primary,
-          onPressed: _handleStep1Submit,
+        // Action Button: Verifikasi Rekening →
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryNavy,
+              foregroundColor: Colors.white,
+              elevation: 2,
+              shadowColor: primaryNavy.withOpacity(0.35),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+            ),
+            onPressed: _isLoading ? null : _handleStep1Submit,
+            child: _isLoading
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.2),
+                  )
+                : const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Verifikasi Rekening',
+                        style: TextStyle(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Icon(Icons.arrow_forward_rounded, size: 18),
+                    ],
+                  ),
+          ),
         ),
       ],
     );
@@ -480,56 +678,62 @@ class _ActivationScreenState extends State<ActivationScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         Container(
-          width: 64,
-          height: 64,
-          decoration: const BoxDecoration(color: Color(0xFFEFF6FF), shape: BoxShape.circle),
-          child: const Icon(Icons.mark_email_read_rounded, color: Color(0xFF2563EB), size: 32),
+          width: 58,
+          height: 58,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF0FDF4),
+            shape: BoxShape.circle,
+            border: Border.all(color: const Color(0xFFBBF7D0), width: 1.5),
+          ),
+          child: const Icon(Icons.mark_email_read_rounded, color: dmbGreen, size: 28),
         ),
         const SizedBox(height: 16),
         const Text(
           'Verifikasi Kode OTP',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: titleDark),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         Text(
           'Kode 6 digit telah dikirimkan ke nomor handphone\n$_maskedPhone atas nama $_fullName',
           textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), height: 1.4),
+          style: const TextStyle(fontSize: 13, color: textMuted, height: 1.45),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 28),
 
         // 6-digit OTP Input
-        TextField(
-          controller: _otpController,
-          keyboardType: TextInputType.number,
-          textAlign: TextAlign.center,
-          maxLength: 6,
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: 12, color: Color(0xFF0F172A)),
-          decoration: InputDecoration(
-            counterText: '',
-            hintText: '------',
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Demo OTP helper badge
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: const Color(0xFFFEF3C7),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFFFDE68A)),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderColor, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.02),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-          child: const Text(
-            'Kode OTP Demo: 123456',
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF92400E)),
+          child: TextField(
+            controller: _otpController,
+            keyboardType: TextInputType.number,
+            textAlign: TextAlign.center,
+            maxLength: 6,
+            style: const TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 10,
+              color: titleDark,
+            ),
+            decoration: const InputDecoration(
+              counterText: '',
+              hintText: '------',
+              hintStyle: TextStyle(color: Color(0xFFCBD5E1), letterSpacing: 10),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(vertical: 16),
+            ),
           ),
         ),
         const SizedBox(height: 20),
@@ -538,25 +742,61 @@ class _ActivationScreenState extends State<ActivationScreen> {
         if (_otpCountdown > 0)
           Text(
             'Kirim ulang kode dalam $_otpCountdown detik',
-            style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+            style: const TextStyle(fontSize: 12.5, color: textMuted),
           )
         else
           TextButton(
             onPressed: () {
               _startOtpTimer();
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Kode OTP baru telah dikirimkan'), behavior: SnackBarBehavior.floating),
+                const SnackBar(
+                  content: Text('Kode OTP baru telah dikirimkan ke nomor Anda'),
+                  behavior: SnackBarBehavior.floating,
+                ),
               );
             },
-            child: const Text('Kirim Ulang Kode OTP', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.primary)),
+            child: const Text(
+              'Kirim Ulang Kode OTP',
+              style: TextStyle(fontWeight: FontWeight.w700, color: dmbGreen, fontSize: 13.5),
+            ),
           ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 32),
 
-        CustomButton(
-          text: 'Lanjutkan',
-          isLoading: _isLoading,
-          backgroundColor: AppColors.primary,
-          onPressed: _handleStep2Submit,
+        // Action Button: Lanjutkan →
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryNavy,
+              foregroundColor: Colors.white,
+              elevation: 2,
+              shadowColor: primaryNavy.withOpacity(0.35),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+            ),
+            onPressed: _isLoading ? null : _handleStep2Submit,
+            child: _isLoading
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.2),
+                  )
+                : const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Lanjutkan',
+                        style: TextStyle(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Icon(Icons.arrow_forward_rounded, size: 18),
+                    ],
+                  ),
+          ),
         ),
       ],
     );
@@ -567,124 +807,288 @@ class _ActivationScreenState extends State<ActivationScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFFEFF6FF),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFBFDBFE)),
-          ),
-          child: const Row(
-            children: [
-              Icon(Icons.shield_rounded, color: Color(0xFF2563EB), size: 28),
-              SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Kredensial Keamanan Akun',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF1E3A8A)),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      'Buat password untuk login apps, dan PIN 6 digit untuk otorisasi transfer dana.',
-                      style: TextStyle(fontSize: 11, color: Color(0xFF1E40AF), height: 1.3),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+        const SizedBox(height: 10),
+        const Text(
+          'Buat Sandi & PIN',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w800,
+            color: titleDark,
+            letterSpacing: -0.4,
           ),
         ),
-        const SizedBox(height: 20),
-
-        // Field: Password Baru
-        const Text('Password Baru (Min. 8 Karakter)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155))),
         const SizedBox(height: 6),
-        TextField(
-          controller: _passwordController,
-          obscureText: _obscurePassword,
-          decoration: InputDecoration(
-            hintText: 'Minimal 8 karakter huruf & angka',
-            filled: true,
-            fillColor: Colors.white,
-            prefixIcon: const Icon(Icons.lock_outline_rounded, color: Color(0xFF94A3B8), size: 18),
-            suffixIcon: IconButton(
-              icon: Icon(_obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 18),
-              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-            ),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-          ),
-        ),
-        const SizedBox(height: 14),
-
-        // Field: Konfirmasi Password
-        const Text('Konfirmasi Password', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155))),
-        const SizedBox(height: 6),
-        TextField(
-          controller: _confirmPasswordController,
-          obscureText: _obscureConfirmPassword,
-          decoration: InputDecoration(
-            hintText: 'Ulangi password baru',
-            filled: true,
-            fillColor: Colors.white,
-            prefixIcon: const Icon(Icons.lock_reset_rounded, color: Color(0xFF94A3B8), size: 18),
-            suffixIcon: IconButton(
-              icon: Icon(_obscureConfirmPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 18),
-              onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
-            ),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-          ),
-        ),
-        const SizedBox(height: 18),
-
-        // Field: PIN Transaksi 6 Digit
-        const Text('PIN Transaksi (6 Digit Angka)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155))),
-        const SizedBox(height: 6),
-        TextField(
-          controller: _pinController,
-          keyboardType: TextInputType.number,
-          obscureText: true,
-          maxLength: 6,
-          decoration: InputDecoration(
-            counterText: '',
-            hintText: '6 digit angka rahasia',
-            filled: true,
-            fillColor: Colors.white,
-            prefixIcon: const Icon(Icons.pin_rounded, color: Color(0xFF94A3B8), size: 18),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-          ),
-        ),
-        const SizedBox(height: 14),
-
-        // Field: Konfirmasi PIN
-        const Text('Konfirmasi PIN Transaksi', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155))),
-        const SizedBox(height: 6),
-        TextField(
-          controller: _confirmPinController,
-          keyboardType: TextInputType.number,
-          obscureText: true,
-          maxLength: 6,
-          decoration: InputDecoration(
-            counterText: '',
-            hintText: 'Ulangi 6 digit PIN',
-            filled: true,
-            fillColor: Colors.white,
-            prefixIcon: const Icon(Icons.pin_outlined, color: Color(0xFF94A3B8), size: 18),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+        const Text(
+          'Buat kata sandi untuk masuk aplikasi, dan PIN 6 digit untuk otorisasi transaksi finansial Anda.',
+          style: TextStyle(
+            fontSize: 13.5,
+            color: textMuted,
+            height: 1.45,
           ),
         ),
         const SizedBox(height: 24),
 
-        CustomButton(
-          text: 'Selesaikan Aktivasi',
-          isLoading: _isLoading,
-          backgroundColor: AppColors.primary,
-          onPressed: _handleStep3Submit,
+        // Input 1: Kata Sandi Baru
+        const Text(
+          'Kata Sandi Baru (Min. 8 Karakter)',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: titleDark),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderColor, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.02),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: TextField(
+            controller: _passwordController,
+            obscureText: _obscurePassword,
+            style: const TextStyle(
+              fontSize: 14.5,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF0F172A),
+            ),
+            decoration: InputDecoration(
+              hintText: 'Minimal 8 karakter',
+              hintStyle: const TextStyle(
+                color: Color(0xFF94A3B8),
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+              ),
+              prefixIcon: const Icon(
+                Icons.lock_outline_rounded,
+                color: Color(0xFF4A607A),
+                size: 22,
+              ),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                  color: const Color(0xFF64748B),
+                  size: 20,
+                ),
+                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+              ),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Input 2: Konfirmasi Kata Sandi
+        const Text(
+          'Konfirmasi Kata Sandi',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: titleDark),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderColor, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.02),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: TextField(
+            controller: _confirmPasswordController,
+            obscureText: _obscureConfirmPassword,
+            style: const TextStyle(
+              fontSize: 14.5,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF0F172A),
+            ),
+            decoration: InputDecoration(
+              hintText: 'Ulangi kata sandi baru',
+              hintStyle: const TextStyle(
+                color: Color(0xFF94A3B8),
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+              ),
+              prefixIcon: const Icon(
+                Icons.lock_outline_rounded,
+                color: Color(0xFF4A607A),
+                size: 22,
+              ),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscureConfirmPassword
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  color: const Color(0xFF64748B),
+                  size: 20,
+                ),
+                onPressed: () =>
+                    setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+              ),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Input 3: PIN 6 Digit
+        const Text(
+          'PIN Transaksi 6 Digit',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: titleDark),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderColor, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.02),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: TextField(
+            controller: _pinController,
+            obscureText: _obscurePin,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 6,
+              color: titleDark,
+            ),
+            decoration: InputDecoration(
+              counterText: '',
+              hintText: '••••••',
+              hintStyle: const TextStyle(color: Color(0xFF94A3B8), letterSpacing: 6),
+              prefixIcon: const Icon(
+                Icons.pin_outlined,
+                color: Color(0xFF4A607A),
+                size: 22,
+              ),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscurePin ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                  color: const Color(0xFF64748B),
+                  size: 20,
+                ),
+                onPressed: () => setState(() => _obscurePin = !_obscurePin),
+              ),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Input 4: Konfirmasi PIN 6 Digit
+        const Text(
+          'Konfirmasi PIN Transaksi',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: titleDark),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderColor, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.02),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: TextField(
+            controller: _confirmPinController,
+            obscureText: _obscureConfirmPin,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 6,
+              color: titleDark,
+            ),
+            decoration: InputDecoration(
+              counterText: '',
+              hintText: '••••••',
+              hintStyle: const TextStyle(color: Color(0xFF94A3B8), letterSpacing: 6),
+              prefixIcon: const Icon(
+                Icons.pin_outlined,
+                color: Color(0xFF4A607A),
+                size: 22,
+              ),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscureConfirmPin
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  color: const Color(0xFF64748B),
+                  size: 20,
+                ),
+                onPressed: () =>
+                    setState(() => _obscureConfirmPin = !_obscureConfirmPin),
+              ),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+            ),
+          ),
+        ),
+        const SizedBox(height: 32),
+
+        // Action Button: Selesaikan Aktivasi →
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryNavy,
+              foregroundColor: Colors.white,
+              elevation: 2,
+              shadowColor: primaryNavy.withOpacity(0.35),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+            ),
+            onPressed: _isLoading ? null : _handleStep3Submit,
+            child: _isLoading
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.2),
+                  )
+                : const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Selesaikan Aktivasi',
+                        style: TextStyle(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Icon(Icons.check_circle_outline_rounded, size: 18),
+                    ],
+                  ),
+          ),
         ),
       ],
     );
   }
 }
-

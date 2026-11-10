@@ -61,6 +61,9 @@ class AccountRepository {
     return {};
   }
 
+  Future<Map<String, dynamic>> getCBSCustomerProfile({String? cifNumber}) =>
+      getCustomerProfile(cifNumber: cifNumber);
+
   Future<List<Map<String, dynamic>>> getSavingsAccounts({String? cifNumber}) async {
     final response = await apiClient.get(
       ApiEndpoints.accountList,

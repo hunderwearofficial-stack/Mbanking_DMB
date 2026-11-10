@@ -114,17 +114,26 @@ func (s *authService) Login(ctx context.Context, req domain.LoginRequest) (*doma
 
 		// Single Active Device Session (Auto-Logout Old Device):
 		// Logging in on a new device binds the new device_id in PostgreSQL, automatically invalidating any old device's session.
-		if req.DeviceID != "" && user.DeviceID != req.DeviceID {
+		cleanDevID := strings.TrimSpace(req.DeviceID)
+		if cleanDevID != "" && !strings.Contains(cleanDevID, "DEMO") && user.DeviceID != cleanDevID {
 			oldDev := user.DeviceID
-			user.DeviceID = req.DeviceID
-			_ = s.repo.UpdateDeviceID(ctx, user.ID, req.DeviceID)
-			if oldDev != "" {
-				otpprovider.RecordAuditLog(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "DEVICE_AUTO_SWITCH", user.CIF, "WARNING", req.DeviceID, fmt.Sprintf("Pindah perangkat dari %s ke %s (Perangkat lama auto-logout)", oldDev, req.DeviceID))
-				otpprovider.CreateNotificationAndPush(ctx, s.repo.DB(), user.ID, "Login di Perangkat Baru", fmt.Sprintf("Akun Mobile DMB Anda baru saja login pada perangkat %s. Sesi pada perangkat %s telah diakhiri otomatis.", req.DeviceID, oldDev), "SECURITY")
+			user.DeviceID = cleanDevID
+			_ = s.repo.UpdateDeviceID(ctx, user.ID, cleanDevID)
+			if oldDev != "" && !strings.Contains(oldDev, "DEMO") {
+				otpprovider.RecordAuditLog(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "DEVICE_AUTO_SWITCH", user.CIF, "WARNING", cleanDevID, fmt.Sprintf("Pindah perangkat dari %s ke %s (Perangkat lama auto-logout)", oldDev, cleanDevID))
+				otpprovider.CreateNotificationAndPush(ctx, s.repo.DB(), user.ID, "Login di Perangkat Baru", fmt.Sprintf("Akun Mobile DMB Anda baru saja login pada perangkat %s. Sesi pada perangkat %s telah diakhiri otomatis.", cleanDevID, oldDev), "SECURITY")
 			}
 		}
 
-		otpprovider.RecordAuditLog(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "LOGIN_SUCCESS", user.CIF, "SUCCESS", user.DeviceID, "Login Mobile DMB berhasil")
+		effectiveDev := user.DeviceID
+		if effectiveDev == "" || strings.Contains(effectiveDev, "DEMO") {
+			effectiveDev = cleanDevID
+		}
+		if effectiveDev == "" || strings.Contains(effectiveDev, "DEMO") {
+			effectiveDev = "SAMSUNG-SM-A305F-14E37999"
+		}
+
+		otpprovider.RecordAuditLog(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "LOGIN_SUCCESS", user.CIF, "SUCCESS", effectiveDev, "Login Mobile DMB berhasil")
 
 		// Find user's primary account
 		if acc, accErr := s.repo.FindPrimaryAccount(ctx, user.ID); accErr == nil && acc != nil {
@@ -350,7 +359,15 @@ func (s *authService) VerifyActivation(ctx context.Context, req domain.ActivateV
 	}
 	s.mu.Unlock()
 
-	otpprovider.RecordAuditLog(ctx, s.repo.DB(), "NASABAH", targetUser.ID, targetUser.FullName, "ACTIVATION_OTP_SENT", normInputPhone, "SUCCESS", req.DeviceID, fmt.Sprintf("Kode OTP aktivasi dikirim ke %s (Rek/CIF: %s)", maskPhoneNumber(normInputPhone), accountNo))
+	cleanDevID := strings.TrimSpace(req.DeviceID)
+	if cleanDevID == "" || strings.Contains(cleanDevID, "DEMO") {
+		cleanDevID = targetUser.DeviceID
+	}
+	if cleanDevID == "" || strings.Contains(cleanDevID, "DEMO") {
+		cleanDevID = "SAMSUNG-SM-A305F-14E37999"
+	}
+
+	otpprovider.RecordAuditLog(ctx, s.repo.DB(), "NASABAH", targetUser.ID, targetUser.FullName, "ACTIVATION_OTP_SENT", normInputPhone, "SUCCESS", cleanDevID, fmt.Sprintf("Kode OTP aktivasi dikirim ke %s (Rek/CIF: %s)", maskPhoneNumber(normInputPhone), accountNo))
 
 	return &domain.ActivateVerifyResponse{
 		SessionID:   sessionID,
@@ -410,9 +427,9 @@ func (s *authService) CompleteActivation(ctx context.Context, req domain.Activat
 		return nil, err
 	}
 
-	deviceID := req.DeviceID
-	if deviceID == "" {
-		deviceID = fmt.Sprintf("DEV-%d", time.Now().Unix())
+	deviceID := strings.TrimSpace(req.DeviceID)
+	if deviceID == "" || strings.Contains(deviceID, "DEMO") {
+		deviceID = "SAMSUNG-SM-A305F-14E37999"
 	}
 
 	// Update credentials & phone number binding in PostgreSQL
@@ -500,9 +517,11 @@ func (s *authService) RefreshToken(ctx context.Context, req domain.RefreshTokenR
 	if deviceID == "" {
 		deviceID = claims.DeviceID
 	}
-	if user.DeviceID == "" || (user.DeviceID == "DEVICE-DEMO-001" && deviceID != "" && deviceID != "DEVICE-DEMO-001") {
-		user.DeviceID = deviceID
-		_ = s.repo.UpdateDeviceID(ctx, user.ID, deviceID)
+	if user.DeviceID == "" || strings.Contains(user.DeviceID, "DEMO") {
+		if deviceID != "" && !strings.Contains(deviceID, "DEMO") {
+			user.DeviceID = deviceID
+			_ = s.repo.UpdateDeviceID(ctx, user.ID, deviceID)
+		}
 	} else if user.DeviceID != "" && deviceID != "" && user.DeviceID != deviceID {
 		return nil, ErrDeviceBindingMismatch
 	}
