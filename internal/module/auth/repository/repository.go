@@ -348,13 +348,16 @@ func (r *authRepository) UpsertCBSUserAndAccount(ctx context.Context, nasabah *d
 			updates["full_name"] = fullName
 		}
 		if nik != "" {
-			updates["nik"] = crypto.EncryptedString(nik)
+			encNIK, _ := crypto.EncryptString(nik)
+			updates["nik"] = encNIK
 		}
 		if email != "" {
-			updates["email"] = crypto.EncryptedString(email)
+			encEmail, _ := crypto.EncryptString(email)
+			updates["email"] = encEmail
 		}
 		if alamat != "" {
-			updates["alamat"] = crypto.EncryptedString(alamat)
+			encAlamat, _ := crypto.EncryptString(alamat)
+			updates["alamat"] = encAlamat
 		}
 		if kodePos != "" {
 			updates["kode_pos"] = kodePos
@@ -366,13 +369,16 @@ func (r *authRepository) UpsertCBSUserAndAccount(ctx context.Context, nasabah *d
 			updates["agama"] = agama
 		}
 		if tglLahir != "" {
-			updates["tgl_lahir"] = crypto.EncryptedString(tglLahir)
+			encTgl, _ := crypto.EncryptString(tglLahir)
+			updates["tgl_lahir"] = encTgl
 		}
 		if tempatLahir != "" {
-			updates["tempat_lahir"] = crypto.EncryptedString(tempatLahir)
+			encTempat, _ := crypto.EncryptString(tempatLahir)
+			updates["tempat_lahir"] = encTempat
 		}
 		if namaIbuKandung != "" {
-			updates["nama_ibu_kandung"] = crypto.EncryptedString(namaIbuKandung)
+			encIbu, _ := crypto.EncryptString(namaIbuKandung)
+			updates["nama_ibu_kandung"] = encIbu
 		}
 		_ = r.db.WithContext(ctx).Model(&user).Updates(updates).Error
 	}

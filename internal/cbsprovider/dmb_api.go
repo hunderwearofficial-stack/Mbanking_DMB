@@ -20,6 +20,7 @@ import (
 	"mbanking-bpr/config"
 	"mbanking-bpr/internal/domain"
 	"mbanking-bpr/internal/model"
+	"mbanking-bpr/pkg/crypto"
 	"mbanking-bpr/pkg/logger"
 	"mbanking-bpr/pkg/utils"
 
@@ -521,19 +522,26 @@ func (p *OpenAPICBSProvider) GetCustomerByCIF(ctx context.Context, cifNumber str
 		return nil, err
 	}
 
-	// Sync complete customer profile from CBS /api/nasabah into local PostgreSQL
+	// Sync complete customer profile from CBS /api/nasabah into local PostgreSQL with AES-256-GCM encryption
 	if p.db != nil && data.CIF != "" {
+		encNIK, _ := crypto.EncryptString(data.NIK)
+		encEmail, _ := crypto.EncryptString(data.Email)
+		encAlamat, _ := crypto.EncryptString(data.Alamat)
+		encTglLahir, _ := crypto.EncryptString(data.TglLahir)
+		encTempatLahir, _ := crypto.EncryptString(data.TempatLahir)
+		encIbuKandung, _ := crypto.EncryptString(data.NamaIbuKandung)
+
 		updates := map[string]interface{}{
-			"nik":              data.NIK,
+			"nik":              encNIK,
 			"full_name":        data.Nama,
-			"email":            data.Email,
-			"alamat":           data.Alamat,
+			"email":            encEmail,
+			"alamat":           encAlamat,
 			"kode_pos":         data.KodePos,
 			"jenis_kelamin":    data.JenisKelamin,
 			"agama":            data.Agama,
-			"tgl_lahir":        data.TglLahir,
-			"tempat_lahir":     data.TempatLahir,
-			"nama_ibu_kandung": data.NamaIbuKandung,
+			"tgl_lahir":        encTglLahir,
+			"tempat_lahir":     encTempatLahir,
+			"nama_ibu_kandung": encIbuKandung,
 			"updated_at":       time.Now(),
 		}
 		if data.NoHP != "" && data.NoHP != "0" {

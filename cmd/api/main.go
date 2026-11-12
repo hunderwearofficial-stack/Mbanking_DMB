@@ -82,11 +82,33 @@ func main() {
 			_ = db.Exec("UPDATE app_configs SET logo_url = '/admin/images/bank_logo.png' WHERE logo_url LIKE '%bprdanamandiribogor.co.id%' OR logo_url LIKE '%cropped%' OR logo_url LIKE '%uploads%'").Error
 
 			// Auto-Migration: Otomatis enkripsi data existing yang masih plaintext dengan AES-256-GCM
-			var unencryptedUsers []model.User
-			if err := db.Where("nik NOT LIKE 'enc:v1:%' AND nik != ''").Find(&unencryptedUsers).Error; err == nil && len(unencryptedUsers) > 0 {
-				log.Info(fmt.Sprintf("Ditemukan %d akun nasabah dengan data plaintext. Melakukan enkripsi otomatis AES-256-GCM...", len(unencryptedUsers)))
-				for i := range unencryptedUsers {
-					_ = db.Save(&unencryptedUsers[i])
+			type RawUserPlain struct {
+				ID             string `gorm:"column:id"`
+				NIK            string `gorm:"column:nik"`
+				Email          string `gorm:"column:email"`
+				Alamat         string `gorm:"column:alamat"`
+				TglLahir       string `gorm:"column:tgl_lahir"`
+				TempatLahir    string `gorm:"column:tempat_lahir"`
+				NamaIbuKandung string `gorm:"column:nama_ibu_kandung"`
+			}
+			var plainUsers []RawUserPlain
+			if err := db.Table("users").Where("nik NOT LIKE 'enc:v1:%' AND nik != ''").Find(&plainUsers).Error; err == nil && len(plainUsers) > 0 {
+				log.Info(fmt.Sprintf("Ditemukan %d akun nasabah dengan data plaintext. Melakukan enkripsi otomatis AES-256-GCM...", len(plainUsers)))
+				for _, u := range plainUsers {
+					encNIK, _ := crypto.EncryptString(u.NIK)
+					encEmail, _ := crypto.EncryptString(u.Email)
+					encAlamat, _ := crypto.EncryptString(u.Alamat)
+					encTgl, _ := crypto.EncryptString(u.TglLahir)
+					encTempat, _ := crypto.EncryptString(u.TempatLahir)
+					encIbu, _ := crypto.EncryptString(u.NamaIbuKandung)
+					_ = db.Table("users").Where("id = ?", u.ID).Updates(map[string]interface{}{
+						"nik":              encNIK,
+						"email":            encEmail,
+						"alamat":           encAlamat,
+						"tgl_lahir":        encTgl,
+						"tempat_lahir":     encTempat,
+						"nama_ibu_kandung": encIbu,
+					}).Error
 				}
 				log.Info("Auto-enkripsi kolom database AES-256-GCM selesai.")
 			}
