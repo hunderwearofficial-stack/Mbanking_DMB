@@ -17,6 +17,7 @@ class SecureStorageService {
   static const String _keyBiometricPhone = 'biometric_phone';
   static const String _keyBiometricFullName = 'biometric_full_name';
   static const String _keyBiometricPrimaryAccount = 'biometric_primary_account';
+  static const String _keyFCMToken = 'fcm_device_token';
 
   final FlutterSecureStorage _storage;
 
@@ -168,6 +169,18 @@ class SecureStorageService {
     if (deviceID.isNotEmpty && !deviceID.contains('DEMO')) {
       await _write(_keyDeviceID, deviceID);
     }
+  }
+
+  // --- FCM Device Push Token ---
+
+  Future<void> saveFCMToken(String token) async {
+    if (token.isNotEmpty) {
+      await _write(_keyFCMToken, token);
+    }
+  }
+
+  Future<String?> getFCMToken() async {
+    return await _read(_keyFCMToken);
   }
 }
 

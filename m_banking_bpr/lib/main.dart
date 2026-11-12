@@ -6,6 +6,7 @@ import 'core/network/api_client.dart';
 import 'core/security/secure_storage_service.dart';
 import 'core/security/security_hardening_service.dart';
 import 'core/security/session_inactivity_detector.dart';
+import 'core/services/fcm_service.dart';
 import 'core/theme/app_theme.dart';
 import 'data/repositories/account_repository.dart';
 import 'data/repositories/auth_repository.dart';
@@ -51,6 +52,9 @@ void main() async {
   // 2. Data Repositories
   final authRepository = AuthRepository(apiClient: apiClient, secureStorage: secureStorage);
   final accountRepository = AccountRepository(apiClient: apiClient);
+
+  // 3. Real-Time Push Notification (Firebase Cloud Messaging)
+  await FCMService().initialize(apiClient: apiClient);
 
   runApp(
     MBankingBPRApp(

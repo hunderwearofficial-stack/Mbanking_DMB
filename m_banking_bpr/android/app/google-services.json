@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "838418342818",
+    "project_id": "mbanking-dmb",
+    "storage_bucket": "mbanking-dmb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:838418342818:android:713603eb170f47740b48fb",
+        "android_client_info": {
+          "package_name": "com.example.m_banking_bpr"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBalSouFKjPFbYIjZvB08xmfZJzisouQQU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/repositories/auth_repository.dart';
+import '../../../core/services/fcm_service.dart';
 import 'auth_state.dart';
 
 class AuthCubit extends Cubit<AuthState> {
@@ -48,6 +49,7 @@ class AuthCubit extends Cubit<AuthState> {
           primaryAccount: primaryAccount,
           isActive: true,
         )));
+        FCMService().syncStoredTokenIfLoggedIn(apiClient: authRepository.apiClient);
       } else {
         emit(AuthUnauthenticated());
       }
@@ -69,6 +71,7 @@ class AuthCubit extends Cubit<AuthState> {
         deviceId: deviceId,
       );
       emit(AuthAuthenticated(authResponse.user));
+      FCMService().syncStoredTokenIfLoggedIn(apiClient: authRepository.apiClient);
     } catch (e) {
       emit(AuthError(e.toString()));
     }
@@ -79,6 +82,7 @@ class AuthCubit extends Cubit<AuthState> {
     try {
       final user = await authRepository.loginWithBiometric();
       emit(AuthAuthenticated(user));
+      FCMService().syncStoredTokenIfLoggedIn(apiClient: authRepository.apiClient);
     } catch (e) {
       emit(AuthError(e.toString().replaceAll('Exception: ', '')));
     }
