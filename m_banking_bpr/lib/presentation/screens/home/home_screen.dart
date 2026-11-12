@@ -31,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _maintenanceMode = false;
   String _maintenanceMessage = '';
   bool _isBalanceVisible = false; // Persistent balance visibility (default hidden, preserves across refresh)
+  int _unreadNotifications = 0; // Dynamic unread notification counter for red dot badge
 
   // Cached live values so during refresh (pull-to-refresh) the screen NEVER flashes fake numbers
   double? _cachedBalance;
@@ -56,6 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _startPromoTimer();
     context.read<AccountCubit>().loadDashboardData();
     _loadBankConfig();
+    _checkUnreadNotifications();
   }
 
   void _startPromoTimer() {
@@ -91,6 +93,23 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     } catch (_) {}
+  }
+
+  Future<void> _checkUnreadNotifications() async {
+    try {
+      final repo = context.read<AccountCubit>().accountRepository;
+      final list = await repo.getNotifications(limit: 20);
+      final unread = list.where((n) => n['is_read'] != true).length;
+      if (mounted) {
+        setState(() {
+          _unreadNotifications = unread;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _unreadNotifications = 0);
+      }
+    }
   }
 
   void _onLogout() {
@@ -499,12 +518,13 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(width: 8),
 
-            // 3. Notification Bell Icon with Red Dot Badge
+            // 3. Notification Bell Icon with Dynamic Red Dot Badge (Only shown if unread > 0)
             InkWell(
-              onTap: () {
-                Navigator.of(context).push(
+              onTap: () async {
+                await Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const NotificationScreen()),
                 );
+                _checkUnreadNotifications();
               },
               borderRadius: BorderRadius.circular(20),
               child: Stack(
@@ -530,19 +550,20 @@ class _HomeScreenState extends State<HomeScreen> {
                       size: 20,
                     ),
                   ),
-                  Positioned(
-                    top: 2,
-                    right: 2,
-                    child: Container(
-                      width: 9,
-                      height: 9,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEF4444),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 1.5),
+                  if (_unreadNotifications > 0)
+                    Positioned(
+                      top: 2,
+                      right: 2,
+                      child: Container(
+                        width: 9,
+                        height: 9,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEF4444),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 1.5),
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),

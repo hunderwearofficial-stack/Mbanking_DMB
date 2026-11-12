@@ -38,7 +38,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
     try {
       final repo = context.read<AccountCubit>().accountRepository;
       final list = await repo.getNotifications(limit: 40);
-      await repo.markNotificationsRead();
       if (mounted) {
         setState(() {
           _notifications = list;
@@ -50,6 +49,38 @@ class _NotificationScreenState extends State<NotificationScreen> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  Future<void> _markAllAsRead() async {
+    try {
+      final repo = context.read<AccountCubit>().accountRepository;
+      await repo.markNotificationsRead();
+      if (mounted) {
+        setState(() {
+          for (var n in _notifications) {
+            n['is_read'] = true;
+          }
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  'Semua notifikasi ditandai telah dibaca',
+                  style: GoogleFonts.plusJakartaSans(fontSize: 12.5, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+            backgroundColor: dmbGreen,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (_) {}
   }
 
   List<Map<String, dynamic>> _getFilteredList() {
@@ -73,6 +104,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   void _showNotificationDetail(Map<String, dynamic> n) {
+    if (n['is_read'] != true) {
+      setState(() => n['is_read'] = true);
+    }
     final category = (n['category'] as String? ?? 'INFO').toUpperCase();
     final title = n['title'] as String? ?? 'Informasi Mobile DMB';
     final message = n['message'] as String? ?? '';
@@ -243,6 +277,24 @@ class _NotificationScreenState extends State<NotificationScreen> {
             ),
           ],
         ),
+        actions: [
+          if (_notifications.any((n) => n['is_read'] != true))
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: TextButton.icon(
+                onPressed: _markAllAsRead,
+                icon: const Icon(Icons.done_all_rounded, size: 16, color: royalBlue),
+                label: Text(
+                  'Tandai Dibaca',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: royalBlue,
+                  ),
+                ),
+              ),
+            ),
+        ],
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(1),
           child: Divider(height: 1, color: borderLight),
@@ -309,6 +361,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                           separatorBuilder: (_, __) => const SizedBox(height: 10),
                           itemBuilder: (context, index) {
                             final n = filtered[index];
+                            final isRead = n['is_read'] == true;
                             final category = (n['category'] as String? ?? 'INFO').toUpperCase();
                             final title = n['title'] as String? ?? 'Informasi Mobile DMB';
                             final message = n['message'] as String? ?? '';
@@ -342,9 +395,12 @@ class _NotificationScreenState extends State<NotificationScreen> {
                               child: Container(
                                 padding: const EdgeInsets.all(15),
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
+                                  color: isRead ? Colors.white : const Color(0xFFF8FAFF),
                                   borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: borderLight),
+                                  border: Border.all(
+                                    color: isRead ? borderLight : const Color(0xFF93C5FD),
+                                    width: isRead ? 1 : 1.5,
+                                  ),
                                   boxShadow: [
                                     BoxShadow(
                                       color: Colors.black.withOpacity(0.02),
@@ -394,13 +450,29 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                                   ),
                                                 ),
                                               ),
-                                              Text(
-                                                CurrencyFormatter.formatDateShort(createdAt),
-                                                style: GoogleFonts.plusJakartaSans(
-                                                  fontSize: 11,
-                                                  color: textMuted,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
+                                              Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Text(
+                                                    CurrencyFormatter.formatDateShort(createdAt),
+                                                    style: GoogleFonts.plusJakartaSans(
+                                                      fontSize: 11,
+                                                      color: textMuted,
+                                                      fontWeight: isRead ? FontWeight.w500 : FontWeight.w700,
+                                                    ),
+                                                  ),
+                                                  if (!isRead) ...[
+                                                    const SizedBox(width: 6),
+                                                    Container(
+                                                      width: 7,
+                                                      height: 7,
+                                                      decoration: const BoxDecoration(
+                                                        color: royalBlue,
+                                                        shape: BoxShape.circle,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ],
                                               ),
                                             ],
                                           ),
