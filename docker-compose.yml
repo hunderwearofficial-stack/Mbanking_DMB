@@ -58,9 +58,9 @@ services:
       RATE_LIMIT_MAX: "20"
       RATE_LIMIT_WINDOW_SEC: "60"
       ENABLE_MOCK_CBS: "false"
-      CBS_BASE_URL: https://cbs-openapi-dev.bprdmb.id
-      CBS_CLIENT_ID: DEMO-CLIENT-001
-      CBS_CLIENT_SECRET: "s3cr3tK3yD3m0BNI2024#!"
+      CBS_BASE_URL: https://api-dev.bpr-danamandiribogor.co.id
+      CBS_CLIENT_ID: DMBMOBILE01
+      CBS_CLIENT_SECRET: "9fa4b3934fa44387f811563879594c2abb75cce6ceaa7ec4"
       CBS_TIMEOUT_SEC: "15"
     volumes:
       - ./web/admin/uploads:/app/web/admin/uploads

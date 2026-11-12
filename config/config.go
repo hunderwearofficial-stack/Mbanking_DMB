@@ -69,9 +69,9 @@ func LoadConfig() *Config {
 		RateLimitMax:     getEnvAsInt("RATE_LIMIT_MAX", 10),
 		RateLimitWindow:  getEnvAsInt("RATE_LIMIT_WINDOW_SEC", 60),
 		EnableMockCBS:    getEnvAsBool("ENABLE_MOCK_CBS", false),
-		CBSBaseURL:       getEnv("CBS_BASE_URL", "https://cbs-openapi-dev.bprdmb.id"),
-		CBSClientID:      getEnv("CBS_CLIENT_ID", "DEMO-CLIENT-001"),
-		CBSClientSecret:  getEnv("CBS_CLIENT_SECRET", "s3cr3tK3yD3m0BNI2024#!"),
+		CBSBaseURL:       getEnv("CBS_BASE_URL", "https://api-dev.bpr-danamandiribogor.co.id"),
+		CBSClientID:      getEnv("CBS_CLIENT_ID", "DMBMOBILE01"),
+		CBSClientSecret:  getEnv("CBS_CLIENT_SECRET", "9fa4b3934fa44387f811563879594c2abb75cce6ceaa7ec4"),
 		CBSTimeoutSec:    getEnvAsInt("CBS_TIMEOUT_SEC", 15),
 	}
 }
