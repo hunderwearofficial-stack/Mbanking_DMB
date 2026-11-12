@@ -25,7 +25,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
   static const Color borderColor = Color(0xFFE2E8F0); // Subtle Border
 
   // Step 1 Controllers
-  final _accountController = TextEditingController();
+  final _cifController = TextEditingController();
   final _phoneController = TextEditingController();
 
   // Step 2 Controllers
@@ -48,7 +48,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
 
   @override
   void dispose() {
-    _accountController.dispose();
+    _cifController.dispose();
     _phoneController.dispose();
     _otpController.dispose();
     _passwordController.dispose();
@@ -88,13 +88,13 @@ class _ActivationScreenState extends State<ActivationScreen> {
     );
   }
 
-  // ==================== STEP 1: VERIFIKASI REKENING ====================
+  // ==================== STEP 1: VERIFIKASI NOMOR CIF ====================
   Future<void> _handleStep1Submit() async {
-    final accountNo = _accountController.text.trim();
+    final cifNo = _cifController.text.trim();
     final phone = _phoneController.text.trim();
 
-    if (accountNo.isEmpty) {
-      _showError('Nomor rekening tabungan wajib diisi');
+    if (cifNo.isEmpty) {
+      _showError('Nomor CIF nasabah wajib diisi');
       return;
     }
     if (phone.isEmpty) {
@@ -106,7 +106,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
     try {
       final authRepo = context.read<AuthCubit>().authRepository;
       final res = await authRepo.verifyActivationAccount(
-        accountNumber: accountNo,
+        cifNumber: cifNo,
         phoneNumber: phone,
       );
 
@@ -406,7 +406,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
           const SizedBox(height: 10),
           Text(
             _currentStep == 1
-                ? 'Langkah 1: Verifikasi Nomor Rekening'
+                ? 'Langkah 1: Verifikasi Nomor CIF'
                 : (_currentStep == 2
                     ? 'Langkah 2: Verifikasi Kode OTP'
                     : 'Langkah 3: Buat Kata Sandi & PIN'),
@@ -518,7 +518,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
         ),
         const SizedBox(height: 6),
         const Text(
-          'Masukkan nomor rekening dan nomor handphone terdaftar Anda di Bank DMB untuk memulai aktivasi.',
+          'Masukkan 12 digit Nomor CIF (Customer Information File) dan nomor handphone terdaftar Anda di Bank DMB untuk memulai aktivasi.',
           style: TextStyle(
             fontSize: 13.5,
             color: textMuted,
@@ -527,9 +527,9 @@ class _ActivationScreenState extends State<ActivationScreen> {
         ),
         const SizedBox(height: 24),
 
-        // Input 1: Nomor Rekening
+        // Input 1: Nomor CIF Nasabah
         const Text(
-          'Nomor Rekening Tabungan',
+          'Nomor CIF Nasabah',
           style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: titleDark),
         ),
         const SizedBox(height: 8),
@@ -547,22 +547,26 @@ class _ActivationScreenState extends State<ActivationScreen> {
             ],
           ),
           child: TextField(
-            controller: _accountController,
+            controller: _cifController,
             keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(12),
+            ],
             style: const TextStyle(
               fontSize: 14.5,
               fontWeight: FontWeight.w600,
               color: Color(0xFF0F172A),
             ),
             decoration: const InputDecoration(
-              hintText: 'Contoh: 1001002003',
+              hintText: 'Contoh: 001000309659 (12 digit)',
               hintStyle: TextStyle(
                 color: Color(0xFF94A3B8),
                 fontSize: 14,
                 fontWeight: FontWeight.w400,
               ),
               prefixIcon: Icon(
-                Icons.account_balance_wallet_outlined,
+                Icons.badge_outlined,
                 color: Color(0xFF4A607A),
                 size: 22,
               ),

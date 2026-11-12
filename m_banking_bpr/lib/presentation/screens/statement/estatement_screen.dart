@@ -107,15 +107,13 @@ class _EStatementScreenState extends State<EStatementScreen> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Color(0xFF0754A8),
-                    Color(0xFF087299),
-                    Color(0xFF149752),
+                    Color(0xFF0B356D),
+                    Color(0xFF0062E3),
                   ],
-                  stops: [0.0, 0.60, 1.0],
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF0754A8).withOpacity(0.24),
+                    color: const Color(0xFF0062E3).withOpacity(0.24),
                     blurRadius: 16,
                     offset: const Offset(0, 8),
                   ),

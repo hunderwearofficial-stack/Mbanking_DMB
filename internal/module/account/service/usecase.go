@@ -16,6 +16,16 @@ type AccountService interface {
 	GetMutations(ctx context.Context, accountNo, cifNo, userID string, query domain.MutationQueryParam) ([]domain.Mutation, error)
 	GetCustomerByCIF(ctx context.Context, cifNumber string) (*domain.CBSNasabahData, error)
 	GetSavingsAccountsByCIF(ctx context.Context, cifNumber string) ([]domain.CBSSavingsAccountItem, error)
+
+	GetLoans(ctx context.Context, cifNumber string) ([]domain.DMBLoanAccountItem, error)
+	GetLoanDetail(ctx context.Context, cifNumber, accountNo string) (*domain.DMBLoanAccountDetail, error)
+	GetLoanMutations(ctx context.Context, cifNumber, accountNo, startDate, endDate string, limit int) ([]domain.Mutation, error)
+
+	GetDeposits(ctx context.Context, cifNumber string) ([]domain.DMBDepositAccountItem, error)
+	GetDepositDetail(ctx context.Context, cifNumber, accountNo string) (*domain.DMBDepositAccountDetail, error)
+	GetDepositMutations(ctx context.Context, cifNumber, accountNo, startDate, endDate string, limit int) ([]domain.Mutation, error)
+
+	GetProductsCatalog(ctx context.Context) (*domain.DMBProductsCatalog, error)
 }
 
 type accountService struct {
@@ -122,17 +132,17 @@ func (s *accountService) GetMutations(ctx context.Context, accountNo, cifNo, use
 	}
 
 	if accNo != "" {
-		// 1. Read from PostgreSQL (which stores synchronized CBS overbooking mutations)
+		// 1. Query CBS Provider with requested date range (or default window)
+		if s.cbsProv != nil {
+			if cbsMuts, cbsErr := s.cbsProv.GetMutations(ctx, cifNo, accNo, query.StartDate, query.EndDate, limit); cbsErr == nil && len(cbsMuts) > 0 {
+				return cbsMuts, nil
+			}
+		}
+
+		// 2. Fallback to PostgreSQL (local mutations ledger)
 		mutations, err := s.repo.FindMutationsByAccount(ctx, accNo, limit)
 		if err == nil && len(mutations) > 0 {
 			return mutations, nil
-		}
-
-		// 2. Fallback to CBS Provider
-		if s.cbsProv != nil {
-			if cbsMuts, cbsErr := s.cbsProv.GetMutations(ctx, accNo, "", "", limit); cbsErr == nil && cbsMuts != nil {
-				return cbsMuts, nil
-			}
 		}
 	}
 
@@ -145,5 +155,33 @@ func (s *accountService) GetCustomerByCIF(ctx context.Context, cifNumber string)
 
 func (s *accountService) GetSavingsAccountsByCIF(ctx context.Context, cifNumber string) ([]domain.CBSSavingsAccountItem, error) {
 	return s.cbsProv.GetSavingsAccountsByCIF(ctx, cifNumber)
+}
+
+func (s *accountService) GetLoans(ctx context.Context, cifNumber string) ([]domain.DMBLoanAccountItem, error) {
+	return s.cbsProv.GetLoanAccountsByCIF(ctx, cifNumber)
+}
+
+func (s *accountService) GetLoanDetail(ctx context.Context, cifNumber, accountNo string) (*domain.DMBLoanAccountDetail, error) {
+	return s.cbsProv.GetLoanAccountDetail(ctx, cifNumber, accountNo)
+}
+
+func (s *accountService) GetLoanMutations(ctx context.Context, cifNumber, accountNo, startDate, endDate string, limit int) ([]domain.Mutation, error) {
+	return s.cbsProv.GetLoanMutations(ctx, cifNumber, accountNo, startDate, endDate, limit)
+}
+
+func (s *accountService) GetDeposits(ctx context.Context, cifNumber string) ([]domain.DMBDepositAccountItem, error) {
+	return s.cbsProv.GetDepositAccountsByCIF(ctx, cifNumber)
+}
+
+func (s *accountService) GetDepositDetail(ctx context.Context, cifNumber, accountNo string) (*domain.DMBDepositAccountDetail, error) {
+	return s.cbsProv.GetDepositAccountDetail(ctx, cifNumber, accountNo)
+}
+
+func (s *accountService) GetDepositMutations(ctx context.Context, cifNumber, accountNo, startDate, endDate string, limit int) ([]domain.Mutation, error) {
+	return s.cbsProv.GetDepositMutations(ctx, cifNumber, accountNo, startDate, endDate, limit)
+}
+
+func (s *accountService) GetProductsCatalog(ctx context.Context) (*domain.DMBProductsCatalog, error) {
+	return s.cbsProv.GetProductsCatalog(ctx)
 }
 

@@ -45,6 +45,28 @@ class AccountCubit extends Cubit<AccountState> {
     }
   }
 
+  Future<void> filterMutations({
+    required String startDate,
+    required String endDate,
+    String? accountNumber,
+  }) async {
+    if (state is AccountLoaded) {
+      final currentState = state as AccountLoaded;
+      final accNo = accountNumber ?? currentState.account.accountNumber;
+      try {
+        final mutations = await accountRepository.getMutations(
+          limit: 50,
+          accountNumber: accNo,
+          startDate: startDate,
+          endDate: endDate,
+        );
+        emit(currentState.copyWith(mutations: mutations));
+      } catch (e) {
+        // keep current state on error
+      }
+    }
+  }
+
   Future<void> refresh() async {
     if (state is AccountLoaded) {
       final currentAccount = (state as AccountLoaded).account.accountNumber;

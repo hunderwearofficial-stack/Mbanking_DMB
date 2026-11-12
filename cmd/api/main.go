@@ -24,6 +24,7 @@ import (
 	txHttp "mbanking-bpr/internal/module/transaction/delivery/http"
 	txRepo "mbanking-bpr/internal/module/transaction/repository"
 	txSvc "mbanking-bpr/internal/module/transaction/service"
+	"mbanking-bpr/pkg/crypto"
 	"mbanking-bpr/pkg/database"
 	"mbanking-bpr/pkg/logger"
 	"mbanking-bpr/pkg/middleware"
@@ -36,6 +37,11 @@ import (
 func main() {
 	// 1. Load Configurations
 	cfg := config.LoadConfig()
+
+	// 1b. Inisialisasi Enkripsi Kolom Database AES-256-GCM (OJK & UU PDP Compliance)
+	if err := crypto.InitEncryptionKey(cfg.DBEncryptionKey); err != nil {
+		fmt.Printf("PERINGATAN: Gagal inisialisasi master key enkripsi database: %v\n", err)
+	}
 
 	// 2. Initialize Structured Logger with Data Masking
 	log := logger.InitLogger(cfg.AppEnv)
@@ -74,6 +80,16 @@ func main() {
 			_ = db.Exec("UPDATE users SET device_id = '' WHERE device_id = 'DEVICE-DEMO-001' OR device_id LIKE '%DEMO%'").Error
 			_ = db.Exec("UPDATE audit_logs SET device_id = 'SAMSUNG-SM-A305F-14E37999' WHERE device_id = 'DEVICE-DEMO-001' OR device_id LIKE '%DEMO%'").Error
 			_ = db.Exec("UPDATE app_configs SET logo_url = '/admin/images/bank_logo.png' WHERE logo_url LIKE '%bprdanamandiribogor.co.id%' OR logo_url LIKE '%cropped%' OR logo_url LIKE '%uploads%'").Error
+
+			// Auto-Migration: Otomatis enkripsi data existing yang masih plaintext dengan AES-256-GCM
+			var unencryptedUsers []model.User
+			if err := db.Where("nik NOT LIKE 'enc:v1:%' AND nik != ''").Find(&unencryptedUsers).Error; err == nil && len(unencryptedUsers) > 0 {
+				log.Info(fmt.Sprintf("Ditemukan %d akun nasabah dengan data plaintext. Melakukan enkripsi otomatis AES-256-GCM...", len(unencryptedUsers)))
+				for i := range unencryptedUsers {
+					_ = db.Save(&unencryptedUsers[i])
+				}
+				log.Info("Auto-enkripsi kolom database AES-256-GCM selesai.")
+			}
 		}
 	}
 
@@ -236,6 +252,13 @@ func main() {
 				accountGroup.GET("/inquiry", accHandler.InquiryAccount)
 				accountGroup.GET("/profile", accHandler.GetCustomerProfile)
 				accountGroup.GET("/list", accHandler.GetSavingsAccounts)
+				accountGroup.GET("/loans", accHandler.GetLoans)
+				accountGroup.GET("/loans/:account_no", accHandler.GetLoanDetail)
+				accountGroup.GET("/loans/:account_no/mutations", accHandler.GetLoanMutations)
+				accountGroup.GET("/deposits", accHandler.GetDeposits)
+				accountGroup.GET("/deposits/:account_no", accHandler.GetDepositDetail)
+				accountGroup.GET("/deposits/:account_no/mutations", accHandler.GetDepositMutations)
+				accountGroup.GET("/products", accHandler.GetProducts)
 			}
 
 			// In-App & FCM Notification Routes

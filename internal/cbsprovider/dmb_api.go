@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"crypto/hmac"
+	"crypto/sha256"
 	"crypto/sha512"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -25,8 +27,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// OpenAPICBSProvider connects directly to the Bank DMB Core Banking System OpenAPI (https://cbs-openapi-dev.bprdmb.id)
-// using OAuth 2.0 Bearer JWT tokens (with automatic refresh rotation) and HMAC-SHA512 payload signing.
+// OpenAPICBSProvider connects directly to the Bank DMB Core Banking System OpenAPI (https://api-dev.bpr-danamandiribogor.co.id)
+// using OAuth 2.0 Bearer JWT tokens (with automatic refresh rotation) and Base64 HMAC-SHA512 payload signing.
 // It also synchronizes live CBS state (balances, account holder names, and overbooking ledger entries)
 // with the local PostgreSQL database for M-Banking authentication, PIN verification, and mutation history.
 type OpenAPICBSProvider struct {
@@ -38,6 +40,11 @@ type OpenAPICBSProvider struct {
 	accessToken    string
 	refreshToken   string
 	tokenExpiresAt time.Time
+
+	productMu    sync.RWMutex
+	productNames map[string]string
+
+	memFallback *MemoryCBSProvider
 }
 
 func NewOpenAPICBSProvider(cfg *config.Config, db *gorm.DB) *OpenAPICBSProvider {
@@ -45,13 +52,24 @@ func NewOpenAPICBSProvider(cfg *config.Config, db *gorm.DB) *OpenAPICBSProvider 
 	if timeout <= 0 {
 		timeout = 15 * time.Second
 	}
-	return &OpenAPICBSProvider{
+	prov := &OpenAPICBSProvider{
 		cfg: cfg,
 		db:  db,
 		httpClient: &http.Client{
 			Timeout: timeout,
 		},
+		productNames: make(map[string]string),
+		memFallback:  NewMemoryCBSProvider(),
 	}
+
+	// Warm up product catalogue in background
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = prov.FetchProducts(ctx)
+	}()
+
+	return prov
 }
 
 // --- CBS Standard Envelope Structs ---
@@ -73,13 +91,17 @@ type cbsTokenData struct {
 }
 
 type cbsBalanceData struct {
-	NomorRekening  string  `json:"nomor_rekening"`
-	Nama           string  `json:"nama"`
-	ProdukTabungan string  `json:"produk_tabungan"`
-	Saldo          float64 `json:"saldo"`
-	SaldoMinimum   float64 `json:"saldo_minimum"`
-	SaldoTertahan  float64 `json:"saldo_tertahan"`
-	SaldoEfektif   float64 `json:"saldo_efektif"`
+	NomorRekening           string  `json:"nomor_rekening"`
+	Nama                    string  `json:"nama"`
+	KodeProduk              string  `json:"kode_produk"`
+	NamaProduk              string  `json:"nama_produk"`
+	ProdukTabungan          string  `json:"produk_tabungan"` // fallback
+	StatusRekening          int     `json:"status_rekening"`
+	StatusRekeningKeterangan string `json:"status_rekening_keterangan"`
+	Saldo                   float64 `json:"saldo"`
+	SaldoMinimum            float64 `json:"saldo_minimum"`
+	SaldoTertahan           float64 `json:"saldo_tertahan"`
+	SaldoEfektif            float64 `json:"saldo_efektif"`
 }
 
 type cbsOverbookingItem struct {
@@ -93,11 +115,25 @@ type cbsOverbookingItem struct {
 	Deskripsi     string  `json:"deskripsi"`
 }
 
-// computeHMACSHA512 computes lowercase hex HMAC-SHA512 of compact JSON body using CBSClientSecret
-func (p *OpenAPICBSProvider) computeHMACSHA512(bodyBytes []byte) string {
+type cbsMutationItem struct {
+	Tanggal      string `json:"tanggal"`
+	Waktu        string `json:"waktu"`
+	Keterangan   string `json:"keterangan"`
+	MutasiDebit  int64  `json:"mutasi_debit"`
+	MutasiKredit int64  `json:"mutasi_kredit"`
+	SaldoAkhir   int64  `json:"saldo_akhir"`
+}
+
+// computeSignature computes Base64 HMAC-SHA512 with the client secret over:
+// METHOD:PATH:ACCESS_TOKEN:lowercase hex SHA-256 of minified body:X-TIMESTAMP
+func (p *OpenAPICBSProvider) computeSignature(method, path, accessToken string, bodyBytes []byte, timestamp string) string {
+	shaHash := sha256.Sum256(bodyBytes)
+	bodySha256Hex := hex.EncodeToString(shaHash[:])
+	stringToSign := fmt.Sprintf("%s:%s:%s:%s:%s", method, path, accessToken, bodySha256Hex, timestamp)
+
 	mac := hmac.New(sha512.New, []byte(p.cfg.CBSClientSecret))
-	mac.Write(bodyBytes)
-	return hex.EncodeToString(mac.Sum(nil))
+	mac.Write([]byte(stringToSign))
+	return base64.StdEncoding.EncodeToString(mac.Sum(nil))
 }
 
 // mapProductName converts CBS product code (e.g. "05", "20") into human-readable BPR product name
@@ -105,14 +141,77 @@ func mapProductName(code string) string {
 	switch strings.TrimSpace(code) {
 	case "05":
 		return "Tabungan Mandiri DMB (Kode 05)"
+	case "06":
+		return "Simpanan BL Tabungan (Kode 06)"
+	case "07":
+		return "Tabungan Dana Mandiri 07"
+	case "09":
+		return "Tabungan Karyawan"
+	case "12":
+		return "Tabungan Sikawan 1"
 	case "20":
-		return "Tabungan Mikro DMB (Kode 20)"
+		return "Tabungan Mikro TBW (Kode 20)"
+	case "21":
+		return "Tabungan Impianku"
+	case "22":
+		return "Tabungan Sikawan 2"
+	case "23":
+		return "Tabungan Sikawan 3"
+	case "25":
+		return "Tabungan Simpel"
+	case "26":
+		return "Tabungan Sikawan 4"
+	case "28":
+		return "Tabungan Sikawan 5"
+	case "30":
+		return "Tabungan Phone Plus"
 	default:
 		if code != "" {
 			return fmt.Sprintf("Tabungan Mandiri DMB (%s)", code)
 		}
 		return "Tabungan Mandiri DMB"
 	}
+}
+
+// resolveProductName resolves product name dynamically from /api/products cache or mapProductName fallback
+func (p *OpenAPICBSProvider) resolveProductName(code, fallbackName string) string {
+	if strings.TrimSpace(fallbackName) != "" {
+		return strings.TrimSpace(fallbackName)
+	}
+	code = strings.TrimSpace(code)
+	p.productMu.RLock()
+	if name, ok := p.productNames[code]; ok && name != "" {
+		p.productMu.RUnlock()
+		return name
+	}
+	p.productMu.RUnlock()
+	return mapProductName(code)
+}
+
+// FetchProducts caches product definitions from /api/products
+func (p *OpenAPICBSProvider) FetchProducts(ctx context.Context) error {
+	env, statusCode, err := p.doSignedPost(ctx, "/api/products", map[string]interface{}{})
+	if err != nil || statusCode != http.StatusOK || env == nil || env.Code != 10000 {
+		return err
+	}
+
+	var prodData struct {
+		Tabungan []struct {
+			KodeProduk string `json:"kode_produk"`
+			NamaProduk string `json:"nama_produk"`
+			Aktif      bool   `json:"aktif"`
+		} `json:"tabungan"`
+	}
+	if err := json.Unmarshal(env.Data, &prodData); err != nil {
+		return err
+	}
+
+	p.productMu.Lock()
+	defer p.productMu.Unlock()
+	for _, item := range prodData.Tabungan {
+		p.productNames[strings.TrimSpace(item.KodeProduk)] = strings.TrimSpace(item.NamaProduk)
+	}
+	return nil
 }
 
 // ==================== 1. GET /ping (Health Check) ====================
@@ -313,19 +412,22 @@ func (p *OpenAPICBSProvider) RefreshToken(ctx context.Context) error {
 	return nil
 }
 
-// doSignedPost executes an authenticated & HMAC-SHA512 signed POST request to CBS OpenAPI
+// doSignedPost executes an authenticated & Base64 HMAC-SHA512 signed POST request to CBS OpenAPI
 func (p *OpenAPICBSProvider) doSignedPost(ctx context.Context, path string, payload interface{}) (*cbsEnvelope, int, error) {
-	// Compact JSON marshaling (no spaces/newlines) so HMAC-SHA512 matches CBS server canonicalization
+	// Compact JSON marshaling (no spaces/newlines) so SHA-256 matches CBS server canonicalization
 	bodyBytes, err := json.Marshal(payload)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	signature := p.computeHMACSHA512(bodyBytes)
 	token, err := p.getAccessToken(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
+
+	// Generate ISO-8601 timestamp with offset (e.g. 2026-11-12T10:30:00+07:00)
+	timestamp := time.Now().Format("2006-01-02T15:04:05-07:00")
+	signature := p.computeSignature(http.MethodPost, path, token, bodyBytes, timestamp)
 
 	url := strings.TrimRight(p.cfg.CBSBaseURL, "/") + path
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(bodyBytes))
@@ -336,6 +438,7 @@ func (p *OpenAPICBSProvider) doSignedPost(ctx context.Context, path string, payl
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("X-Client-ID", p.cfg.CBSClientID)
+	req.Header.Set("X-TIMESTAMP", timestamp)
 	req.Header.Set("X-Signature", signature)
 
 	resp, err := p.httpClient.Do(req)
@@ -351,7 +454,7 @@ func (p *OpenAPICBSProvider) doSignedPost(ctx context.Context, path string, payl
 	msgLower := strings.ToLower(env.Message)
 	isTokenExpired := resp.StatusCode == http.StatusUnauthorized ||
 		resp.StatusCode == http.StatusForbidden ||
-		(env.Code != 10000 && (strings.Contains(msgLower, "token") || strings.Contains(msgLower, "unauthorized") || strings.Contains(msgLower, "expired")))
+		(env.Code != 10000 && (strings.Contains(msgLower, "token") || strings.Contains(msgLower, "unauthorized") || strings.Contains(msgLower, "expired") || strings.Contains(msgLower, "signature")))
 
 	// If token expired or rejected by CBS, force a brand-new access token once and retry
 	if isTokenExpired {
@@ -362,12 +465,16 @@ func (p *OpenAPICBSProvider) doSignedPost(ctx context.Context, path string, payl
 
 		newToken, tokErr := p.requestNewAccessToken(ctx)
 		if tokErr == nil {
+			newTimestamp := time.Now().Format("2006-01-02T15:04:05-07:00")
+			newSignature := p.computeSignature(http.MethodPost, path, newToken, bodyBytes, newTimestamp)
+
 			retryReq, _ := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(bodyBytes))
 			retryReq.Header.Set("Content-Type", "application/json")
 			retryReq.Header.Set("Accept", "application/json")
 			retryReq.Header.Set("Authorization", "Bearer "+newToken)
 			retryReq.Header.Set("X-Client-ID", p.cfg.CBSClientID)
-			retryReq.Header.Set("X-Signature", signature)
+			retryReq.Header.Set("X-TIMESTAMP", newTimestamp)
+			retryReq.Header.Set("X-Signature", newSignature)
 
 			retryResp, retryErr := p.httpClient.Do(retryReq)
 			if retryErr == nil {
@@ -392,8 +499,13 @@ func (p *OpenAPICBSProvider) doSignedPost(ctx context.Context, path string, payl
 // ==================== 4. POST /api/nasabah (Get Customer Data by CIF) ====================
 
 func (p *OpenAPICBSProvider) GetCustomerByCIF(ctx context.Context, cifNumber string) (*domain.CBSNasabahData, error) {
+	cifClean := strings.TrimSpace(cifNumber)
+	if cifClean == "" {
+		return nil, errors.New("cif_number tidak boleh kosong")
+	}
+
 	payload := map[string]string{
-		"cif_number": strings.TrimSpace(cifNumber),
+		"cif_number": cifClean,
 	}
 
 	env, statusCode, err := p.doSignedPost(ctx, "/api/nasabah", payload)
@@ -438,8 +550,13 @@ func (p *OpenAPICBSProvider) GetCustomerByCIF(ctx context.Context, cifNumber str
 // ==================== 5. POST /api/savings-accounts (Get Savings Accounts by CIF) ====================
 
 func (p *OpenAPICBSProvider) GetSavingsAccountsByCIF(ctx context.Context, cifNumber string) ([]domain.CBSSavingsAccountItem, error) {
+	cifClean := strings.TrimSpace(cifNumber)
+	if cifClean == "" {
+		return nil, errors.New("cif_number tidak boleh kosong")
+	}
+
 	payload := map[string]string{
-		"cif_number": strings.TrimSpace(cifNumber),
+		"cif_number": cifClean,
 	}
 
 	env, statusCode, err := p.doSignedPost(ctx, "/api/savings-accounts", payload)
@@ -458,18 +575,23 @@ func (p *OpenAPICBSProvider) GetSavingsAccountsByCIF(ctx context.Context, cifNum
 	// Sync all savings accounts under this CIF into PostgreSQL accounts table
 	if p.db != nil && len(items) > 0 {
 		var user model.User
-		if uErr := p.db.WithContext(ctx).Where("cif = ?", strings.TrimSpace(cifNumber)).First(&user).Error; uErr == nil {
+		if uErr := p.db.WithContext(ctx).Where("cif = ?", cifClean).First(&user).Error; uErr == nil {
 			now := time.Now()
 			for _, item := range items {
 				var acc model.Account
-				prodName := mapProductName(item.ProdukTabungan)
+				prodCode := item.KodeProduk
+				if prodCode == "" {
+					prodCode = item.ProdukTabungan
+				}
+				prodName := p.resolveProductName(prodCode, item.NamaProduk)
+
 				if aErr := p.db.WithContext(ctx).Where("account_number = ?", item.NomorRekening).First(&acc).Error; aErr != nil {
 					newAcc := model.Account{
 						ID:               uuid.NewString(),
 						UserID:           user.ID,
 						AccountNumber:    item.NomorRekening,
 						HolderName:       user.FullName,
-						ProductCode:      item.ProdukTabungan,
+						ProductCode:      prodCode,
 						AccountType:      prodName,
 						Balance:          item.Saldo,
 						EffectiveBalance: item.Saldo,
@@ -482,7 +604,7 @@ func (p *OpenAPICBSProvider) GetSavingsAccountsByCIF(ctx context.Context, cifNum
 					_ = p.db.WithContext(ctx).Model(&acc).Updates(map[string]interface{}{
 						"user_id":      user.ID,
 						"holder_name":  user.FullName,
-						"product_code": item.ProdukTabungan,
+						"product_code": prodCode,
 						"account_type": prodName,
 						"balance":      item.Saldo,
 						"updated_at":   now,
@@ -507,7 +629,11 @@ func (p *OpenAPICBSProvider) GetBalance(ctx context.Context, accountNo string) (
 	if err == nil && env != nil && statusCode == http.StatusOK && env.Code == 10000 {
 		var balData cbsBalanceData
 		if unmarshalErr := json.Unmarshal(env.Data, &balData); unmarshalErr == nil {
-			productName := mapProductName(balData.ProdukTabungan)
+			prodCode := balData.KodeProduk
+			if prodCode == "" {
+				prodCode = balData.ProdukTabungan
+			}
+			productName := p.resolveProductName(prodCode, balData.NamaProduk)
 			now := time.Now()
 
 			// Synchronize live CBS balance & holder name into PostgreSQL
@@ -516,7 +642,7 @@ func (p *OpenAPICBSProvider) GetBalance(ctx context.Context, accountNo string) (
 				if dbErr := p.db.WithContext(ctx).Where("account_number = ?", accNo).First(&acc).Error; dbErr == nil {
 					_ = p.db.WithContext(ctx).Model(&acc).Updates(map[string]interface{}{
 						"holder_name":       balData.Nama,
-						"product_code":      balData.ProdukTabungan,
+						"product_code":      prodCode,
 						"account_type":      productName,
 						"balance":           balData.Saldo,
 						"minimum_balance":   balData.SaldoMinimum,
@@ -535,7 +661,7 @@ func (p *OpenAPICBSProvider) GetBalance(ctx context.Context, accountNo string) (
 			return &domain.BalanceResponse{
 				AccountNumber:    balData.NomorRekening,
 				HolderName:       balData.Nama,
-				ProductCode:      balData.ProdukTabungan,
+				ProductCode:      prodCode,
 				AccountType:      productName,
 				Balance:          balData.Saldo,
 				MinimumBalance:   balData.SaldoMinimum,
@@ -548,7 +674,7 @@ func (p *OpenAPICBSProvider) GetBalance(ctx context.Context, accountNo string) (
 		}
 	}
 
-	// Fallback to local PostgreSQL if account is a local/deposit account or CBS is unreachable
+	// Fallback to local PostgreSQL if account is a local/deposit account or CBS returned not found
 	if p.db != nil && accNo != "" {
 		var account model.Account
 		if dbErr := p.db.WithContext(ctx).Preload("User").Where("account_number = ?", accNo).First(&account).Error; dbErr == nil {
@@ -697,7 +823,7 @@ func (p *OpenAPICBSProvider) ProcessTransfer(ctx context.Context, req *domain.Tr
 	}, nil
 }
 
-// ==================== 8. Credentials & Mutations (PostgreSQL Backed) ====================
+// ==================== 8. Credentials & Mutations ====================
 
 func (p *OpenAPICBSProvider) VerifyCredentials(ctx context.Context, username, password, pin string) (*domain.User, error) {
 	if p.db == nil {
@@ -723,16 +849,89 @@ func (p *OpenAPICBSProvider) VerifyCredentials(ctx context.Context, username, pa
 	return &user, nil
 }
 
-func (p *OpenAPICBSProvider) GetMutations(ctx context.Context, accountNo string, startDate, endDate string, limit int) ([]domain.Mutation, error) {
-	if p.db == nil {
-		return []domain.Mutation{}, nil
-	}
+// GetMutations fetches mutations first from live CBS /api/savings-account-mutations (if CIF & account known),
+// and falls back gracefully to local PostgreSQL mutation ledger.
+func (p *OpenAPICBSProvider) GetMutations(ctx context.Context, cifNumber, accountNo string, startDate, endDate string, limit int) ([]domain.Mutation, error) {
+	accNo := strings.TrimSpace(accountNo)
+	cif := strings.TrimSpace(cifNumber)
 	if limit <= 0 || limit > 50 {
 		limit = 20
 	}
+
+	// 1. Resolve CIF from database if not supplied directly
+	if cif == "" && p.db != nil && accNo != "" {
+		var acc model.Account
+		if err := p.db.WithContext(ctx).Preload("User").Where("account_number = ?", accNo).First(&acc).Error; err == nil {
+			if acc.User != nil && acc.User.CIF != "" {
+				cif = acc.User.CIF
+			}
+		}
+	}
+
+	if startDate == "" {
+		startDate = time.Now().AddDate(0, 0, -30).Format("2006-01-02")
+	}
+	if endDate == "" {
+		endDate = time.Now().Format("2006-01-02")
+	}
+
+	if cif != "" && accNo != "" {
+		payload := map[string]string{
+			"cif_number":     cif,
+			"account_number": accNo,
+			"start_date":     startDate,
+			"end_date":       endDate,
+		}
+
+		env, statusCode, err := p.doSignedPost(ctx, "/api/savings-account-mutations", payload)
+		if err == nil && statusCode == http.StatusOK && env != nil && env.Code == 10000 {
+			var cbsItems []cbsMutationItem
+			if unmarshalErr := json.Unmarshal(env.Data, &cbsItems); unmarshalErr == nil && len(cbsItems) > 0 {
+				var result []domain.Mutation
+				for _, item := range cbsItems {
+					txType := model.TxTypeDebit
+					amount := float64(item.MutasiDebit)
+					if item.MutasiKredit > 0 {
+						txType = model.TxTypeCredit
+						amount = float64(item.MutasiKredit)
+					}
+
+					parsedTime, _ := time.Parse("2006-01-02 15:04:05", item.Tanggal+" "+item.Waktu)
+					if parsedTime.IsZero() {
+						parsedTime, _ = time.Parse("2006-01-02", item.Tanggal)
+					}
+					if parsedTime.IsZero() {
+						parsedTime = time.Now()
+					}
+
+					result = append(result, model.Mutation{
+						ID:              uuid.NewString(),
+						AccountNumber:   accNo,
+						TransactionType: txType,
+						Amount:          amount,
+						BalanceAfter:    float64(item.SaldoAkhir),
+						Description:     item.Keterangan,
+						ReferenceNumber: fmt.Sprintf("CBS-%s", item.Tanggal),
+						CreatedAt:       parsedTime,
+					})
+					if len(result) >= limit {
+						break
+					}
+				}
+				if len(result) > 0 {
+					return result, nil
+				}
+			}
+		}
+	}
+
+	// 2. Fallback to local PostgreSQL if CBS has no records or account is local
+	if p.db == nil {
+		return []domain.Mutation{}, nil
+	}
 	var rows []model.Mutation
 	query := p.db.WithContext(ctx).
-		Where("account_number = ?", accountNo).
+		Where("account_number = ?", accNo).
 		Order("created_at DESC").
 		Limit(limit)
 
@@ -740,4 +939,264 @@ func (p *OpenAPICBSProvider) GetMutations(ctx context.Context, accountNo string,
 		return nil, err
 	}
 	return rows, nil
+}
+
+// ==================== 9. Loan (Kredit) Endpoints ====================
+
+// GetLoanAccountsByCIF calls POST /api/loan-accounts
+func (p *OpenAPICBSProvider) GetLoanAccountsByCIF(ctx context.Context, cifNumber string) ([]domain.DMBLoanAccountItem, error) {
+	cifClean := strings.TrimSpace(cifNumber)
+	if cifClean == "" {
+		return nil, errors.New("cif_number tidak boleh kosong")
+	}
+
+	payload := map[string]string{
+		"cif_number": cifClean,
+	}
+
+	env, statusCode, err := p.doSignedPost(ctx, "/api/loan-accounts", payload)
+	if err != nil || statusCode != http.StatusOK || env.Code != 10000 {
+		logger.GetLogger().Warn("OpenAPI /api/loan-accounts tidak dapat diakses atau error, beralih ke fallback provider", map[string]interface{}{
+			"error": err,
+			"code":  statusCode,
+		})
+		if p.memFallback != nil {
+			return p.memFallback.GetLoanAccountsByCIF(ctx, cifNumber)
+		}
+		return []domain.DMBLoanAccountItem{}, nil
+	}
+
+	var items []domain.DMBLoanAccountItem
+	if err := json.Unmarshal(env.Data, &items); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+// GetLoanAccountDetail calls POST /api/loan-account-detail
+func (p *OpenAPICBSProvider) GetLoanAccountDetail(ctx context.Context, cifNumber, accountNo string) (*domain.DMBLoanAccountDetail, error) {
+	payload := map[string]string{
+		"cif_number":     strings.TrimSpace(cifNumber),
+		"account_number": strings.TrimSpace(accountNo),
+	}
+
+	env, statusCode, err := p.doSignedPost(ctx, "/api/loan-account-detail", payload)
+	if err != nil || statusCode != http.StatusOK || env.Code != 10000 {
+		if p.memFallback != nil {
+			return p.memFallback.GetLoanAccountDetail(ctx, cifNumber, accountNo)
+		}
+		return nil, errors.New("data pinjaman tidak ditemukan")
+	}
+
+	var detail domain.DMBLoanAccountDetail
+	if err := json.Unmarshal(env.Data, &detail); err != nil {
+		return nil, err
+	}
+	return &detail, nil
+}
+
+// GetLoanMutations calls POST /api/loan-account-mutations
+func (p *OpenAPICBSProvider) GetLoanMutations(ctx context.Context, cifNumber, accountNo, startDate, endDate string, limit int) ([]domain.Mutation, error) {
+	if startDate == "" {
+		startDate = time.Now().AddDate(0, 0, -30).Format("2006-01-02")
+	}
+	if endDate == "" {
+		endDate = time.Now().Format("2006-01-02")
+	}
+	if limit <= 0 || limit > 50 {
+		limit = 20
+	}
+
+	payload := map[string]string{
+		"cif_number":     strings.TrimSpace(cifNumber),
+		"account_number": strings.TrimSpace(accountNo),
+		"start_date":     startDate,
+		"end_date":       endDate,
+	}
+
+	env, statusCode, err := p.doSignedPost(ctx, "/api/loan-account-mutations", payload)
+	if err != nil || statusCode != http.StatusOK || env == nil || env.Code != 10000 {
+		return []domain.Mutation{}, nil
+	}
+
+	var cbsItems []cbsMutationItem
+	if err := json.Unmarshal(env.Data, &cbsItems); err != nil || len(cbsItems) == 0 {
+		return []domain.Mutation{}, nil
+	}
+
+	var result []domain.Mutation
+	for _, item := range cbsItems {
+		txType := model.TxTypeDebit
+		amount := float64(item.MutasiDebit)
+		if item.MutasiKredit > 0 {
+			txType = model.TxTypeCredit
+			amount = float64(item.MutasiKredit)
+		}
+
+		parsedTime, _ := time.Parse("2006-01-02 15:04:05", item.Tanggal+" "+item.Waktu)
+		if parsedTime.IsZero() {
+			parsedTime, _ = time.Parse("2006-01-02", item.Tanggal)
+		}
+		if parsedTime.IsZero() {
+			parsedTime = time.Now()
+		}
+
+		result = append(result, model.Mutation{
+			ID:              uuid.NewString(),
+			AccountNumber:   accountNo,
+			TransactionType: txType,
+			Amount:          amount,
+			BalanceAfter:    float64(item.SaldoAkhir),
+			Description:     item.Keterangan,
+			ReferenceNumber: fmt.Sprintf("LOAN-%s", item.Tanggal),
+			CreatedAt:       parsedTime,
+		})
+		if len(result) >= limit {
+			break
+		}
+	}
+	return result, nil
+}
+
+// ==================== 10. Deposit (Deposito) Endpoints ====================
+
+// GetDepositAccountsByCIF calls POST /api/deposit-accounts
+func (p *OpenAPICBSProvider) GetDepositAccountsByCIF(ctx context.Context, cifNumber string) ([]domain.DMBDepositAccountItem, error) {
+	cifClean := strings.TrimSpace(cifNumber)
+	if cifClean == "" {
+		return nil, errors.New("cif_number tidak boleh kosong")
+	}
+
+	payload := map[string]string{
+		"cif_number": cifClean,
+	}
+
+	env, statusCode, err := p.doSignedPost(ctx, "/api/deposit-accounts", payload)
+	if err != nil || statusCode != http.StatusOK || env.Code != 10000 {
+		logger.GetLogger().Warn("OpenAPI /api/deposit-accounts tidak dapat diakses atau error, beralih ke fallback provider", map[string]interface{}{
+			"error": err,
+			"code":  statusCode,
+		})
+		if p.memFallback != nil {
+			return p.memFallback.GetDepositAccountsByCIF(ctx, cifNumber)
+		}
+		return []domain.DMBDepositAccountItem{}, nil
+	}
+
+	var items []domain.DMBDepositAccountItem
+	if err := json.Unmarshal(env.Data, &items); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+// GetDepositAccountDetail calls POST /api/deposit-account-detail
+func (p *OpenAPICBSProvider) GetDepositAccountDetail(ctx context.Context, cifNumber, accountNo string) (*domain.DMBDepositAccountDetail, error) {
+	payload := map[string]string{
+		"cif_number":     strings.TrimSpace(cifNumber),
+		"account_number": strings.TrimSpace(accountNo),
+	}
+
+	env, statusCode, err := p.doSignedPost(ctx, "/api/deposit-account-detail", payload)
+	if err != nil || statusCode != http.StatusOK || env.Code != 10000 {
+		if p.memFallback != nil {
+			return p.memFallback.GetDepositAccountDetail(ctx, cifNumber, accountNo)
+		}
+		return nil, errors.New("data deposito tidak ditemukan")
+	}
+
+	var detail domain.DMBDepositAccountDetail
+	if err := json.Unmarshal(env.Data, &detail); err != nil {
+		return nil, err
+	}
+	return &detail, nil
+}
+
+// GetDepositMutations calls POST /api/deposit-account-mutations
+func (p *OpenAPICBSProvider) GetDepositMutations(ctx context.Context, cifNumber, accountNo, startDate, endDate string, limit int) ([]domain.Mutation, error) {
+	if startDate == "" {
+		startDate = time.Now().AddDate(0, 0, -30).Format("2006-01-02")
+	}
+	if endDate == "" {
+		endDate = time.Now().Format("2006-01-02")
+	}
+	if limit <= 0 || limit > 50 {
+		limit = 20
+	}
+
+	payload := map[string]string{
+		"cif_number":     strings.TrimSpace(cifNumber),
+		"account_number": strings.TrimSpace(accountNo),
+		"start_date":     startDate,
+		"end_date":       endDate,
+	}
+
+	env, statusCode, err := p.doSignedPost(ctx, "/api/deposit-account-mutations", payload)
+	if err != nil || statusCode != http.StatusOK || env == nil || env.Code != 10000 {
+		return []domain.Mutation{}, nil
+	}
+
+	var cbsItems []cbsMutationItem
+	if err := json.Unmarshal(env.Data, &cbsItems); err != nil || len(cbsItems) == 0 {
+		return []domain.Mutation{}, nil
+	}
+
+	var result []domain.Mutation
+	for _, item := range cbsItems {
+		txType := model.TxTypeDebit
+		amount := float64(item.MutasiDebit)
+		if item.MutasiKredit > 0 {
+			txType = model.TxTypeCredit
+			amount = float64(item.MutasiKredit)
+		}
+
+		parsedTime, _ := time.Parse("2006-01-02 15:04:05", item.Tanggal+" "+item.Waktu)
+		if parsedTime.IsZero() {
+			parsedTime, _ = time.Parse("2006-01-02", item.Tanggal)
+		}
+		if parsedTime.IsZero() {
+			parsedTime = time.Now()
+		}
+
+		result = append(result, model.Mutation{
+			ID:              uuid.NewString(),
+			AccountNumber:   accountNo,
+			TransactionType: txType,
+			Amount:          amount,
+			BalanceAfter:    float64(item.SaldoAkhir),
+			Description:     item.Keterangan,
+			ReferenceNumber: fmt.Sprintf("DEP-%s", item.Tanggal),
+			CreatedAt:       parsedTime,
+		})
+		if len(result) >= limit {
+			break
+		}
+	}
+	return result, nil
+}
+
+// ==================== 11. Products Catalog ====================
+
+// GetProductsCatalog calls POST /api/products
+func (p *OpenAPICBSProvider) GetProductsCatalog(ctx context.Context) (*domain.DMBProductsCatalog, error) {
+	env, statusCode, err := p.doSignedPost(ctx, "/api/products", map[string]interface{}{})
+	if err != nil || statusCode != http.StatusOK || env == nil || env.Code != 10000 {
+		logger.GetLogger().Warn("OpenAPI /api/products tidak dapat diakses atau error, beralih ke fallback provider", map[string]interface{}{
+			"error": err,
+			"code":  statusCode,
+		})
+		if p.memFallback != nil {
+			return p.memFallback.GetProductsCatalog(ctx)
+		}
+		return nil, fmt.Errorf("gagal memuat katalog produk DMB: %v", err)
+	}
+
+	var catalog domain.DMBProductsCatalog
+	if err := json.Unmarshal(env.Data, &catalog); err != nil {
+		if p.memFallback != nil {
+			return p.memFallback.GetProductsCatalog(ctx)
+		}
+		return nil, err
+	}
+	return &catalog, nil
 }

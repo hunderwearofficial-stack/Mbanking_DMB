@@ -14,10 +14,10 @@ import '../auth/login_screen.dart';
 import '../mutation/mutation_screen.dart';
 import '../notification/notification_screen.dart';
 import '../profile/security_settings_screen.dart';
-import '../account/account_info_screen.dart';
 import '../statement/estatement_screen.dart';
 import '../helpdesk/helpdesk_screen.dart';
 import '../profile/profile_screen.dart';
+import 'widgets/quick_menu_grid.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -241,8 +241,7 @@ class _HomeScreenState extends State<HomeScreen> {
               index: _currentNavIndex,
               children: [
                 _buildHomeContent(),
-                const AccountInfoScreen(isTab: true),
-                const HelpdeskScreen(isTab: true),
+                const MutationScreen(isTab: true),
                 const ProfileScreen(isTab: true),
               ],
             ),
@@ -363,15 +362,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         },
                       ),
 
-                      const SizedBox(height: 22),
+                      const SizedBox(height: 18),
 
-                      // Menu Utama (4 Quick Action Buttons)
-                      _buildMenuUtamaSection(),
-
-                      const SizedBox(height: 20),
-
-                      // Banner Promo (Akses informasi rekening lebih mudah)
+                      // Banner Promo / Iklan (Dipindah ke atas menu utama)
                       _buildPromoBanner(),
+
+                      const SizedBox(height: 18),
+
+                      // Menu Utama Resmi Core Banking DMB (8 Menu Lengkap Terintegrasi Live API)
+                      const FigmaMenuGrid(),
 
                       // Extra bottom padding for bottom navigation bar
                       const SizedBox(height: 90),
@@ -434,18 +433,19 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
 
-        // Notification Bell Icon with Red Dot Badge
-        InkWell(
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const NotificationScreen()),
-            );
-          },
-          borderRadius: BorderRadius.circular(20),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
+        // Top Action Icons: Bantuan, Pengaturan, Notifikasi
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 1. Pusat Bantuan (Helpdesk)
+            InkWell(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const HelpdeskScreen()),
+                );
+              },
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
                 padding: const EdgeInsets.all(9),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.92),
@@ -460,26 +460,93 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
                 child: const Icon(
-                  Icons.notifications_none_rounded,
+                  Icons.headset_mic_outlined,
                   color: titleDark,
-                  size: 22,
+                  size: 20,
                 ),
               ),
-              Positioned(
-                top: 2,
-                right: 2,
-                child: Container(
-                  width: 9,
-                  height: 9,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEF4444),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 1.5),
+            ),
+            const SizedBox(width: 8),
+
+            // 2. Pengaturan (Settings)
+            InkWell(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SecuritySettingsScreen()),
+                );
+              },
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.all(9),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.92),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: borderLight),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.settings_outlined,
+                  color: titleDark,
+                  size: 20,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // 3. Notification Bell Icon with Red Dot Badge
+            InkWell(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const NotificationScreen()),
+                );
+              },
+              borderRadius: BorderRadius.circular(20),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(9),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.92),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: borderLight),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.04),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.notifications_none_rounded,
+                      color: titleDark,
+                      size: 20,
+                    ),
                   ),
-                ),
+                  Positioned(
+                    top: 2,
+                    right: 2,
+                    child: Container(
+                      width: 9,
+                      height: 9,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEF4444),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 1.5),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ],
     );
@@ -590,9 +657,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           ],
                         ),
                       ),
-
-                      // Right: Authentic Gold EMV ATM Chip
-                      _buildAtmChip(),
                     ],
                   ),
 
@@ -647,224 +711,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ==================== AUTHENTIC GOLD EMV ATM CHIP ====================
-  Widget _buildAtmChip() {
-    return Container(
-      width: 44,
-      height: 33,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(6),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFFFE79A), // Golden highlight
-            Color(0xFFE2B246), // Classic Gold
-            Color(0xFFB57E14), // Deep metallic bronze gold
-          ],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.25),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-        border: Border.all(color: const Color(0xFFFFEDB3), width: 0.8),
-      ),
-      child: Stack(
-        children: [
-          // Inner frame
-          Positioned(
-            left: 3.5,
-            right: 3.5,
-            top: 3.5,
-            bottom: 3.5,
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(3),
-                border: Border.all(color: const Color(0xFF6E4A00).withOpacity(0.40), width: 0.7),
-              ),
-            ),
-          ),
-          // Horizontal contact division
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 15.5,
-            child: Container(
-              height: 0.8,
-              color: const Color(0xFF6E4A00).withOpacity(0.40),
-            ),
-          ),
-          // Left contact division
-          Positioned(
-            left: 13,
-            top: 0,
-            bottom: 0,
-            child: Container(
-              width: 0.8,
-              color: const Color(0xFF6E4A00).withOpacity(0.40),
-            ),
-          ),
-          // Right contact division
-          Positioned(
-            right: 13,
-            top: 0,
-            bottom: 0,
-            child: Container(
-              width: 0.8,
-              color: const Color(0xFF6E4A00).withOpacity(0.40),
-            ),
-          ),
-          // Central contact pad
-          Positioned(
-            left: 13,
-            right: 13,
-            top: 8.5,
-            bottom: 8.5,
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF0B8).withOpacity(0.40),
-                border: Border.all(color: const Color(0xFF6E4A00).withOpacity(0.40), width: 0.7),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ==================== 3. MENU UTAMA (4 QUICK MENUS) ====================
-  Widget _buildMenuUtamaSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Menu Utama',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-            color: titleDark,
-            letterSpacing: -0.2,
-          ),
-        ),
-        const SizedBox(height: 14),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. Informasi Rekening
-            Expanded(
-              child: _buildMenuUtamaItem(
-                icon: Icons.article_outlined,
-                label: 'Informasi\nRekening',
-                onTap: () {
-                  setState(() => _currentNavIndex = 1);
-                },
-              ),
-            ),
-
-            // 2. Riwayat Transaksi
-            Expanded(
-              child: _buildMenuUtamaItem(
-                icon: Icons.history_rounded,
-                label: 'Riwayat\nTransaksi',
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const MutationScreen()),
-                  );
-                },
-              ),
-            ),
-
-            // 3. e-Statement
-            Expanded(
-              child: _buildMenuUtamaItem(
-                icon: Icons.receipt_long_outlined,
-                label: 'e-Statement',
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const EStatementScreen()),
-                  );
-                },
-              ),
-            ),
-
-            // 4. Pusat Bantuan
-            Expanded(
-              child: _buildMenuUtamaItem(
-                icon: Icons.headset_mic_outlined,
-                label: 'Pusat\nBantuan',
-                onTap: () {
-                  setState(() => _currentNavIndex = 2);
-                },
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMenuUtamaItem({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 62,
-            height: 58,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFFF3F8FE),
-                  Color(0xFFE8F1FC),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFD6E6F9)),
-              boxShadow: [
-                BoxShadow(
-                  color: royalBlue.withOpacity(0.04),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: Center(
-              child: Icon(icon, color: royalBlue, size: 24),
-            ),
-          ),
-          const SizedBox(height: 7),
-          SizedBox(
-            height: 32,
-            child: Text(
-              label,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1E293B),
-                height: 1.25,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   // ==================== 5. PROMO BANNER CAROUSEL (3 SESSIONS) ====================
   Widget _buildPromoBanner() {
     if (_promoTimer == null || !_promoTimer!.isActive) {
@@ -877,7 +723,7 @@ class _HomeScreenState extends State<HomeScreen> {
         subtitle: 'Lebih Mudah, Lebih Dekat dengan Anda',
         gradientColors: const [Color(0xFFE8F7F2), Color(0xFFE0F2FE)],
         onTap: () {
-          setState(() => _currentNavIndex = 1);
+          setState(() => _currentNavIndex = 2); // Profil tab
         },
       ),
       _PromoBannerData(
@@ -886,10 +732,7 @@ class _HomeScreenState extends State<HomeScreen> {
         subtitle: 'Bunga Kompetitif, Aman & Dijamin LPS',
         gradientColors: const [Color(0xFFEBF7F0), Color(0xFFE1F5FE)],
         onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const AccountInfoScreen()),
-          );
+          setState(() => _currentNavIndex = 2); // Profil tab (Informasi Rekening)
         },
       ),
       _PromoBannerData(
@@ -1028,7 +871,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ==================== 6. BOTTOM NAVIGATION BAR (4 TABS) ====================
+  // ==================== 6. BOTTOM NAVIGATION BAR (3 TABS) ====================
   Widget _buildBottomNavigationBar() {
     return Container(
       decoration: BoxDecoration(
@@ -1049,9 +892,8 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildNavItem(0, Icons.home_rounded, 'Beranda'),
-              _buildNavItem(1, Icons.article_outlined, 'Informasi'),
-              _buildNavItem(2, Icons.headset_mic_outlined, 'Bantuan'),
-              _buildNavItem(3, Icons.person_outline_rounded, 'Profil'),
+              _buildNavItem(1, Icons.history_rounded, 'Riwayat'),
+              _buildNavItem(2, Icons.person_outline_rounded, 'Profil'),
             ],
           ),
         ),

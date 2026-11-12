@@ -31,9 +31,10 @@ type Config struct {
 	JWTSecret        string
 	JWTExpiryMinutes int
 
-	// Security & Rate Limit
-	RateLimitMax    int // Max requests
-	RateLimitWindow int // in seconds
+	// Security & Encryption
+	DBEncryptionKey string // AES-256-GCM 32-byte master key
+	RateLimitMax    int    // Max requests
+	RateLimitWindow int    // in seconds
 	EnableMockCBS   bool
 
 	// Core Banking System (CBS) OpenAPI Configuration
@@ -64,6 +65,7 @@ func LoadConfig() *Config {
 		RedisDB:          getEnvAsInt("REDIS_DB", 0),
 		JWTSecret:        getEnv("JWT_SECRET", "super-secret-bpr-jwt-key-2026!"),
 		JWTExpiryMinutes: getEnvAsInt("JWT_EXPIRY_MINUTES", 60),
+		DBEncryptionKey:  getEnv("DB_ENCRYPTION_KEY", "dmb-bank-aes256-gcm-master-key32"),
 		RateLimitMax:     getEnvAsInt("RATE_LIMIT_MAX", 10),
 		RateLimitWindow:  getEnvAsInt("RATE_LIMIT_WINDOW_SEC", 60),
 		EnableMockCBS:    getEnvAsBool("ENABLE_MOCK_CBS", false),

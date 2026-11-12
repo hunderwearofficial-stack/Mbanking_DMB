@@ -7,6 +7,7 @@ import (
 
 	"mbanking-bpr/internal/domain"
 	"mbanking-bpr/internal/model"
+	"mbanking-bpr/pkg/crypto"
 	"mbanking-bpr/pkg/utils"
 
 	"github.com/google/uuid"
@@ -318,18 +319,18 @@ func (r *authRepository) UpsertCBSUserAndAccount(ctx context.Context, nasabah *d
 	if err != nil {
 		user = model.User{
 			ID:             uuid.NewString(),
-			NIK:            nik,
+			NIK:            crypto.EncryptedString(nik),
 			CIF:            cif,
 			FullName:       fullName,
 			PhoneNumber:    phone,
-			Email:          email,
-			Alamat:         alamat,
+			Email:          crypto.EncryptedString(email),
+			Alamat:         crypto.EncryptedString(alamat),
 			KodePos:        kodePos,
 			JenisKelamin:   jenisKelamin,
 			Agama:          agama,
-			TglLahir:       tglLahir,
-			TempatLahir:    tempatLahir,
-			NamaIbuKandung: namaIbuKandung,
+			TglLahir:       crypto.EncryptedString(tglLahir),
+			TempatLahir:    crypto.EncryptedString(tempatLahir),
+			NamaIbuKandung: crypto.EncryptedString(namaIbuKandung),
 			PasswordHash:   defaultPw,
 			PINHash:        defaultPin,
 			IsActive:       true,
@@ -347,13 +348,13 @@ func (r *authRepository) UpsertCBSUserAndAccount(ctx context.Context, nasabah *d
 			updates["full_name"] = fullName
 		}
 		if nik != "" {
-			updates["nik"] = nik
+			updates["nik"] = crypto.EncryptedString(nik)
 		}
 		if email != "" {
-			updates["email"] = email
+			updates["email"] = crypto.EncryptedString(email)
 		}
 		if alamat != "" {
-			updates["alamat"] = alamat
+			updates["alamat"] = crypto.EncryptedString(alamat)
 		}
 		if kodePos != "" {
 			updates["kode_pos"] = kodePos
@@ -365,13 +366,13 @@ func (r *authRepository) UpsertCBSUserAndAccount(ctx context.Context, nasabah *d
 			updates["agama"] = agama
 		}
 		if tglLahir != "" {
-			updates["tgl_lahir"] = tglLahir
+			updates["tgl_lahir"] = crypto.EncryptedString(tglLahir)
 		}
 		if tempatLahir != "" {
-			updates["tempat_lahir"] = tempatLahir
+			updates["tempat_lahir"] = crypto.EncryptedString(tempatLahir)
 		}
 		if namaIbuKandung != "" {
-			updates["nama_ibu_kandung"] = namaIbuKandung
+			updates["nama_ibu_kandung"] = crypto.EncryptedString(namaIbuKandung)
 		}
 		_ = r.db.WithContext(ctx).Model(&user).Updates(updates).Error
 	}

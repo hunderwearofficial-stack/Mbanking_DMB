@@ -28,6 +28,138 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
   static const Color bgCanvas = Color(0xFFF8FAFC);
 
   late Future<Map<String, dynamic>> _dataFuture;
+  bool _isDataMasked = true;
+
+  String _maskCIF(String c) {
+    if (c.length < 8) return c;
+    return '${c.substring(0, 4)} **** ${c.substring(c.length - 4)}';
+  }
+
+  String _maskNIK(String n) {
+    if (n.length < 8) return n;
+    return '${n.substring(0, 6)} ****** ${n.substring(n.length - 4)}';
+  }
+
+  String _maskPhone(String p) {
+    if (p.length < 8) return p;
+    return '${p.substring(0, 4)} **** ${p.substring(p.length - 3)}';
+  }
+
+  String _maskAlamat(String a) {
+    if (a.length <= 16) return a;
+    return '${a.substring(0, 16)}... (Detail Terproteksi)';
+  }
+
+  void _showPinVerificationModal(BuildContext context, VoidCallback onVerified) {
+    final pinController = TextEditingController();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => SafeArea(
+        child: Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 44,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: borderLight,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFFDBEAFE)),
+                  ),
+                  child: const Icon(Icons.lock_rounded, color: royalBlue, size: 26),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'Verifikasi Akses Data Pribadi',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: titleDark,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Masukkan PIN transaksi untuk membuka proteksi data identitas nasabah.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.plusJakartaSans(fontSize: 12.5, color: textMuted, height: 1.4),
+                ),
+                const SizedBox(height: 18),
+                TextField(
+                  controller: pinController,
+                  obscureText: true,
+                  keyboardType: TextInputType.number,
+                  maxLength: 6,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 10,
+                    color: titleDark,
+                  ),
+                  decoration: InputDecoration(
+                    counterText: '',
+                    hintText: '••••••',
+                    hintStyle: const TextStyle(letterSpacing: 10, color: Color(0xFF94A3B8)),
+                    filled: true,
+                    fillColor: const Color(0xFFF8FAFC),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: const BorderSide(color: borderLight, width: 1.5),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryNavy,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      elevation: 0,
+                    ),
+                    onPressed: () {
+                      if (pinController.text.trim().length == 6) {
+                        Navigator.pop(sheetCtx);
+                        onVerified();
+                        _showToast('Proteksi data pribadi dibuka');
+                      } else {
+                        _showToast('PIN harus 6 digit');
+                      }
+                    },
+                    child: Text(
+                      'Buka Proteksi',
+                      style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -164,26 +296,26 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
 
           // 1. CIF Resolution (API -> Auth State -> Fallback)
           String cif = (profile['cif'] ?? profile['cif_number'] ?? authUser?.cif ?? '').toString().trim();
-          if (cif.isEmpty || cif == '-' || cif == 'null') {
-            cif = '0000000001';
+          if (cif.isEmpty || cif == 'null') {
+            cif = '-';
           }
 
           // 2. Nama Lengkap Resolution
           String nama = (profile['nama'] ?? profile['full_name'] ?? authUser?.fullName ?? activeAccount?.holderName ?? '').toString().trim();
-          if (nama.isEmpty || nama == '-' || nama == 'null') {
-            nama = 'Wahyu Nafeeza';
+          if (nama.isEmpty || nama == 'null') {
+            nama = 'Nasabah Bank DMB';
           }
 
           // 3. NIK Resolution
           String nik = (profile['nik'] ?? authUser?.nik ?? '').toString().trim();
-          if (nik.isEmpty || nik == '-' || nik == 'null') {
-            nik = '3201012304950001';
+          if (nik.isEmpty || nik == 'null') {
+            nik = '-';
           }
 
           // 4. Nomor Handphone Resolution
           String nohp = (profile['nohp'] ?? profile['phone_number'] ?? authUser?.phoneNumber ?? '').toString().trim();
-          if (nohp.isEmpty || nohp == '-' || nohp == 'null') {
-            nohp = '081298765432';
+          if (nohp.isEmpty || nohp == 'null') {
+            nohp = '-';
           }
 
           // 5. Alamat Domisili Resolution
@@ -256,15 +388,13 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          Color(0xFF0754A8),
-                          Color(0xFF087299),
-                          Color(0xFF149752),
+                          Color(0xFF0B356D),
+                          Color(0xFF0062E3),
                         ],
-                        stops: [0.0, 0.60, 1.0],
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF0754A8).withOpacity(0.24),
+                          color: const Color(0xFF0062E3).withOpacity(0.24),
                           blurRadius: 16,
                           offset: const Offset(0, 8),
                         ),
@@ -286,7 +416,7 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
                             ),
                             const SizedBox(height: 3),
                             Text(
-                              cif,
+                              _isDataMasked ? _maskCIF(cif) : cif,
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w900,
@@ -331,14 +461,58 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
 
                   const SizedBox(height: 22),
 
-                  // 2. Data Pribadi Nasabah Section
-                  Text(
-                    'Data Identitas Nasabah',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w800,
-                      color: titleDark,
-                    ),
+                  // 2. Data Pribadi Nasabah Section dengan Proteksi Keamanan
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.lock_outline_rounded, size: 16, color: royalBlue),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Data Identitas Nasabah',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w800,
+                              color: titleDark,
+                            ),
+                          ),
+                        ],
+                      ),
+                      InkWell(
+                        onTap: () {
+                          if (_isDataMasked) {
+                            _showPinVerificationModal(context, () {
+                              setState(() => _isDataMasked = false);
+                            });
+                          } else {
+                            setState(() => _isDataMasked = true);
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                          child: Row(
+                            children: [
+                              Icon(
+                                _isDataMasked ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                                size: 15,
+                                color: royalBlue,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                _isDataMasked ? 'Buka Proteksi' : 'Kunci Data',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: royalBlue,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 10),
                   Container(
@@ -367,8 +541,8 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
                         _buildDetailRow(
                           icon: Icons.badge_outlined,
                           label: 'NIK / No. Identitas',
-                          value: nik,
-                          copyable: true,
+                          value: _isDataMasked ? _maskNIK(nik) : nik,
+                          copyable: !_isDataMasked,
                           onCopy: () {
                             Clipboard.setData(ClipboardData(text: nik));
                             _showToast('NIK disalin: $nik');
@@ -378,21 +552,21 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
                         _buildDetailRow(
                           icon: Icons.phone_android_rounded,
                           label: 'Nomor Handphone',
-                          value: nohp,
+                          value: _isDataMasked ? _maskPhone(nohp) : nohp,
                         ),
                         if (tempatLahir.isNotEmpty && tglLahir.isNotEmpty) ...[
                           const Divider(height: 18, color: Color(0xFFF1F5F9)),
                           _buildDetailRow(
                             icon: Icons.cake_outlined,
                             label: 'Tempat, Tgl Lahir',
-                            value: '$tempatLahir, $tglLahir',
+                            value: _isDataMasked ? '$tempatLahir, **-**-****' : '$tempatLahir, $tglLahir',
                           ),
                         ],
                         const Divider(height: 18, color: Color(0xFFF1F5F9)),
                         _buildDetailRow(
                           icon: Icons.location_on_outlined,
                           label: 'Alamat Domisili',
-                          value: alamat,
+                          value: _isDataMasked ? _maskAlamat(alamat) : alamat,
                         ),
                       ],
                     ),
@@ -574,7 +748,7 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Data nasabah tersinkronisasi langsung dengan Core Banking System (CBS) PT BPR Dana Mandiri Bogor.',
+                            'Data profil nasabah terverifikasi resmi oleh PT BPR Dana Mandiri Bogor.',
                             style: GoogleFonts.plusJakartaSans(fontSize: 11, color: textMuted, height: 1.4),
                           ),
                         ),

@@ -26,7 +26,11 @@ class ApiEndpoints {
   static const String accountInquiry = '/api/v1/account/inquiry';
   static const String accountProfile = '/api/v1/account/profile';
   static const String accountList = '/api/v1/account/list';
-  static const String transfer = '/api/v1/transaction/transfer';
+  static const String loans = '/api/v1/account/loans';
+  static const String loanDetail = '/api/v1/account/loans/';
+  static const String deposits = '/api/v1/account/deposits';
+  static const String depositDetail = '/api/v1/account/deposits/';
+  static const String products = '/api/v1/account/products';
   static const String cbsHealth = '/api/v1/cbs/health';
   static const String cbsRefreshToken = '/api/v1/cbs/refresh-token';
   static const String health = '/health';

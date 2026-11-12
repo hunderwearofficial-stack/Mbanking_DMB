@@ -2,6 +2,7 @@ package cbsprovider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"time"
@@ -19,11 +20,15 @@ import (
 // This serves as the single source of truth for all accounts, balances, mutations, and transactions
 // until the Bank's Core Banking System (CBS) API is ready for integration.
 type DatabaseCBSProvider struct {
-	db *gorm.DB
+	db  *gorm.DB
+	mem *MemoryCBSProvider
 }
 
 func NewDatabaseCBSProvider(db *gorm.DB) *DatabaseCBSProvider {
-	return &DatabaseCBSProvider{db: db}
+	return &DatabaseCBSProvider{
+		db:  db,
+		mem: NewMemoryCBSProvider(),
+	}
 }
 
 func (p *DatabaseCBSProvider) Ping(ctx context.Context) (*domain.CBSHealthStatus, error) {
@@ -52,7 +57,7 @@ func (p *DatabaseCBSProvider) GetCustomerByCIF(ctx context.Context, cifNumber st
 		CIF:   user.CIF,
 		Nama:  user.FullName,
 		NoHP:  user.PhoneNumber,
-		Email: user.Email,
+		Email: string(user.Email),
 	}, nil
 }
 
@@ -136,7 +141,7 @@ func (p *DatabaseCBSProvider) GetBalance(ctx context.Context, accountNo string) 
 }
 
 // GetMutations fetches actual transaction history from the database mutation records.
-func (p *DatabaseCBSProvider) GetMutations(ctx context.Context, accountNo string, startDate, endDate string, limit int) ([]domain.Mutation, error) {
+func (p *DatabaseCBSProvider) GetMutations(ctx context.Context, cifNumber, accountNo string, startDate, endDate string, limit int) ([]domain.Mutation, error) {
 	if p.db == nil {
 		return []domain.Mutation{}, nil
 	}
@@ -286,5 +291,67 @@ func (p *DatabaseCBSProvider) ProcessTransfer(ctx context.Context, req *domain.T
 		Note:          req.Note,
 		Status:        model.TxStatusSuccess,
 		Timestamp:     now,
+	}, nil
+}
+
+func (p *DatabaseCBSProvider) GetLoanAccountsByCIF(ctx context.Context, cifNumber string) ([]domain.DMBLoanAccountItem, error) {
+	if p.mem != nil {
+		return p.mem.GetLoanAccountsByCIF(ctx, cifNumber)
+	}
+	return []domain.DMBLoanAccountItem{}, nil
+}
+
+func (p *DatabaseCBSProvider) GetLoanAccountDetail(ctx context.Context, cifNumber, accountNo string) (*domain.DMBLoanAccountDetail, error) {
+	if p.mem != nil {
+		return p.mem.GetLoanAccountDetail(ctx, cifNumber, accountNo)
+	}
+	return nil, errors.New("data pinjaman tidak ditemukan")
+}
+
+func (p *DatabaseCBSProvider) GetLoanMutations(ctx context.Context, cifNumber, accountNo, startDate, endDate string, limit int) ([]domain.Mutation, error) {
+	if p.mem != nil {
+		return p.mem.GetLoanMutations(ctx, cifNumber, accountNo, startDate, endDate, limit)
+	}
+	return []domain.Mutation{}, nil
+}
+
+func (p *DatabaseCBSProvider) GetDepositAccountsByCIF(ctx context.Context, cifNumber string) ([]domain.DMBDepositAccountItem, error) {
+	if p.mem != nil {
+		return p.mem.GetDepositAccountsByCIF(ctx, cifNumber)
+	}
+	return []domain.DMBDepositAccountItem{}, nil
+}
+
+func (p *DatabaseCBSProvider) GetDepositAccountDetail(ctx context.Context, cifNumber, accountNo string) (*domain.DMBDepositAccountDetail, error) {
+	if p.mem != nil {
+		return p.mem.GetDepositAccountDetail(ctx, cifNumber, accountNo)
+	}
+	return nil, errors.New("data deposito tidak ditemukan")
+}
+
+func (p *DatabaseCBSProvider) GetDepositMutations(ctx context.Context, cifNumber, accountNo, startDate, endDate string, limit int) ([]domain.Mutation, error) {
+	if p.mem != nil {
+		return p.mem.GetDepositMutations(ctx, cifNumber, accountNo, startDate, endDate, limit)
+	}
+	return []domain.Mutation{}, nil
+}
+
+func (p *DatabaseCBSProvider) GetProductsCatalog(ctx context.Context) (*domain.DMBProductsCatalog, error) {
+	return &domain.DMBProductsCatalog{
+		Tabungan: []domain.DMBProductItem{
+			{KodeProduk: "05", NamaProduk: "DANA MANDIRI", Aktif: true},
+			{KodeProduk: "20", NamaProduk: "TBW", Aktif: true},
+			{KodeProduk: "21", NamaProduk: "TAB IMPIANKU", Aktif: true},
+		},
+		Kredit: []domain.DMBProductItem{
+			{KodeProduk: "17", NamaProduk: "Kredit Modal Kerja", Aktif: true},
+			{KodeProduk: "18", NamaProduk: "Kredit Micro Individual Loan (MIL)", Aktif: true},
+		},
+		Deposito: []domain.DMBProductItem{
+			{KodeProduk: "01", NamaProduk: "DEPOSITO 01 BULAN", Aktif: true},
+			{KodeProduk: "03", NamaProduk: "DEPOSITO 03 BULAN", Aktif: true},
+			{KodeProduk: "06", NamaProduk: "DEPOSITO 06 BULAN", Aktif: true},
+			{KodeProduk: "12", NamaProduk: "DEPOSITO 12 BULAN", Aktif: true},
+		},
 	}, nil
 }

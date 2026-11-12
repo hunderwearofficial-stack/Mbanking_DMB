@@ -1,7 +1,10 @@
 import 'dart:developer';
+import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
 import '../constants/api_endpoints.dart';
 import '../security/secure_storage_service.dart';
+import '../security/ssl_pinning_service.dart';
 import 'api_exception.dart';
 
 class ApiClient {
@@ -21,6 +24,17 @@ class ApiClient {
         },
       ),
     );
+
+    // Hardening: Enforce SSL Certificate Pinning via HttpClientAdapter
+    if (dio.httpClientAdapter is IOHttpClientAdapter) {
+      (dio.httpClientAdapter as IOHttpClientAdapter).createHttpClient = () {
+        final client = HttpClient();
+        client.badCertificateCallback = (X509Certificate cert, String host, int port) {
+          return SslPinningService.validateCertificate(cert, host, port);
+        };
+        return client;
+      };
+    }
 
     _setupInterceptors();
   }

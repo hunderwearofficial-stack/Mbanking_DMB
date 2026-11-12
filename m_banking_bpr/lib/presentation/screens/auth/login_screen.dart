@@ -6,6 +6,7 @@ import '../../blocs/auth/auth_state.dart';
 import '../home/home_screen.dart';
 import 'activation_screen.dart';
 import 'forgot_password_screen.dart';
+import '../../../core/security/biometric_auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,6 +20,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _rememberMe = true;
+  bool _isBiometricEnabled = false;
+  BiometricCapability? _biometricCapability;
 
   // Colors aligned with DMB Mobile Executive Design
   static const Color primaryNavy = Color(0xFF0B356D); // Official Deep Navy Blue
@@ -35,14 +38,45 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _loadSavedPhone() async {
     try {
-      final savedPhone =
-          await context.read<AuthCubit>().authRepository.secureStorage.getPhoneNumber();
-      if (mounted && savedPhone != null && savedPhone.isNotEmpty && _phoneController.text.isEmpty) {
+      final storage = context.read<AuthCubit>().authRepository.secureStorage;
+      final savedPhone = await storage.getPhoneNumber();
+      final isBio = await storage.isBiometricEnabled();
+      final bioCap = await BiometricAuthService.checkCapability();
+
+      if (mounted) {
         setState(() {
-          _phoneController.text = savedPhone;
+          if (savedPhone != null && savedPhone.isNotEmpty && _phoneController.text.isEmpty) {
+            _phoneController.text = savedPhone;
+          }
+          _isBiometricEnabled = isBio;
+          _biometricCapability = bioCap;
         });
       }
     } catch (_) {}
+  }
+
+  Future<void> _onBiometricLogin() async {
+    final storage = context.read<AuthCubit>().authRepository.secureStorage;
+    final isBio = await storage.isBiometricEnabled();
+
+    if (!isBio) {
+      _showWarning(
+        'Login Biometrik belum diaktifkan. Silakan login dengan password terlebih dahulu, lalu aktifkan di menu Profil > Pengaturan Aplikasi.',
+      );
+      return;
+    }
+
+    final result = await BiometricAuthService.authenticate(
+      reason: 'Pindai sidik jari atau Face ID Anda untuk masuk ke Mobile DMB',
+    );
+
+    if (result.success) {
+      if (mounted) {
+        context.read<AuthCubit>().loginWithBiometric();
+      }
+    } else if (result.errorMessage != null) {
+      _showWarning(result.errorMessage!);
+    }
   }
 
   @override
@@ -62,7 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     if (password.isEmpty) {
-      _showWarning('PIN / Password wajib diisi');
+      _showWarning('Kata sandi / Password wajib diisi');
       return;
     }
 
@@ -610,7 +644,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 fontWeight: FontWeight.w400,
                               ),
                               prefixIcon: Icon(
-                                Icons.person_outline_rounded,
+                                Icons.phone_iphone_rounded,
                                 color: Color(0xFF4A607A),
                                 size: 22,
                               ),
@@ -622,7 +656,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         const SizedBox(height: 14),
 
-                        // Form Input 2: PIN / Password
+                        // Form Input 2: Kata Sandi / Password
                         Container(
                           decoration: BoxDecoration(
                             color: Colors.white,
@@ -645,7 +679,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               color: Color(0xFF0F172A),
                             ),
                             decoration: InputDecoration(
-                              hintText: 'PIN / Password',
+                              hintText: 'Kata Sandi / Password',
                               hintStyle: const TextStyle(
                                 color: Color(0xFF94A3B8),
                                 fontSize: 14,
@@ -679,7 +713,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         const SizedBox(height: 10),
 
-                        // Options Row: Ingat Saya (Circle) & Lupa PIN?
+                        // Options Row: Ingat Saya (Circle) & Lupa Password?
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -732,7 +766,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               child: const Padding(
                                 padding: EdgeInsets.symmetric(vertical: 4, horizontal: 2),
                                 child: Text(
-                                  'Lupa PIN?',
+                                  'Lupa Password?',
                                   style: TextStyle(
                                     fontSize: 12.5,
                                     fontWeight: FontWeight.w700,
@@ -746,46 +780,90 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         const SizedBox(height: 22),
 
-                        // Primary Action Button: Login →
-                        SizedBox(
-                          width: double.infinity,
-                          height: 52,
-                          child: ElevatedButton(
-                            onPressed: isLoading ? null : _onLogin,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: primaryNavy,
-                              foregroundColor: Colors.white,
-                              elevation: 2,
-                              shadowColor: primaryNavy.withOpacity(0.35),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(26),
+                        // Primary Action Button: Login + Biometric Quick Action
+                        Row(
+                          children: [
+                            Expanded(
+                              child: SizedBox(
+                                height: 52,
+                                child: ElevatedButton(
+                                  onPressed: isLoading ? null : _onLogin,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: primaryNavy,
+                                    foregroundColor: Colors.white,
+                                    elevation: 2,
+                                    shadowColor: primaryNavy.withOpacity(0.35),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(26),
+                                    ),
+                                  ),
+                                  child: isLoading
+                                      ? const SizedBox(
+                                          width: 22,
+                                          height: 22,
+                                          child: CircularProgressIndicator(
+                                            color: Colors.white,
+                                            strokeWidth: 2.2,
+                                          ),
+                                        )
+                                      : const Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              'Login',
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w700,
+                                                letterSpacing: 0.2,
+                                              ),
+                                            ),
+                                            SizedBox(width: 8),
+                                            Icon(Icons.arrow_forward_rounded, size: 18),
+                                          ],
+                                        ),
+                                ),
                               ),
                             ),
-                            child: isLoading
-                                ? const SizedBox(
-                                    width: 22,
-                                    height: 22,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2.2,
-                                    ),
-                                  )
-                                : const Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        'Login',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: 0.2,
-                                        ),
-                                      ),
-                                      SizedBox(width: 8),
-                                      Icon(Icons.arrow_forward_rounded, size: 18),
-                                    ],
+                            if (_biometricCapability?.canAuthenticate ?? true) ...[
+                              const SizedBox(width: 12),
+                              Container(
+                                height: 52,
+                                width: 52,
+                                decoration: BoxDecoration(
+                                  color: _isBiometricEnabled ? const Color(0xFFEFF6FF) : const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: _isBiometricEnabled ? const Color(0xFF0062E3) : const Color(0xFFCBD5E1),
+                                    width: 1.5,
                                   ),
-                          ),
+                                  boxShadow: _isBiometricEnabled
+                                      ? [
+                                          BoxShadow(
+                                            color: const Color(0xFF0062E3).withOpacity(0.15),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ]
+                                      : null,
+                                ),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(16),
+                                    onTap: _onBiometricLogin,
+                                    child: Center(
+                                      child: Icon(
+                                        Icons.fingerprint_rounded,
+                                        color: _isBiometricEnabled ? const Color(0xFF0062E3) : const Color(0xFF64748B),
+                                        size: 28,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
 
                         const SizedBox(height: 18),

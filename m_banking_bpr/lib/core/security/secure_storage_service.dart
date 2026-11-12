@@ -11,6 +11,12 @@ class SecureStorageService {
   static const String _keyCIF = 'user_cif';
   static const String _keyFullName = 'user_full_name';
   static const String _keyPrimaryAccount = 'user_primary_account';
+  static const String _keyBiometricEnabled = 'biometric_enabled';
+  static const String _keyBiometricRefreshToken = 'biometric_refresh_token';
+  static const String _keyBiometricCif = 'biometric_cif';
+  static const String _keyBiometricPhone = 'biometric_phone';
+  static const String _keyBiometricFullName = 'biometric_full_name';
+  static const String _keyBiometricPrimaryAccount = 'biometric_primary_account';
 
   final FlutterSecureStorage _storage;
 
@@ -69,6 +75,7 @@ class SecureStorageService {
   Future<String?> getRefreshToken() async => await _read(_keyRefreshToken);
   Future<String?> getPhoneNumber() async => await _read(_keyPhoneNumber);
   Future<String?> getCIF() async => await _read(_keyCIF);
+  Future<String?> getCif() async => await _read(_keyCIF);
   Future<String?> getFullName() async => await _read(_keyFullName);
   Future<String?> getPrimaryAccount() async => await _read(_keyPrimaryAccount);
 
@@ -89,6 +96,47 @@ class SecureStorageService {
     final token = await getAccessToken();
     return token != null && token.isNotEmpty;
   }
+
+  // --- Biometric Authentication Management ---
+
+  Future<void> setBiometricEnabled(bool enabled) async {
+    await _write(_keyBiometricEnabled, enabled ? 'true' : 'false');
+  }
+
+  Future<bool> isBiometricEnabled() async {
+    final val = await _read(_keyBiometricEnabled);
+    return val == 'true';
+  }
+
+  Future<void> saveBiometricCredentials({
+    required String refreshToken,
+    required String cif,
+    required String phone,
+    required String fullName,
+    required String primaryAccount,
+  }) async {
+    await _write(_keyBiometricEnabled, 'true');
+    await _write(_keyBiometricRefreshToken, refreshToken);
+    await _write(_keyBiometricCif, cif);
+    await _write(_keyBiometricPhone, phone);
+    await _write(_keyBiometricFullName, fullName);
+    await _write(_keyBiometricPrimaryAccount, primaryAccount);
+  }
+
+  Future<void> clearBiometricCredentials() async {
+    await _delete(_keyBiometricEnabled);
+    await _delete(_keyBiometricRefreshToken);
+    await _delete(_keyBiometricCif);
+    await _delete(_keyBiometricPhone);
+    await _delete(_keyBiometricFullName);
+    await _delete(_keyBiometricPrimaryAccount);
+  }
+
+  Future<String?> getBiometricRefreshToken() async => await _read(_keyBiometricRefreshToken);
+  Future<String?> getBiometricCif() async => await _read(_keyBiometricCif);
+  Future<String?> getBiometricPhone() async => await _read(_keyBiometricPhone);
+  Future<String?> getBiometricFullName() async => await _read(_keyBiometricFullName);
+  Future<String?> getBiometricPrimaryAccount() async => await _read(_keyBiometricPrimaryAccount);
 
   // --- Device Binding Identifier ---
 

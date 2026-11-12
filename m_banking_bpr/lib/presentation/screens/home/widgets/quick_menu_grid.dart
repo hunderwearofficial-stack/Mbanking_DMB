@@ -4,192 +4,20 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../data/models/loan_model.dart';
+import '../../../../data/repositories/account_repository.dart';
 import '../../../blocs/account/account_cubit.dart';
 import '../../../blocs/account/account_state.dart';
 import '../../mutation/mutation_screen.dart';
 import '../../product/product_simulator_sheet.dart';
+import '../../product/product_catalog_screen.dart';
 import '../../profile/security_settings_screen.dart';
-import '../../transfer/transfer_screen.dart';
+import '../../helpdesk/helpdesk_screen.dart';
+import '../../account/account_info_screen.dart';
+import '../../loan/loan_screen.dart';
+import '../../deposit/deposit_screen.dart';
 
 class FigmaMenuGrid extends StatelessWidget {
   const FigmaMenuGrid({super.key});
-
-  void _showLoanModal(BuildContext context) {
-    const loan = LoanModel.demoLoan;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 44,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF0FDF4),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFF86EFAC)),
-                  ),
-                  child: const Icon(Icons.credit_score_rounded, color: AppColors.primary, size: 24),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Pinjaman Aktif BPR',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
-                      ),
-                      Text(
-                        loan.productName,
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFDCFCE7),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    'LANCAR (KOL 1)',
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF15803D)),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // Summary Card
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Flexible(
-                        child: Text(
-                          'Sisa Pokok (Baki Debet):',
-                          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        CurrencyFormatter.formatRupiah(loan.remainingPrincipal),
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: AppColors.primary),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: const LinearProgressIndicator(
-                      value: 0.30,
-                      minHeight: 6,
-                      backgroundColor: Color(0xFFE2E8F0),
-                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Flexible(
-                        child: Text(
-                          'Terbayar 30% (Rp 14.8jt)',
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textMuted),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Plafon: ${CurrencyFormatter.formatRupiah(loan.plafon)}',
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 18),
-
-            _buildDetailRow('Nomor Perjanjian Kredit', loan.loanNumber),
-            _buildDetailRow('Angsuran per Bulan', CurrencyFormatter.formatRupiah(loan.monthlyInstallment)),
-            _buildDetailRow('Jatuh Tempo Berikutnya', loan.nextDueDate),
-            _buildDetailRow('Sisa Jangka Waktu', '${loan.remainingTenorMonths} dari ${loan.totalTenorMonths} Bulan'),
-            _buildDetailRow('Suku Bunga Kredit', loan.interestRate),
-            _buildDetailRow('Agunan / Jaminan', loan.collateral),
-            _buildDetailRow('Kantor Cabang', loan.branchOffice),
-            const SizedBox(height: 20),
-
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFFEA580C),
-                      side: const BorderSide(color: Color(0xFFEA580C)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    icon: const Icon(Icons.calculate_rounded, size: 18),
-                    label: const Text('Simulasi & Ajukan', style: TextStyle(fontWeight: FontWeight.w800)),
-                    onPressed: () {
-                      Navigator.pop(context);
-                      ProductSimulatorSheet.show(context, initialType: 'PINJAMAN');
-                    },
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Tutup Rincian', style: TextStyle(fontWeight: FontWeight.w700)),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-          ],
-        ),
-      ),
-    );
-  }
 
   static Widget _buildDetailRow(String label, String value) {
     return Padding(
@@ -258,7 +86,7 @@ class FigmaMenuGrid extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             const Text(
-              'Layanan ini sedang dalam peningkatan sistem berkala untuk kenyamanan dan keamanan transaksi Anda. Silakan coba beberapa saat lagi.',
+              'Layanan pembayaran pihak ketiga (PPOB & Biller) sedang dalam integrasi gateway switching untuk kenyamanan transaksi Anda.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.5),
             ),
@@ -396,7 +224,7 @@ class FigmaMenuGrid extends StatelessWidget {
                 Navigator.pop(sheetCtx);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Ringkasan e-Statement resmi berhasil disalin ke Clipboard! Siap ditempel ke WhatsApp/Email.'),
+                    content: Text('Ringkasan e-Statement resmi berhasil disalin ke Clipboard!'),
                     backgroundColor: AppColors.primary,
                     behavior: SnackBarBehavior.floating,
                   ),
@@ -440,7 +268,7 @@ class FigmaMenuGrid extends StatelessWidget {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             icon: const Icon(Icons.copy_all_rounded, size: 16),
-            label: const Text('Salin Resmi', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800)),
+            label: const Text('Salin', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800)),
             onPressed: onShare,
           ),
         ],
@@ -450,47 +278,18 @@ class FigmaMenuGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Exact 8 items in 4 columns x 2 rows matching wondr by BNI screenshot!
+    const Color royalBlue = Color(0xFF0062E3);
+    const Color titleDark = Color(0xFF0B2546);
+
+    // 4 Menu Utama Resmi 100% Sesuai Endpoint Core Banking OpenAPI
+    // 1. Mutasi Tabungan  -> POST /api/savings-account-mutations (Postman #8)
+    // 2. Fasilitas Pinjaman -> POST /api/loan-accounts & /api/loan-account-detail (Postman #9 & #10)
+    // 3. Portofolio Deposito -> POST /api/deposit-accounts & /api/deposit-account-detail (Postman #11 & #12)
+    // 4. Katalog Produk    -> POST /api/products (Postman #4)
     final List<Map<String, dynamic>> items = [
-      // Row 1
       {
-        'title': 'Transfer',
-        'icon': Icons.near_me_rounded,
-        'bgColor': const Color(0xFFCCFBF1), // Mint Teal
-        'iconColor': const Color(0xFF0F766E),
-        'onTap': () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const TransferScreen()),
-          );
-        },
-      },
-      {
-        'title': 'Pinjaman',
-        'icon': Icons.credit_score_rounded,
-        'bgColor': const Color(0xFFFFEDD5), // Soft Warm Orange (matching wondr TapCash style)
-        'iconColor': const Color(0xFFEA580C),
-        'onTap': () => _showLoanModal(context),
-      },
-      {
-        'title': 'Bayar & Beli',
-        'icon': Icons.receipt_rounded,
-        'bgColor': const Color(0xFFEDE9FE), // Soft Lavender Periwinkle
-        'iconColor': const Color(0xFF6D28D9),
-        'onTap': () => _showMaintenanceModal(context, 'Bayar & Beli (PLN, Pulsa, PDAM)'),
-      },
-      {
-        'title': 'E-Wallet',
-        'icon': Icons.account_balance_wallet_rounded,
-        'bgColor': const Color(0xFFCCFBF1), // Mint Teal
-        'iconColor': const Color(0xFF0F766E),
-        'onTap': () => _showMaintenanceModal(context, 'Top Up E-Wallet'),
-      },
-      // Row 2
-      {
-        'title': 'Mutasi',
-        'icon': Icons.receipt_long_rounded,
-        'bgColor': const Color(0xFFCCFBF1), // Mint Teal
-        'iconColor': const Color(0xFF0F766E),
+        'title': 'Mutasi\nTabungan',
+        'icon': Icons.history_rounded,
         'onTap': () {
           Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const MutationScreen()),
@@ -498,86 +297,63 @@ class FigmaMenuGrid extends StatelessWidget {
         },
       },
       {
-        'title': 'Deposito',
-        'icon': Icons.savings_rounded,
-        'bgColor': const Color(0xFFFEF3C7), // Warm Yellow
-        'iconColor': const Color(0xFFD97706),
-        'onTap': () => ProductSimulatorSheet.show(context, initialType: 'DEPOSITO'),
-      },
-      {
-        'title': 'e-Statement',
-        'icon': Icons.description_rounded,
-        'bgColor': const Color(0xFFEDE9FE), // Soft Lavender
-        'iconColor': const Color(0xFF6D28D9),
-        'onTap': () => _showStatementModal(context),
-      },
-      {
-        'title': 'Keamanan',
-        'icon': Icons.shield_outlined,
-        'bgColor': Colors.white,
-        'iconColor': const Color(0xFF0F766E),
-        'isOutlined': true,
+        'title': 'Fasilitas\nPinjaman',
+        'icon': Icons.credit_score_outlined,
         'onTap': () {
           Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const SecuritySettingsScreen()),
+            MaterialPageRoute(builder: (_) => const LoanScreen()),
+          );
+        },
+      },
+      {
+        'title': 'Portofolio\nDeposito',
+        'icon': Icons.savings_outlined,
+        'onTap': () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const DepositScreen()),
+          );
+        },
+      },
+      {
+        'title': 'Katalog\nProduk',
+        'icon': Icons.auto_stories_outlined,
+        'onTap': () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const ProductCatalogScreen()),
           );
         },
       },
     ];
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header: "Fitur pilihan kamu" + "Atur"
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Fitur pilihan kamu',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              InkWell(
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Atur Menu Cepat: Susun pintasan transaksi favorit Anda'),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                },
-                child: const Text(
-                  'Atur',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFFEA580C), // Orange like wondr
-                  ),
-                ),
-              ),
-            ],
+          const Text(
+            'Menu Utama',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: titleDark,
+              letterSpacing: -0.2,
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
-          // 4 Columns x 2 Rows Grid (Pure Wondr Style)
+          // 4 Kolom Menu Sesuai API CBS DMB
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: items.length,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 4,
-              childAspectRatio: 0.76,
-              crossAxisSpacing: 12,
+              childAspectRatio: 0.72,
+              crossAxisSpacing: 10,
               mainAxisSpacing: 14,
             ),
             itemBuilder: (context, index) {
               final item = items[index];
-              final isOutlined = item['isOutlined'] == true;
 
               return InkWell(
                 onTap: item['onTap'] as VoidCallback,
@@ -585,33 +361,50 @@ class FigmaMenuGrid extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Squircle Container like wondr
                     Container(
-                      width: 54,
-                      height: 54,
+                      width: 62,
+                      height: 58,
                       decoration: BoxDecoration(
-                        color: item['bgColor'] as Color,
+                        gradient: const LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Color(0xFFF3F8FE),
+                            Color(0xFFE8F1FC),
+                          ],
+                        ),
                         borderRadius: BorderRadius.circular(18),
-                        border: isOutlined ? Border.all(color: const Color(0xFFCBD5E1), width: 1.2) : null,
+                        border: Border.all(color: const Color(0xFFD6E6F9)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: royalBlue.withOpacity(0.04),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
                       ),
                       child: Center(
                         child: Icon(
                           item['icon'] as IconData,
-                          color: item['iconColor'] as Color,
-                          size: 26,
+                          color: royalBlue,
+                          size: 24,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      item['title'] as String,
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                    const SizedBox(height: 7),
+                    SizedBox(
+                      height: 32,
+                      child: Text(
+                        item['title'] as String,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1E293B),
+                          height: 1.25,
+                        ),
                       ),
                     ),
                   ],
@@ -624,3 +417,4 @@ class FigmaMenuGrid extends StatelessWidget {
     );
   }
 }
+

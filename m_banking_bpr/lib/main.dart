@@ -4,13 +4,13 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/network/api_client.dart';
 import 'core/security/secure_storage_service.dart';
+import 'core/security/security_hardening_service.dart';
+import 'core/security/session_inactivity_detector.dart';
 import 'core/theme/app_theme.dart';
 import 'data/repositories/account_repository.dart';
 import 'data/repositories/auth_repository.dart';
-import 'data/repositories/transaction_repository.dart';
 import 'presentation/blocs/account/account_cubit.dart';
 import 'presentation/blocs/auth/auth_cubit.dart';
-import 'presentation/blocs/transfer/transfer_cubit.dart';
 import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/home/home_screen.dart';
 import 'presentation/screens/splash/splash_screen.dart';
@@ -20,7 +20,10 @@ final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Core Services Initialization
+  // 1. Security Hardening Initialization (FLAG_SECURE Active by Default)
+  await SecurityHardeningService.setFlagSecure(true);
+
+  // 2. Core Services Initialization
   final secureStorage = SecureStorageService();
   final apiClient = ApiClient(
     secureStorage: secureStorage,
@@ -48,13 +51,11 @@ void main() async {
   // 2. Data Repositories
   final authRepository = AuthRepository(apiClient: apiClient, secureStorage: secureStorage);
   final accountRepository = AccountRepository(apiClient: apiClient);
-  final transactionRepository = TransactionRepository(apiClient: apiClient);
 
   runApp(
     MBankingBPRApp(
       authRepository: authRepository,
       accountRepository: accountRepository,
-      transactionRepository: transactionRepository,
     ),
   );
 }
@@ -62,13 +63,11 @@ void main() async {
 class MBankingBPRApp extends StatelessWidget {
   final AuthRepository authRepository;
   final AccountRepository accountRepository;
-  final TransactionRepository transactionRepository;
 
   const MBankingBPRApp({
     super.key,
     required this.authRepository,
     required this.accountRepository,
-    required this.transactionRepository,
   });
 
   @override
@@ -77,7 +76,6 @@ class MBankingBPRApp extends StatelessWidget {
       providers: [
         RepositoryProvider<AuthRepository>.value(value: authRepository),
         RepositoryProvider<AccountRepository>.value(value: accountRepository),
-        RepositoryProvider<TransactionRepository>.value(value: transactionRepository),
       ],
       child: MultiBlocProvider(
         providers: [
@@ -86,9 +84,6 @@ class MBankingBPRApp extends StatelessWidget {
           ),
           BlocProvider<AccountCubit>(
             create: (_) => AccountCubit(accountRepository: accountRepository),
-          ),
-          BlocProvider<TransferCubit>(
-            create: (_) => TransferCubit(transactionRepository: transactionRepository),
           ),
         ],
         child: MaterialApp(
@@ -106,6 +101,7 @@ class MBankingBPRApp extends StatelessWidget {
             Locale('en', 'US'),
           ],
           locale: const Locale('id', 'ID'),
+          builder: (context, child) => SessionInactivityDetector(child: child ?? const SizedBox.shrink()),
           home: const SplashScreen(),
         ),
       ),

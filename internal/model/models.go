@@ -3,6 +3,8 @@ package model
 import (
 	"time"
 
+	"mbanking-bpr/pkg/crypto"
+
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -31,18 +33,18 @@ const (
 // User represents the customer identity (synced with CBS /api/nasabah) & device binding table
 type User struct {
 	ID             string    `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
-	NIK            string    `json:"nik" gorm:"type:varchar(30);column:nik"`
-	CIF            string    `json:"cif" gorm:"type:varchar(20);uniqueIndex;not null;column:cif"`
-	FullName       string    `json:"full_name" gorm:"type:varchar(100);not null;column:full_name"`
-	PhoneNumber    string    `json:"phone_number" gorm:"type:varchar(20);uniqueIndex;not null;column:phone_number"`
-	Email          string    `json:"email" gorm:"type:varchar(100);column:email"`
-	Alamat         string    `json:"alamat" gorm:"type:text;column:alamat"`
-	KodePos        string    `json:"kode_pos" gorm:"type:varchar(15);column:kode_pos"`
-	JenisKelamin   string    `json:"jenis_kelamin" gorm:"type:varchar(5);column:jenis_kelamin"`
-	Agama          string    `json:"agama" gorm:"type:varchar(30);column:agama"`
-	TglLahir       string    `json:"tgl_lahir" gorm:"type:varchar(40);column:tgl_lahir"`
-	TempatLahir    string    `json:"tempat_lahir" gorm:"type:varchar(100);column:tempat_lahir"`
-	NamaIbuKandung string    `json:"nama_ibu_kandung" gorm:"type:varchar(100);column:nama_ibu_kandung"`
+	NIK            crypto.EncryptedString `json:"nik" gorm:"type:text;column:nik"`
+	CIF            string                 `json:"cif" gorm:"type:varchar(20);uniqueIndex;not null;column:cif"`
+	FullName       string                 `json:"full_name" gorm:"type:varchar(100);not null;column:full_name"`
+	PhoneNumber    string                 `json:"phone_number" gorm:"type:varchar(20);uniqueIndex;not null;column:phone_number"`
+	Email          crypto.EncryptedString `json:"email" gorm:"type:text;column:email"`
+	Alamat         crypto.EncryptedString `json:"alamat" gorm:"type:text;column:alamat"`
+	KodePos        string                 `json:"kode_pos" gorm:"type:varchar(15);column:kode_pos"`
+	JenisKelamin   string                 `json:"jenis_kelamin" gorm:"type:varchar(5);column:jenis_kelamin"`
+	Agama          string                 `json:"agama" gorm:"type:varchar(30);column:agama"`
+	TglLahir       crypto.EncryptedString `json:"tgl_lahir" gorm:"type:text;column:tgl_lahir"`
+	TempatLahir    crypto.EncryptedString `json:"tempat_lahir" gorm:"type:text;column:tempat_lahir"`
+	NamaIbuKandung crypto.EncryptedString `json:"nama_ibu_kandung" gorm:"type:text;column:nama_ibu_kandung"`
 	PasswordHash        string    `json:"-" gorm:"type:varchar(255);not null"`
 	PINHash             string    `json:"-" gorm:"type:varchar(255);not null"`
 	DeviceID            string    `json:"device_id" gorm:"type:varchar(100);index"`

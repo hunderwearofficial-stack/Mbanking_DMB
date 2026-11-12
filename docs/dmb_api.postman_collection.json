@@ -1,0 +1,1150 @@
+{
+  "info": {
+    "_postman_id": "dmb-corebanking-v1-official",
+    "name": "DMB Core Banking OpenAPI (Official Dev)",
+    "description": "Postman Collection resmi untuk Live Core Banking OpenAPI PT BPR Dana Mandiri Bogor dengan kalkulasi otomatis X-Signature (Base64 HMAC-SHA512) dan OAuth 2.0 Bearer JWT.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "cbs_base_url",
+      "value": "https://api-dev.bpr-danamandiribogor.co.id"
+    },
+    {
+      "key": "cbs_client_id",
+      "value": "DMBMOBILE01"
+    },
+    {
+      "key": "cbs_client_secret",
+      "value": "9fa4b3934fa44387f811563879594c2abb75cce6ceaa7ec4"
+    },
+    {
+      "key": "cbs_token",
+      "value": ""
+    },
+    {
+      "key": "cbs_refresh_token",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Health Check (Ping)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{cbs_base_url}}/ping",
+          "host": [
+            "{{cbs_base_url}}"
+          ],
+          "path": [
+            "ping"
+          ]
+        }
+      }
+    },
+    {
+      "name": "2. OAuth - Get Access Token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    const json = pm.response.json();",
+              "    if (json.data && json.data.accessToken) {",
+              "        pm.collectionVariables.set('cbs_token', json.data.accessToken);",
+              "        pm.collectionVariables.set('cbs_refresh_token', json.data.refreshToken);",
+              "        console.log('Token updated successfully!');",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"clientId\": \"{{cbs_client_id}}\",\n  \"clientSecret\": \"{{cbs_client_secret}}\"\n}"
+        },
+        "url": {
+          "raw": "{{cbs_base_url}}/api/oauth/access-token",
+          "host": [
+            "{{cbs_base_url}}"
+          ],
+          "path": [
+            "api",
+            "oauth",
+            "access-token"
+          ]
+        }
+      }
+    },
+    {
+      "name": "3. OAuth - Refresh Token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    const json = pm.response.json();",
+              "    if (json.data && json.data.accessToken) {",
+              "        pm.collectionVariables.set('cbs_token', json.data.accessToken);",
+              "        if (json.data.refreshToken) pm.collectionVariables.set('cbs_refresh_token', json.data.refreshToken);",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refreshToken\": \"{{cbs_refresh_token}}\"\n}"
+        },
+        "url": {
+          "raw": "{{cbs_base_url}}/api/oauth/refresh-token",
+          "host": [
+            "{{cbs_base_url}}"
+          ],
+          "path": [
+            "api",
+            "oauth",
+            "refresh-token"
+          ]
+        }
+      }
+    },
+    {
+      "name": "4. Katalog Produk (/api/products)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "// 1. Minify JSON body",
+              "let bodyStr = \"{}\";",
+              "try {",
+              "    if (pm.request.body && pm.request.body.raw) {",
+              "        bodyStr = JSON.stringify(JSON.parse(pm.request.body.raw));",
+              "        pm.request.body.raw = bodyStr;",
+              "    }",
+              "} catch (e) {}",
+              "",
+              "// 2. Compute lowercase hex SHA-256 of minified body",
+              "const bodyHash = CryptoJS.SHA256(bodyStr).toString(CryptoJS.enc.Hex).toLowerCase();",
+              "",
+              "// 3. Generate ISO-8601 timestamp with offset (+07:00)",
+              "const now = new Date();",
+              "const pad = (n) => String(n).padStart(2, \"0\");",
+              "const timestamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}+07:00`;",
+              "pm.variables.set(\"x_timestamp\", timestamp);",
+              "",
+              "// 4. Resolve Path correctly (getPath returns string)",
+              "let path = \"\";",
+              "try {",
+              "    path = pm.request.url.getPath();",
+              "} catch (e) {",
+              "    if (pm.request.url.path && Array.isArray(pm.request.url.path)) {",
+              "        path = \"/\" + pm.request.url.path.join(\"/\");",
+              "    }",
+              "}",
+              "if (!path.startsWith(\"/\")) path = \"/\" + path;",
+              "",
+              "// 5. Get Token and Secret",
+              "const method = pm.request.method.toUpperCase();",
+              "const token = pm.collectionVariables.get(\"cbs_token\") || pm.environment.get(\"cbs_token\") || pm.variables.get(\"cbs_token\") || \"\";",
+              "const secret = pm.collectionVariables.get(\"cbs_client_secret\") || pm.environment.get(\"cbs_client_secret\") || \"9fa4b3934fa44387f811563879594c2abb75cce6ceaa7ec4\";",
+              "const clientId = pm.collectionVariables.get(\"cbs_client_id\") || pm.environment.get(\"cbs_client_id\") || \"DMBMOBILE01\";",
+              "pm.variables.set(\"cbs_client_id\", clientId);",
+              "",
+              "// 6. Build StringToSign: METHOD:PATH:ACCESS_TOKEN:HEX_SHA256:X-TIMESTAMP",
+              "const stringToSign = `${method}:${path}:${token}:${bodyHash}:${timestamp}`;",
+              "",
+              "// 7. Compute Base64 HMAC-SHA512",
+              "const signature = CryptoJS.HmacSHA512(stringToSign, secret).toString(CryptoJS.enc.Base64);",
+              "pm.variables.set(\"x_signature\", signature);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{cbs_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Client-ID",
+            "value": "{{cbs_client_id}}"
+          },
+          {
+            "key": "X-TIMESTAMP",
+            "value": "{{x_timestamp}}"
+          },
+          {
+            "key": "X-Signature",
+            "value": "{{x_signature}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": {
+          "raw": "{{cbs_base_url}}/api/products",
+          "host": [
+            "{{cbs_base_url}}"
+          ],
+          "path": [
+            "api",
+            "products"
+          ]
+        }
+      }
+    },
+    {
+      "name": "5. Informasi Nasabah by CIF (/api/nasabah)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "// 1. Minify JSON body",
+              "let bodyStr = \"{}\";",
+              "try {",
+              "    if (pm.request.body && pm.request.body.raw) {",
+              "        bodyStr = JSON.stringify(JSON.parse(pm.request.body.raw));",
+              "        pm.request.body.raw = bodyStr;",
+              "    }",
+              "} catch (e) {}",
+              "",
+              "// 2. Compute lowercase hex SHA-256 of minified body",
+              "const bodyHash = CryptoJS.SHA256(bodyStr).toString(CryptoJS.enc.Hex).toLowerCase();",
+              "",
+              "// 3. Generate ISO-8601 timestamp with offset (+07:00)",
+              "const now = new Date();",
+              "const pad = (n) => String(n).padStart(2, \"0\");",
+              "const timestamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}+07:00`;",
+              "pm.variables.set(\"x_timestamp\", timestamp);",
+              "",
+              "// 4. Resolve Path correctly (getPath returns string)",
+              "let path = \"\";",
+              "try {",
+              "    path = pm.request.url.getPath();",
+              "} catch (e) {",
+              "    if (pm.request.url.path && Array.isArray(pm.request.url.path)) {",
+              "        path = \"/\" + pm.request.url.path.join(\"/\");",
+              "    }",
+              "}",
+              "if (!path.startsWith(\"/\")) path = \"/\" + path;",
+              "",
+              "// 5. Get Token and Secret",
+              "const method = pm.request.method.toUpperCase();",
+              "const token = pm.collectionVariables.get(\"cbs_token\") || pm.environment.get(\"cbs_token\") || pm.variables.get(\"cbs_token\") || \"\";",
+              "const secret = pm.collectionVariables.get(\"cbs_client_secret\") || pm.environment.get(\"cbs_client_secret\") || \"9fa4b3934fa44387f811563879594c2abb75cce6ceaa7ec4\";",
+              "const clientId = pm.collectionVariables.get(\"cbs_client_id\") || pm.environment.get(\"cbs_client_id\") || \"DMBMOBILE01\";",
+              "pm.variables.set(\"cbs_client_id\", clientId);",
+              "",
+              "// 6. Build StringToSign: METHOD:PATH:ACCESS_TOKEN:HEX_SHA256:X-TIMESTAMP",
+              "const stringToSign = `${method}:${path}:${token}:${bodyHash}:${timestamp}`;",
+              "",
+              "// 7. Compute Base64 HMAC-SHA512",
+              "const signature = CryptoJS.HmacSHA512(stringToSign, secret).toString(CryptoJS.enc.Base64);",
+              "pm.variables.set(\"x_signature\", signature);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{cbs_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Client-ID",
+            "value": "{{cbs_client_id}}"
+          },
+          {
+            "key": "X-TIMESTAMP",
+            "value": "{{x_timestamp}}"
+          },
+          {
+            "key": "X-Signature",
+            "value": "{{x_signature}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cif_number\": \"001000309659\"\n}"
+        },
+        "url": {
+          "raw": "{{cbs_base_url}}/api/nasabah",
+          "host": [
+            "{{cbs_base_url}}"
+          ],
+          "path": [
+            "api",
+            "nasabah"
+          ]
+        }
+      }
+    },
+    {
+      "name": "6. Daftar Rekening Tabungan (/api/savings-accounts)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "// 1. Minify JSON body",
+              "let bodyStr = \"{}\";",
+              "try {",
+              "    if (pm.request.body && pm.request.body.raw) {",
+              "        bodyStr = JSON.stringify(JSON.parse(pm.request.body.raw));",
+              "        pm.request.body.raw = bodyStr;",
+              "    }",
+              "} catch (e) {}",
+              "",
+              "// 2. Compute lowercase hex SHA-256 of minified body",
+              "const bodyHash = CryptoJS.SHA256(bodyStr).toString(CryptoJS.enc.Hex).toLowerCase();",
+              "",
+              "// 3. Generate ISO-8601 timestamp with offset (+07:00)",
+              "const now = new Date();",
+              "const pad = (n) => String(n).padStart(2, \"0\");",
+              "const timestamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}+07:00`;",
+              "pm.variables.set(\"x_timestamp\", timestamp);",
+              "",
+              "// 4. Resolve Path correctly (getPath returns string)",
+              "let path = \"\";",
+              "try {",
+              "    path = pm.request.url.getPath();",
+              "} catch (e) {",
+              "    if (pm.request.url.path && Array.isArray(pm.request.url.path)) {",
+              "        path = \"/\" + pm.request.url.path.join(\"/\");",
+              "    }",
+              "}",
+              "if (!path.startsWith(\"/\")) path = \"/\" + path;",
+              "",
+              "// 5. Get Token and Secret",
+              "const method = pm.request.method.toUpperCase();",
+              "const token = pm.collectionVariables.get(\"cbs_token\") || pm.environment.get(\"cbs_token\") || pm.variables.get(\"cbs_token\") || \"\";",
+              "const secret = pm.collectionVariables.get(\"cbs_client_secret\") || pm.environment.get(\"cbs_client_secret\") || \"9fa4b3934fa44387f811563879594c2abb75cce6ceaa7ec4\";",
+              "const clientId = pm.collectionVariables.get(\"cbs_client_id\") || pm.environment.get(\"cbs_client_id\") || \"DMBMOBILE01\";",
+              "pm.variables.set(\"cbs_client_id\", clientId);",
+              "",
+              "// 6. Build StringToSign: METHOD:PATH:ACCESS_TOKEN:HEX_SHA256:X-TIMESTAMP",
+              "const stringToSign = `${method}:${path}:${token}:${bodyHash}:${timestamp}`;",
+              "",
+              "// 7. Compute Base64 HMAC-SHA512",
+              "const signature = CryptoJS.HmacSHA512(stringToSign, secret).toString(CryptoJS.enc.Base64);",
+              "pm.variables.set(\"x_signature\", signature);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{cbs_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Client-ID",
+            "value": "{{cbs_client_id}}"
+          },
+          {
+            "key": "X-TIMESTAMP",
+            "value": "{{x_timestamp}}"
+          },
+          {
+            "key": "X-Signature",
+            "value": "{{x_signature}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cif_number\": \"001000309659\"\n}"
+        },
+        "url": {
+          "raw": "{{cbs_base_url}}/api/savings-accounts",
+          "host": [
+            "{{cbs_base_url}}"
+          ],
+          "path": [
+            "api",
+            "savings-accounts"
+          ]
+        }
+      }
+    },
+    {
+      "name": "7. Cek Saldo Rekening (/api/savings-account-balance)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "// 1. Minify JSON body",
+              "let bodyStr = \"{}\";",
+              "try {",
+              "    if (pm.request.body && pm.request.body.raw) {",
+              "        bodyStr = JSON.stringify(JSON.parse(pm.request.body.raw));",
+              "        pm.request.body.raw = bodyStr;",
+              "    }",
+              "} catch (e) {}",
+              "",
+              "// 2. Compute lowercase hex SHA-256 of minified body",
+              "const bodyHash = CryptoJS.SHA256(bodyStr).toString(CryptoJS.enc.Hex).toLowerCase();",
+              "",
+              "// 3. Generate ISO-8601 timestamp with offset (+07:00)",
+              "const now = new Date();",
+              "const pad = (n) => String(n).padStart(2, \"0\");",
+              "const timestamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}+07:00`;",
+              "pm.variables.set(\"x_timestamp\", timestamp);",
+              "",
+              "// 4. Resolve Path correctly (getPath returns string)",
+              "let path = \"\";",
+              "try {",
+              "    path = pm.request.url.getPath();",
+              "} catch (e) {",
+              "    if (pm.request.url.path && Array.isArray(pm.request.url.path)) {",
+              "        path = \"/\" + pm.request.url.path.join(\"/\");",
+              "    }",
+              "}",
+              "if (!path.startsWith(\"/\")) path = \"/\" + path;",
+              "",
+              "// 5. Get Token and Secret",
+              "const method = pm.request.method.toUpperCase();",
+              "const token = pm.collectionVariables.get(\"cbs_token\") || pm.environment.get(\"cbs_token\") || pm.variables.get(\"cbs_token\") || \"\";",
+              "const secret = pm.collectionVariables.get(\"cbs_client_secret\") || pm.environment.get(\"cbs_client_secret\") || \"9fa4b3934fa44387f811563879594c2abb75cce6ceaa7ec4\";",
+              "const clientId = pm.collectionVariables.get(\"cbs_client_id\") || pm.environment.get(\"cbs_client_id\") || \"DMBMOBILE01\";",
+              "pm.variables.set(\"cbs_client_id\", clientId);",
+              "",
+              "// 6. Build StringToSign: METHOD:PATH:ACCESS_TOKEN:HEX_SHA256:X-TIMESTAMP",
+              "const stringToSign = `${method}:${path}:${token}:${bodyHash}:${timestamp}`;",
+              "",
+              "// 7. Compute Base64 HMAC-SHA512",
+              "const signature = CryptoJS.HmacSHA512(stringToSign, secret).toString(CryptoJS.enc.Base64);",
+              "pm.variables.set(\"x_signature\", signature);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{cbs_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Client-ID",
+            "value": "{{cbs_client_id}}"
+          },
+          {
+            "key": "X-TIMESTAMP",
+            "value": "{{x_timestamp}}"
+          },
+          {
+            "key": "X-Signature",
+            "value": "{{x_signature}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"account_number\": \"0500103000006961\"\n}"
+        },
+        "url": {
+          "raw": "{{cbs_base_url}}/api/savings-account-balance",
+          "host": [
+            "{{cbs_base_url}}"
+          ],
+          "path": [
+            "api",
+            "savings-account-balance"
+          ]
+        }
+      }
+    },
+    {
+      "name": "8. Mutasi Rekening Tabungan (/api/savings-account-mutations)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "// 1. Minify JSON body",
+              "let bodyStr = \"{}\";",
+              "try {",
+              "    if (pm.request.body && pm.request.body.raw) {",
+              "        bodyStr = JSON.stringify(JSON.parse(pm.request.body.raw));",
+              "        pm.request.body.raw = bodyStr;",
+              "    }",
+              "} catch (e) {}",
+              "",
+              "// 2. Compute lowercase hex SHA-256 of minified body",
+              "const bodyHash = CryptoJS.SHA256(bodyStr).toString(CryptoJS.enc.Hex).toLowerCase();",
+              "",
+              "// 3. Generate ISO-8601 timestamp with offset (+07:00)",
+              "const now = new Date();",
+              "const pad = (n) => String(n).padStart(2, \"0\");",
+              "const timestamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}+07:00`;",
+              "pm.variables.set(\"x_timestamp\", timestamp);",
+              "",
+              "// 4. Resolve Path correctly (getPath returns string)",
+              "let path = \"\";",
+              "try {",
+              "    path = pm.request.url.getPath();",
+              "} catch (e) {",
+              "    if (pm.request.url.path && Array.isArray(pm.request.url.path)) {",
+              "        path = \"/\" + pm.request.url.path.join(\"/\");",
+              "    }",
+              "}",
+              "if (!path.startsWith(\"/\")) path = \"/\" + path;",
+              "",
+              "// 5. Get Token and Secret",
+              "const method = pm.request.method.toUpperCase();",
+              "const token = pm.collectionVariables.get(\"cbs_token\") || pm.environment.get(\"cbs_token\") || pm.variables.get(\"cbs_token\") || \"\";",
+              "const secret = pm.collectionVariables.get(\"cbs_client_secret\") || pm.environment.get(\"cbs_client_secret\") || \"9fa4b3934fa44387f811563879594c2abb75cce6ceaa7ec4\";",
+              "const clientId = pm.collectionVariables.get(\"cbs_client_id\") || pm.environment.get(\"cbs_client_id\") || \"DMBMOBILE01\";",
+              "pm.variables.set(\"cbs_client_id\", clientId);",
+              "",
+              "// 6. Build StringToSign: METHOD:PATH:ACCESS_TOKEN:HEX_SHA256:X-TIMESTAMP",
+              "const stringToSign = `${method}:${path}:${token}:${bodyHash}:${timestamp}`;",
+              "",
+              "// 7. Compute Base64 HMAC-SHA512",
+              "const signature = CryptoJS.HmacSHA512(stringToSign, secret).toString(CryptoJS.enc.Base64);",
+              "pm.variables.set(\"x_signature\", signature);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{cbs_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Client-ID",
+            "value": "{{cbs_client_id}}"
+          },
+          {
+            "key": "X-TIMESTAMP",
+            "value": "{{x_timestamp}}"
+          },
+          {
+            "key": "X-Signature",
+            "value": "{{x_signature}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cif_number\": \"001000309659\",\n  \"account_number\": \"0500103000006961\",\n  \"start_date\": \"2026-11-01\",\n  \"end_date\": \"2026-11-30\"\n}"
+        },
+        "url": {
+          "raw": "{{cbs_base_url}}/api/savings-account-mutations",
+          "host": [
+            "{{cbs_base_url}}"
+          ],
+          "path": [
+            "api",
+            "savings-account-mutations"
+          ]
+        }
+      }
+    },
+    {
+      "name": "9. Daftar Rekening Pinjaman (/api/loan-accounts)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "// 1. Minify JSON body",
+              "let bodyStr = \"{}\";",
+              "try {",
+              "    if (pm.request.body && pm.request.body.raw) {",
+              "        bodyStr = JSON.stringify(JSON.parse(pm.request.body.raw));",
+              "        pm.request.body.raw = bodyStr;",
+              "    }",
+              "} catch (e) {}",
+              "",
+              "// 2. Compute lowercase hex SHA-256 of minified body",
+              "const bodyHash = CryptoJS.SHA256(bodyStr).toString(CryptoJS.enc.Hex).toLowerCase();",
+              "",
+              "// 3. Generate ISO-8601 timestamp with offset (+07:00)",
+              "const now = new Date();",
+              "const pad = (n) => String(n).padStart(2, \"0\");",
+              "const timestamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}+07:00`;",
+              "pm.variables.set(\"x_timestamp\", timestamp);",
+              "",
+              "// 4. Resolve Path correctly (getPath returns string)",
+              "let path = \"\";",
+              "try {",
+              "    path = pm.request.url.getPath();",
+              "} catch (e) {",
+              "    if (pm.request.url.path && Array.isArray(pm.request.url.path)) {",
+              "        path = \"/\" + pm.request.url.path.join(\"/\");",
+              "    }",
+              "}",
+              "if (!path.startsWith(\"/\")) path = \"/\" + path;",
+              "",
+              "// 5. Get Token and Secret",
+              "const method = pm.request.method.toUpperCase();",
+              "const token = pm.collectionVariables.get(\"cbs_token\") || pm.environment.get(\"cbs_token\") || pm.variables.get(\"cbs_token\") || \"\";",
+              "const secret = pm.collectionVariables.get(\"cbs_client_secret\") || pm.environment.get(\"cbs_client_secret\") || \"9fa4b3934fa44387f811563879594c2abb75cce6ceaa7ec4\";",
+              "const clientId = pm.collectionVariables.get(\"cbs_client_id\") || pm.environment.get(\"cbs_client_id\") || \"DMBMOBILE01\";",
+              "pm.variables.set(\"cbs_client_id\", clientId);",
+              "",
+              "// 6. Build StringToSign: METHOD:PATH:ACCESS_TOKEN:HEX_SHA256:X-TIMESTAMP",
+              "const stringToSign = `${method}:${path}:${token}:${bodyHash}:${timestamp}`;",
+              "",
+              "// 7. Compute Base64 HMAC-SHA512",
+              "const signature = CryptoJS.HmacSHA512(stringToSign, secret).toString(CryptoJS.enc.Base64);",
+              "pm.variables.set(\"x_signature\", signature);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{cbs_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Client-ID",
+            "value": "{{cbs_client_id}}"
+          },
+          {
+            "key": "X-TIMESTAMP",
+            "value": "{{x_timestamp}}"
+          },
+          {
+            "key": "X-Signature",
+            "value": "{{x_signature}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cif_number\": \"001000309659\"\n}"
+        },
+        "url": {
+          "raw": "{{cbs_base_url}}/api/loan-accounts",
+          "host": [
+            "{{cbs_base_url}}"
+          ],
+          "path": [
+            "api",
+            "loan-accounts"
+          ]
+        }
+      }
+    },
+    {
+      "name": "10. Rincian Pinjaman (/api/loan-account-detail)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "// 1. Minify JSON body",
+              "let bodyStr = \"{}\";",
+              "try {",
+              "    if (pm.request.body && pm.request.body.raw) {",
+              "        bodyStr = JSON.stringify(JSON.parse(pm.request.body.raw));",
+              "        pm.request.body.raw = bodyStr;",
+              "    }",
+              "} catch (e) {}",
+              "",
+              "// 2. Compute lowercase hex SHA-256 of minified body",
+              "const bodyHash = CryptoJS.SHA256(bodyStr).toString(CryptoJS.enc.Hex).toLowerCase();",
+              "",
+              "// 3. Generate ISO-8601 timestamp with offset (+07:00)",
+              "const now = new Date();",
+              "const pad = (n) => String(n).padStart(2, \"0\");",
+              "const timestamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}+07:00`;",
+              "pm.variables.set(\"x_timestamp\", timestamp);",
+              "",
+              "// 4. Resolve Path correctly (getPath returns string)",
+              "let path = \"\";",
+              "try {",
+              "    path = pm.request.url.getPath();",
+              "} catch (e) {",
+              "    if (pm.request.url.path && Array.isArray(pm.request.url.path)) {",
+              "        path = \"/\" + pm.request.url.path.join(\"/\");",
+              "    }",
+              "}",
+              "if (!path.startsWith(\"/\")) path = \"/\" + path;",
+              "",
+              "// 5. Get Token and Secret",
+              "const method = pm.request.method.toUpperCase();",
+              "const token = pm.collectionVariables.get(\"cbs_token\") || pm.environment.get(\"cbs_token\") || pm.variables.get(\"cbs_token\") || \"\";",
+              "const secret = pm.collectionVariables.get(\"cbs_client_secret\") || pm.environment.get(\"cbs_client_secret\") || \"9fa4b3934fa44387f811563879594c2abb75cce6ceaa7ec4\";",
+              "const clientId = pm.collectionVariables.get(\"cbs_client_id\") || pm.environment.get(\"cbs_client_id\") || \"DMBMOBILE01\";",
+              "pm.variables.set(\"cbs_client_id\", clientId);",
+              "",
+              "// 6. Build StringToSign: METHOD:PATH:ACCESS_TOKEN:HEX_SHA256:X-TIMESTAMP",
+              "const stringToSign = `${method}:${path}:${token}:${bodyHash}:${timestamp}`;",
+              "",
+              "// 7. Compute Base64 HMAC-SHA512",
+              "const signature = CryptoJS.HmacSHA512(stringToSign, secret).toString(CryptoJS.enc.Base64);",
+              "pm.variables.set(\"x_signature\", signature);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{cbs_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Client-ID",
+            "value": "{{cbs_client_id}}"
+          },
+          {
+            "key": "X-TIMESTAMP",
+            "value": "{{x_timestamp}}"
+          },
+          {
+            "key": "X-Signature",
+            "value": "{{x_signature}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cif_number\": \"001000309659\",\n  \"account_number\": \"1700105000000013\"\n}"
+        },
+        "url": {
+          "raw": "{{cbs_base_url}}/api/loan-account-detail",
+          "host": [
+            "{{cbs_base_url}}"
+          ],
+          "path": [
+            "api",
+            "loan-account-detail"
+          ]
+        }
+      }
+    },
+    {
+      "name": "11. Daftar Bilyet Deposito (/api/deposit-accounts)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "// 1. Minify JSON body",
+              "let bodyStr = \"{}\";",
+              "try {",
+              "    if (pm.request.body && pm.request.body.raw) {",
+              "        bodyStr = JSON.stringify(JSON.parse(pm.request.body.raw));",
+              "        pm.request.body.raw = bodyStr;",
+              "    }",
+              "} catch (e) {}",
+              "",
+              "// 2. Compute lowercase hex SHA-256 of minified body",
+              "const bodyHash = CryptoJS.SHA256(bodyStr).toString(CryptoJS.enc.Hex).toLowerCase();",
+              "",
+              "// 3. Generate ISO-8601 timestamp with offset (+07:00)",
+              "const now = new Date();",
+              "const pad = (n) => String(n).padStart(2, \"0\");",
+              "const timestamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}+07:00`;",
+              "pm.variables.set(\"x_timestamp\", timestamp);",
+              "",
+              "// 4. Resolve Path correctly (getPath returns string)",
+              "let path = \"\";",
+              "try {",
+              "    path = pm.request.url.getPath();",
+              "} catch (e) {",
+              "    if (pm.request.url.path && Array.isArray(pm.request.url.path)) {",
+              "        path = \"/\" + pm.request.url.path.join(\"/\");",
+              "    }",
+              "}",
+              "if (!path.startsWith(\"/\")) path = \"/\" + path;",
+              "",
+              "// 5. Get Token and Secret",
+              "const method = pm.request.method.toUpperCase();",
+              "const token = pm.collectionVariables.get(\"cbs_token\") || pm.environment.get(\"cbs_token\") || pm.variables.get(\"cbs_token\") || \"\";",
+              "const secret = pm.collectionVariables.get(\"cbs_client_secret\") || pm.environment.get(\"cbs_client_secret\") || \"9fa4b3934fa44387f811563879594c2abb75cce6ceaa7ec4\";",
+              "const clientId = pm.collectionVariables.get(\"cbs_client_id\") || pm.environment.get(\"cbs_client_id\") || \"DMBMOBILE01\";",
+              "pm.variables.set(\"cbs_client_id\", clientId);",
+              "",
+              "// 6. Build StringToSign: METHOD:PATH:ACCESS_TOKEN:HEX_SHA256:X-TIMESTAMP",
+              "const stringToSign = `${method}:${path}:${token}:${bodyHash}:${timestamp}`;",
+              "",
+              "// 7. Compute Base64 HMAC-SHA512",
+              "const signature = CryptoJS.HmacSHA512(stringToSign, secret).toString(CryptoJS.enc.Base64);",
+              "pm.variables.set(\"x_signature\", signature);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{cbs_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Client-ID",
+            "value": "{{cbs_client_id}}"
+          },
+          {
+            "key": "X-TIMESTAMP",
+            "value": "{{x_timestamp}}"
+          },
+          {
+            "key": "X-Signature",
+            "value": "{{x_signature}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cif_number\": \"001000309659\"\n}"
+        },
+        "url": {
+          "raw": "{{cbs_base_url}}/api/deposit-accounts",
+          "host": [
+            "{{cbs_base_url}}"
+          ],
+          "path": [
+            "api",
+            "deposit-accounts"
+          ]
+        }
+      }
+    },
+    {
+      "name": "12. Rincian Deposito (/api/deposit-account-detail)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "// 1. Minify JSON body",
+              "let bodyStr = \"{}\";",
+              "try {",
+              "    if (pm.request.body && pm.request.body.raw) {",
+              "        bodyStr = JSON.stringify(JSON.parse(pm.request.body.raw));",
+              "        pm.request.body.raw = bodyStr;",
+              "    }",
+              "} catch (e) {}",
+              "",
+              "// 2. Compute lowercase hex SHA-256 of minified body",
+              "const bodyHash = CryptoJS.SHA256(bodyStr).toString(CryptoJS.enc.Hex).toLowerCase();",
+              "",
+              "// 3. Generate ISO-8601 timestamp with offset (+07:00)",
+              "const now = new Date();",
+              "const pad = (n) => String(n).padStart(2, \"0\");",
+              "const timestamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}+07:00`;",
+              "pm.variables.set(\"x_timestamp\", timestamp);",
+              "",
+              "// 4. Resolve Path correctly (getPath returns string)",
+              "let path = \"\";",
+              "try {",
+              "    path = pm.request.url.getPath();",
+              "} catch (e) {",
+              "    if (pm.request.url.path && Array.isArray(pm.request.url.path)) {",
+              "        path = \"/\" + pm.request.url.path.join(\"/\");",
+              "    }",
+              "}",
+              "if (!path.startsWith(\"/\")) path = \"/\" + path;",
+              "",
+              "// 5. Get Token and Secret",
+              "const method = pm.request.method.toUpperCase();",
+              "const token = pm.collectionVariables.get(\"cbs_token\") || pm.environment.get(\"cbs_token\") || pm.variables.get(\"cbs_token\") || \"\";",
+              "const secret = pm.collectionVariables.get(\"cbs_client_secret\") || pm.environment.get(\"cbs_client_secret\") || \"9fa4b3934fa44387f811563879594c2abb75cce6ceaa7ec4\";",
+              "const clientId = pm.collectionVariables.get(\"cbs_client_id\") || pm.environment.get(\"cbs_client_id\") || \"DMBMOBILE01\";",
+              "pm.variables.set(\"cbs_client_id\", clientId);",
+              "",
+              "// 6. Build StringToSign: METHOD:PATH:ACCESS_TOKEN:HEX_SHA256:X-TIMESTAMP",
+              "const stringToSign = `${method}:${path}:${token}:${bodyHash}:${timestamp}`;",
+              "",
+              "// 7. Compute Base64 HMAC-SHA512",
+              "const signature = CryptoJS.HmacSHA512(stringToSign, secret).toString(CryptoJS.enc.Base64);",
+              "pm.variables.set(\"x_signature\", signature);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{cbs_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Client-ID",
+            "value": "{{cbs_client_id}}"
+          },
+          {
+            "key": "X-TIMESTAMP",
+            "value": "{{x_timestamp}}"
+          },
+          {
+            "key": "X-Signature",
+            "value": "{{x_signature}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cif_number\": \"001000309659\",\n  \"account_number\": \"0100104000001717\"\n}"
+        },
+        "url": {
+          "raw": "{{cbs_base_url}}/api/deposit-account-detail",
+          "host": [
+            "{{cbs_base_url}}"
+          ],
+          "path": [
+            "api",
+            "deposit-account-detail"
+          ]
+        }
+      }
+    },
+    {
+      "name": "13. Transfer Pemindahbukuan (/api/overbooking)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "// 1. Minify JSON body",
+              "let bodyStr = \"{}\";",
+              "try {",
+              "    if (pm.request.body && pm.request.body.raw) {",
+              "        bodyStr = JSON.stringify(JSON.parse(pm.request.body.raw));",
+              "        pm.request.body.raw = bodyStr;",
+              "    }",
+              "} catch (e) {}",
+              "",
+              "// 2. Compute lowercase hex SHA-256 of minified body",
+              "const bodyHash = CryptoJS.SHA256(bodyStr).toString(CryptoJS.enc.Hex).toLowerCase();",
+              "",
+              "// 3. Generate ISO-8601 timestamp with offset (+07:00)",
+              "const now = new Date();",
+              "const pad = (n) => String(n).padStart(2, \"0\");",
+              "const timestamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}+07:00`;",
+              "pm.variables.set(\"x_timestamp\", timestamp);",
+              "",
+              "// 4. Resolve Path correctly (getPath returns string)",
+              "let path = \"\";",
+              "try {",
+              "    path = pm.request.url.getPath();",
+              "} catch (e) {",
+              "    if (pm.request.url.path && Array.isArray(pm.request.url.path)) {",
+              "        path = \"/\" + pm.request.url.path.join(\"/\");",
+              "    }",
+              "}",
+              "if (!path.startsWith(\"/\")) path = \"/\" + path;",
+              "",
+              "// 5. Get Token and Secret",
+              "const method = pm.request.method.toUpperCase();",
+              "const token = pm.collectionVariables.get(\"cbs_token\") || pm.environment.get(\"cbs_token\") || pm.variables.get(\"cbs_token\") || \"\";",
+              "const secret = pm.collectionVariables.get(\"cbs_client_secret\") || pm.environment.get(\"cbs_client_secret\") || \"9fa4b3934fa44387f811563879594c2abb75cce6ceaa7ec4\";",
+              "const clientId = pm.collectionVariables.get(\"cbs_client_id\") || pm.environment.get(\"cbs_client_id\") || \"DMBMOBILE01\";",
+              "pm.variables.set(\"cbs_client_id\", clientId);",
+              "",
+              "// 6. Build StringToSign: METHOD:PATH:ACCESS_TOKEN:HEX_SHA256:X-TIMESTAMP",
+              "const stringToSign = `${method}:${path}:${token}:${bodyHash}:${timestamp}`;",
+              "",
+              "// 7. Compute Base64 HMAC-SHA512",
+              "const signature = CryptoJS.HmacSHA512(stringToSign, secret).toString(CryptoJS.enc.Base64);",
+              "pm.variables.set(\"x_signature\", signature);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{cbs_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-Client-ID",
+            "value": "{{cbs_client_id}}"
+          },
+          {
+            "key": "X-TIMESTAMP",
+            "value": "{{x_timestamp}}"
+          },
+          {
+            "key": "X-Signature",
+            "value": "{{x_signature}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"debit_account\": \"0500103000006961\",\n  \"credit_account\": \"0500103000006961\",\n  \"nominal\": 10000\n}"
+        },
+        "url": {
+          "raw": "{{cbs_base_url}}/api/overbooking",
+          "host": [
+            "{{cbs_base_url}}"
+          ],
+          "path": [
+            "api",
+            "overbooking"
+          ]
+        }
+      }
+    }
+  ]
+}

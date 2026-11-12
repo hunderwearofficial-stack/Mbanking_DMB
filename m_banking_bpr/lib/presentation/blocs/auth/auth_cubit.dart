@@ -74,6 +74,16 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
+  Future<void> loginWithBiometric() async {
+    emit(AuthLoading());
+    try {
+      final user = await authRepository.loginWithBiometric();
+      emit(AuthAuthenticated(user));
+    } catch (e) {
+      emit(AuthError(e.toString().replaceAll('Exception: ', '')));
+    }
+  }
+
   Future<void> logout() async {
     await authRepository.logout();
     emit(AuthUnauthenticated());

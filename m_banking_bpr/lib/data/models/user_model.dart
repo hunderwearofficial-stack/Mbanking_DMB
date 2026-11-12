@@ -74,6 +74,8 @@ class UserModel {
         'primary_account': primaryAccount,
         'is_active': isActive,
       };
+
+  String get cifNumber => cif;
 }
 
 class AuthResponseModel {

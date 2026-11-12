@@ -10,7 +10,8 @@ import (
 type User = model.User
 
 type LoginRequest struct {
-	PhoneNumber string `json:"phone_number"` // Primary identifier in Mobile Banking
+	CIF         string `json:"cif"`          // Primary identifier: 12-digit CIF number
+	PhoneNumber string `json:"phone_number"` // Alternative identifier: Phone number
 	Username    string `json:"username"`     // Optional fallback identifier
 	Password    string `json:"password" binding:"required"`
 	DeviceID    string `json:"device_id"`    // For device binding check
@@ -46,7 +47,8 @@ type UserProfile struct {
 
 // Activation / Self-Registration DTOs
 type ActivateVerifyRequest struct {
-	AccountNumber string `json:"account_number" binding:"required"`
+	CIFNumber     string `json:"cif_number"`     // Primary: 12-digit CIF number (e.g. "001000309659")
+	AccountNumber string `json:"account_number"` // Fallback / backwards-compatibility
 	PhoneNumber   string `json:"phone_number" binding:"required"`
 	DeviceID      string `json:"device_id"`
 }
@@ -55,6 +57,7 @@ type ActivateVerifyResponse struct {
 	SessionID   string `json:"session_id"`
 	MaskedPhone string `json:"masked_phone"`
 	FullName    string `json:"full_name"`
+	CIFNumber   string `json:"cif_number"`
 	AccountNo   string `json:"account_no"`
 }
 

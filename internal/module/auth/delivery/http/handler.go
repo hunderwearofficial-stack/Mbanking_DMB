@@ -74,7 +74,12 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 func (h *AuthHandler) VerifyActivation(c *gin.Context) {
 	var req domain.ActivateVerifyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Nomor rekening dan nomor handphone wajib diisi", err.Error())
+		response.BadRequest(c, "Nomor CIF dan nomor handphone wajib diisi", err.Error())
+		return
+	}
+
+	if req.CIFNumber == "" && req.AccountNumber == "" {
+		response.BadRequest(c, "Nomor CIF wajib diisi", nil)
 		return
 	}
 

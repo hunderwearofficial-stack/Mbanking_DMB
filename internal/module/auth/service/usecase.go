@@ -14,6 +14,7 @@ import (
 	"mbanking-bpr/internal/model"
 	"mbanking-bpr/internal/module/auth/repository"
 	"mbanking-bpr/internal/otpprovider"
+	"mbanking-bpr/pkg/crypto"
 	"mbanking-bpr/pkg/utils"
 
 	"github.com/google/uuid"
@@ -73,13 +74,16 @@ func NewAuthService(cfg *config.Config, repo repository.AuthRepository, cbsProv 
 }
 
 func (s *authService) Login(ctx context.Context, req domain.LoginRequest) (*domain.LoginResponse, error) {
-	// Determine identifier (phone_number or username)
-	identifier := req.PhoneNumber
+	// Determine identifier (phone_number is primary for Login)
+	identifier := strings.TrimSpace(req.PhoneNumber)
 	if identifier == "" {
-		identifier = req.Username
+		identifier = strings.TrimSpace(req.CIF)
 	}
 	if identifier == "" {
-		return nil, errors.New("nomor handphone atau username wajib diisi")
+		identifier = strings.TrimSpace(req.Username)
+	}
+	if identifier == "" {
+		return nil, errors.New("nomor handphone wajib diisi")
 	}
 
 	var user *model.User
@@ -89,6 +93,9 @@ func (s *authService) Login(ctx context.Context, req domain.LoginRequest) (*doma
 	dbUser, err := s.repo.FindByIdentifier(ctx, normalizePhone(identifier))
 	if err != nil || dbUser == nil {
 		dbUser, err = s.repo.FindByIdentifier(ctx, identifier)
+	}
+	if dbUser == nil {
+		return nil, errors.New("nomor handphone belum terdaftar atau salah")
 	}
 	if err == nil && dbUser != nil {
 		user = dbUser
@@ -145,17 +152,17 @@ func (s *authService) Login(ctx context.Context, req domain.LoginRequest) (*doma
 			if user.CIF != "" {
 				// 1. Hit CBS POST /api/nasabah
 				if nasabah, nasErr := s.cbsProv.GetCustomerByCIF(ctx, user.CIF); nasErr == nil && nasabah != nil {
-					user.NIK = nasabah.NIK
+					user.NIK = crypto.EncryptedString(nasabah.NIK)
 					if nasabah.Nama != "" {
 						user.FullName = nasabah.Nama
 					}
-					user.Alamat = nasabah.Alamat
+					user.Alamat = crypto.EncryptedString(nasabah.Alamat)
 					user.KodePos = nasabah.KodePos
 					user.JenisKelamin = nasabah.JenisKelamin
 					user.Agama = nasabah.Agama
-					user.TglLahir = nasabah.TglLahir
-					user.TempatLahir = nasabah.TempatLahir
-					user.NamaIbuKandung = nasabah.NamaIbuKandung
+					user.TglLahir = crypto.EncryptedString(nasabah.TglLahir)
+					user.TempatLahir = crypto.EncryptedString(nasabah.TempatLahir)
+					user.NamaIbuKandung = crypto.EncryptedString(nasabah.NamaIbuKandung)
 				}
 				// 2. Hit CBS POST /api/savings-accounts
 				if accList, listErr := s.cbsProv.GetSavingsAccountsByCIF(ctx, user.CIF); listErr == nil && len(accList) > 0 {
@@ -222,18 +229,18 @@ func (s *authService) Login(ctx context.Context, req domain.LoginRequest) (*doma
 		ExpiresIn:    accessExpMins * 60,
 		User: domain.UserProfile{
 			ID:             user.ID,
-			NIK:            user.NIK,
+			NIK:            string(user.NIK),
 			CIF:            user.CIF,
 			FullName:       user.FullName,
 			PhoneNumber:    user.PhoneNumber,
-			Email:          user.Email,
-			Alamat:         user.Alamat,
+			Email:          string(user.Email),
+			Alamat:         string(user.Alamat),
 			KodePos:        user.KodePos,
 			JenisKelamin:   user.JenisKelamin,
 			Agama:          user.Agama,
-			TglLahir:       user.TglLahir,
-			TempatLahir:    user.TempatLahir,
-			NamaIbuKandung: user.NamaIbuKandung,
+			TglLahir:       string(user.TglLahir),
+			TempatLahir:    string(user.TempatLahir),
+			NamaIbuKandung: string(user.NamaIbuKandung),
 			DeviceID:       user.DeviceID,
 			PrimaryAccount: primaryAccountNo,
 			IsActive:       user.IsActive,
@@ -266,62 +273,65 @@ func normalizePhone(p string) string {
 
 func (s *authService) VerifyActivation(ctx context.Context, req domain.ActivateVerifyRequest) (*domain.ActivateVerifyResponse, error) {
 	normInputPhone := normalizePhone(req.PhoneNumber)
-	accountNo := strings.TrimSpace(req.AccountNumber)
+	cifNo := strings.TrimSpace(req.CIFNumber)
+	if cifNo == "" {
+		cifNo = strings.TrimSpace(req.AccountNumber)
+	}
+	if cifNo == "" {
+		return nil, errors.New("nomor CIF wajib diisi")
+	}
 
 	var targetUser *model.User
 	var targetAccountNo string
 
-	// 1. Check live Core Banking System (CBS) for real-time account / CIF existence
+	// 1. Check live Core Banking System (CBS) for real-time customer profile & accounts by CIF
 	var cbsBal *domain.BalanceResponse
 	var cbsNasabah *domain.CBSNasabahData
 	if s.cbsProv != nil {
-		cbsBal, _ = s.cbsProv.GetBalance(ctx, accountNo)
-
-		// Also try fetching Nasabah profile by CIF (either accountNo is CIF, or derived from accountNo)
-		candidateCIF := accountNo
-		if len(accountNo) >= 16 {
-			candidateCIF = "001" + accountNo[len(accountNo)-9:]
-		}
-		if nas, nasErr := s.cbsProv.GetCustomerByCIF(ctx, candidateCIF); nasErr == nil && nas != nil {
+		// A. Get Nasabah profile by CIF
+		if nas, nasErr := s.cbsProv.GetCustomerByCIF(ctx, cifNo); nasErr == nil && nas != nil {
 			cbsNasabah = nas
 		}
-		// If user entered a 12-digit CIF directly, also fetch their primary savings account from CBS
-		if cbsBal == nil && cbsNasabah != nil {
-			if accList, listErr := s.cbsProv.GetSavingsAccountsByCIF(ctx, cbsNasabah.CIF); listErr == nil && len(accList) > 0 {
-				cbsBal, _ = s.cbsProv.GetBalance(ctx, accList[0].NomorRekening)
-				if cbsBal == nil {
-					cbsBal = &domain.BalanceResponse{
-						AccountNumber: accList[0].NomorRekening,
-						HolderName:    cbsNasabah.Nama,
-						ProductCode:   accList[0].ProdukTabungan,
-						Balance:       accList[0].Saldo,
-					}
+
+		// B. Get Savings accounts list by CIF
+		if accList, listErr := s.cbsProv.GetSavingsAccountsByCIF(ctx, cifNo); listErr == nil && len(accList) > 0 {
+			primaryAcc := accList[0]
+			targetAccountNo = primaryAcc.NomorRekening
+			cbsBal, _ = s.cbsProv.GetBalance(ctx, primaryAcc.NomorRekening)
+			if cbsBal == nil {
+				cbsBal = &domain.BalanceResponse{
+					AccountNumber: primaryAcc.NomorRekening,
+					HolderName:    primaryAcc.Nama,
+					ProductCode:   primaryAcc.ProdukTabungan,
+					Balance:       primaryAcc.Saldo,
+				}
+			}
+		}
+
+		// Fallback: If cifNo was an account number rather than CIF
+		if cbsNasabah == nil && cbsBal == nil {
+			if bal, balErr := s.cbsProv.GetBalance(ctx, cifNo); balErr == nil && bal != nil {
+				cbsBal = bal
+				targetAccountNo = bal.AccountNumber
+				candCIF := cifNo
+				if len(cifNo) >= 16 {
+					candCIF = "001" + cifNo[len(cifNo)-9:]
+				}
+				if nas, _ := s.cbsProv.GetCustomerByCIF(ctx, candCIF); nas != nil {
+					cbsNasabah = nas
 				}
 			}
 		}
 	}
 
-	// 2. Look up in PostgreSQL Database (Phone Number Mapping Backdoor & Credentials Store)
-	acc, user, err := s.repo.FindAccountWithUser(ctx, accountNo)
-	if err == nil && acc != nil && user != nil {
-		normDbPhone := normalizePhone(user.PhoneNumber)
-		// Allow if phone matches DB mapping, OR if DB phone is empty/"0"
-		if normDbPhone != "" && normDbPhone != "0" && normDbPhone != normInputPhone {
-			return nil, ErrAccountNotMatch
-		}
-		if !user.IsActive {
-			return nil, ErrUserInactive
-		}
-		if cbsBal != nil && cbsBal.HolderName != "" {
-			user.FullName = cbsBal.HolderName
-		}
-		targetUser = user
-		targetAccountNo = acc.AccountNumber
-	} else if cbsBal != nil || cbsNasabah != nil {
-		// Validate phone number against CBS if CBS has a real non-"0" phone number
-		if cbsNasabah != nil && cbsNasabah.NoHP != "" && cbsNasabah.NoHP != "0" {
-			if normalizePhone(cbsNasabah.NoHP) != normInputPhone {
-				return nil, ErrAccountNotMatch
+	// 2. Look up in PostgreSQL or Upsert from CBS
+	if cbsNasabah != nil {
+		// Validate phone number against CBS if CBS has a non-zero phone number
+		if cbsNasabah.NoHP != "" && cbsNasabah.NoHP != "0" {
+			cbsPhoneNorm := normalizePhone(cbsNasabah.NoHP)
+			if cbsPhoneNorm != normInputPhone {
+				otpprovider.RecordAuditLog(ctx, s.repo.DB(), "NASABAH", cifNo, cbsNasabah.Nama, "ACTIVATION_PHONE_MISMATCH", normInputPhone, "WARNING", req.DeviceID, fmt.Sprintf("Nomor HP input (%s) tidak cocok dengan nomor HP CIF (%s)", normInputPhone, cbsPhoneNorm))
+				return nil, errors.New("nomor handphone tidak sesuai dengan data CIF terdaftar di Bank DMB")
 			}
 		}
 		upsertedUser, upsertedAcc, upsertErr := s.repo.UpsertCBSUserAndAccount(
@@ -340,7 +350,31 @@ func (s *authService) VerifyActivation(ctx context.Context, req domain.ActivateV
 			targetAccountNo = cbsBal.AccountNumber
 		}
 	} else {
-		return nil, ErrAccountNotMatch
+		// Offline / Local database fallback: Look up by CIF or Account Number
+		acc, user, err := s.repo.FindAccountWithUser(ctx, cifNo)
+		if err != nil || user == nil {
+			user, err = s.repo.FindByIdentifier(ctx, cifNo)
+			if user != nil {
+				if primaryAcc, accErr := s.repo.FindPrimaryAccount(ctx, user.ID); accErr == nil && primaryAcc != nil {
+					acc = primaryAcc
+				}
+			}
+		}
+		if err == nil && user != nil {
+			normDbPhone := normalizePhone(user.PhoneNumber)
+			if normDbPhone != "" && normDbPhone != "0" && normDbPhone != normInputPhone {
+				return nil, errors.New("nomor handphone tidak sesuai dengan nomor CIF terdaftar")
+			}
+			if !user.IsActive {
+				return nil, ErrUserInactive
+			}
+			targetUser = user
+			if acc != nil {
+				targetAccountNo = acc.AccountNumber
+			}
+		} else {
+			return nil, errors.New("nomor CIF tidak ditemukan. Pastikan 12 digit CIF Anda sudah benar atau hubungi CS Bank DMB.")
+		}
 	}
 
 	// 3. Generate 6-Digit OTP & Dispatch via WhatsApp/SMS Gateway (or Sandbox)
@@ -367,12 +401,13 @@ func (s *authService) VerifyActivation(ctx context.Context, req domain.ActivateV
 		cleanDevID = "SAMSUNG-SM-A305F-14E37999"
 	}
 
-	otpprovider.RecordAuditLog(ctx, s.repo.DB(), "NASABAH", targetUser.ID, targetUser.FullName, "ACTIVATION_OTP_SENT", normInputPhone, "SUCCESS", cleanDevID, fmt.Sprintf("Kode OTP aktivasi dikirim ke %s (Rek/CIF: %s)", maskPhoneNumber(normInputPhone), accountNo))
+	otpprovider.RecordAuditLog(ctx, s.repo.DB(), "NASABAH", targetUser.ID, targetUser.FullName, "ACTIVATION_OTP_SENT", normInputPhone, "SUCCESS", cleanDevID, fmt.Sprintf("Kode OTP aktivasi dikirim ke %s (CIF: %s, Rek: %s)", maskPhoneNumber(normInputPhone), targetUser.CIF, targetAccountNo))
 
 	return &domain.ActivateVerifyResponse{
 		SessionID:   sessionID,
 		MaskedPhone: maskPhoneNumber(normInputPhone),
 		FullName:    targetUser.FullName,
+		CIFNumber:   targetUser.CIF,
 		AccountNo:   targetAccountNo,
 	}, nil
 }
@@ -436,7 +471,10 @@ func (s *authService) CompleteActivation(ctx context.Context, req domain.Activat
 	_ = s.repo.UpdateUserCredentials(ctx, session.UserID, pwHash, pinHash, session.PhoneNumber, deviceID)
 
 	// Fetch updated user from PostgreSQL
-	user, err := s.repo.FindByIdentifier(ctx, session.PhoneNumber)
+	user, err := s.repo.FindByID(ctx, session.UserID)
+	if err != nil || user == nil {
+		user, err = s.repo.FindByIdentifier(ctx, session.PhoneNumber)
+	}
 	if err != nil || user == nil {
 		return nil, ErrAccountNotMatch
 	}
@@ -475,18 +513,18 @@ func (s *authService) CompleteActivation(ctx context.Context, req domain.Activat
 		ExpiresIn:    accessExpMins * 60,
 		User: domain.UserProfile{
 			ID:             user.ID,
-			NIK:            user.NIK,
+			NIK:            string(user.NIK),
 			CIF:            user.CIF,
 			FullName:       user.FullName,
 			PhoneNumber:    user.PhoneNumber,
-			Email:          user.Email,
-			Alamat:         user.Alamat,
+			Email:          string(user.Email),
+			Alamat:         string(user.Alamat),
 			KodePos:        user.KodePos,
 			JenisKelamin:   user.JenisKelamin,
 			Agama:          user.Agama,
-			TglLahir:       user.TglLahir,
-			TempatLahir:    user.TempatLahir,
-			NamaIbuKandung: user.NamaIbuKandung,
+			TglLahir:       string(user.TglLahir),
+			TempatLahir:    string(user.TempatLahir),
+			NamaIbuKandung: string(user.NamaIbuKandung),
 			DeviceID:       deviceID,
 			PrimaryAccount: primaryAccNo,
 			IsActive:       true,
@@ -571,18 +609,18 @@ func (s *authService) RefreshToken(ctx context.Context, req domain.RefreshTokenR
 		ExpiresIn:    accessExpMins * 60,
 		User: domain.UserProfile{
 			ID:             user.ID,
-			NIK:            user.NIK,
+			NIK:            string(user.NIK),
 			CIF:            user.CIF,
 			FullName:       user.FullName,
 			PhoneNumber:    user.PhoneNumber,
-			Email:          user.Email,
-			Alamat:         user.Alamat,
+			Email:          string(user.Email),
+			Alamat:         string(user.Alamat),
 			KodePos:        user.KodePos,
 			JenisKelamin:   user.JenisKelamin,
 			Agama:          user.Agama,
-			TglLahir:       user.TglLahir,
-			TempatLahir:    user.TempatLahir,
-			NamaIbuKandung: user.NamaIbuKandung,
+			TglLahir:       string(user.TglLahir),
+			TempatLahir:    string(user.TempatLahir),
+			NamaIbuKandung: string(user.NamaIbuKandung),
 			DeviceID:       user.DeviceID,
 			PrimaryAccount: primaryAccountNo,
 			IsActive:       user.IsActive,

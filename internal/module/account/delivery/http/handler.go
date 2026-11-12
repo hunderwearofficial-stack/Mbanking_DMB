@@ -168,4 +168,174 @@ func (h *AccountHandler) GetSavingsAccounts(c *gin.Context) {
 	})
 }
 
+// GetLoans handles GET /api/v1/account/loans (calls /api/loan-accounts)
+func (h *AccountHandler) GetLoans(c *gin.Context) {
+	cifNo := c.Query("cif_number")
+	if cifNo == "" {
+		if val, exists := c.Get(middleware.CtxCIF); exists {
+			cifNo = val.(string)
+		}
+	}
+	if cifNo == "" {
+		cifNo = "001000309659"
+	}
+
+	loans, err := h.accountService.GetLoans(c.Request.Context(), cifNo)
+	if err != nil {
+		response.NotFound(c, err.Error())
+		return
+	}
+
+	response.Success(c, "Daftar rekening pinjaman berhasil diambil", gin.H{
+		"cif_number":  cifNo,
+		"total_loans": len(loans),
+		"loans":      loans,
+	})
+}
+
+// GetLoanDetail handles GET /api/v1/account/loans/:account_no (calls /api/loan-account-detail)
+func (h *AccountHandler) GetLoanDetail(c *gin.Context) {
+	cifNo := c.Query("cif_number")
+	if cifNo == "" {
+		if val, exists := c.Get(middleware.CtxCIF); exists {
+			cifNo = val.(string)
+		}
+	}
+	if cifNo == "" {
+		cifNo = "001000309659"
+	}
+	accountNo := c.Param("account_no")
+	if accountNo == "" {
+		accountNo = c.Query("account_number")
+	}
+
+	detail, err := h.accountService.GetLoanDetail(c.Request.Context(), cifNo, accountNo)
+	if err != nil {
+		response.NotFound(c, err.Error())
+		return
+	}
+
+	response.Success(c, "Rincian pinjaman berhasil diambil", detail)
+}
+
+// GetLoanMutations handles GET /api/v1/account/loans/:account_no/mutations (calls /api/loan-account-mutations)
+func (h *AccountHandler) GetLoanMutations(c *gin.Context) {
+	cifNo := c.Query("cif_number")
+	if cifNo == "" {
+		if val, exists := c.Get(middleware.CtxCIF); exists {
+			cifNo = val.(string)
+		}
+	}
+	if cifNo == "" {
+		cifNo = "001000309659"
+	}
+	accountNo := c.Param("account_no")
+	if accountNo == "" {
+		accountNo = c.Query("account_number")
+	}
+	startDate := c.Query("start_date")
+	endDate := c.Query("end_date")
+
+	muts, err := h.accountService.GetLoanMutations(c.Request.Context(), cifNo, accountNo, startDate, endDate, 20)
+	if err != nil {
+		response.NotFound(c, err.Error())
+		return
+	}
+
+	response.Success(c, "Riwayat angsuran pinjaman berhasil diambil", gin.H{
+		"account_number": accountNo,
+		"total_records":  len(muts),
+		"mutations":      muts,
+	})
+}
+
+// GetDeposits handles GET /api/v1/account/deposits (calls /api/deposit-accounts)
+func (h *AccountHandler) GetDeposits(c *gin.Context) {
+	cifNo := c.Query("cif_number")
+	if cifNo == "" {
+		if val, exists := c.Get(middleware.CtxCIF); exists {
+			cifNo = val.(string)
+		}
+	}
+	if cifNo == "" {
+		cifNo = "001000309659"
+	}
+
+	deposits, err := h.accountService.GetDeposits(c.Request.Context(), cifNo)
+	if err != nil {
+		response.NotFound(c, err.Error())
+		return
+	}
+
+	response.Success(c, "Daftar bilyet deposito berhasil diambil", gin.H{
+		"cif_number":     cifNo,
+		"total_deposits": len(deposits),
+		"deposits":      deposits,
+	})
+}
+
+// GetDepositDetail handles GET /api/v1/account/deposits/:account_no (calls /api/deposit-account-detail)
+func (h *AccountHandler) GetDepositDetail(c *gin.Context) {
+	cifNo := c.Query("cif_number")
+	if cifNo == "" {
+		if val, exists := c.Get(middleware.CtxCIF); exists {
+			cifNo = val.(string)
+		}
+	}
+	if cifNo == "" {
+		cifNo = "001000309659"
+	}
+	accountNo := c.Param("account_no")
+	if accountNo == "" {
+		accountNo = c.Query("account_number")
+	}
+
+	detail, err := h.accountService.GetDepositDetail(c.Request.Context(), cifNo, accountNo)
+	if err != nil {
+		response.NotFound(c, err.Error())
+		return
+	}
+
+	response.Success(c, "Rincian bilyet deposito berhasil diambil", detail)
+}
+
+// GetDepositMutations handles GET /api/v1/account/deposits/:account_no/mutations (calls /api/deposit-account-mutations)
+func (h *AccountHandler) GetDepositMutations(c *gin.Context) {
+	cifNo := c.Query("cif_number")
+	if cifNo == "" {
+		if val, exists := c.Get(middleware.CtxCIF); exists {
+			cifNo = val.(string)
+		}
+	}
+	accountNo := c.Param("account_no")
+	if accountNo == "" {
+		accountNo = c.Query("account_number")
+	}
+	startDate := c.Query("start_date")
+	endDate := c.Query("end_date")
+
+	muts, err := h.accountService.GetDepositMutations(c.Request.Context(), cifNo, accountNo, startDate, endDate, 20)
+	if err != nil {
+		response.NotFound(c, err.Error())
+		return
+	}
+
+	response.Success(c, "Riwayat bagi hasil deposito berhasil diambil", gin.H{
+		"account_number": accountNo,
+		"total_records":  len(muts),
+		"mutations":      muts,
+	})
+}
+
+// GetProducts handles GET /api/v1/account/products (calls /api/products)
+func (h *AccountHandler) GetProducts(c *gin.Context) {
+	catalog, err := h.accountService.GetProductsCatalog(c.Request.Context())
+	if err != nil {
+		response.InternalServerError(c, err.Error())
+		return
+	}
+
+	response.Success(c, "Katalog resmi produk perbankan DMB berhasil diambil", catalog)
+}
+
 

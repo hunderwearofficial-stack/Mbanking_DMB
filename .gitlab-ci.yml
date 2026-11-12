@@ -1,0 +1,63 @@
+# ==============================================================================
+# GitLab CI/CD Pipeline - DMB Mobile (Bank DMB)
+# Otomatisasi Build APK Flutter & Deploy Backend ke Server VPS
+# ==============================================================================
+
+stages:
+  - build-mobile
+  - deploy-backend
+
+# ------------------------------------------------------------------------------
+# 1. JOB BUILD APK FLUTTER (OTOMATIS DI CLOUD GITLAB)
+# ------------------------------------------------------------------------------
+build-apk-release:
+  stage: build-mobile
+  image: ghcr.io/cirruslabs/flutter:3.24.0
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_TAG'
+    - when: manual # Bisa juga diklik tombol 'Run Job' secara manual di GitLab UI kapan saja
+  before_script:
+    - flutter --version
+  script:
+    - cd m_banking_bpr
+    - flutter clean
+    - flutter pub get
+    - flutter build apk --release
+    - cp build/app/outputs/flutter-apk/app-release.apk ../DMB-Mobile-Release-$CI_COMMIT_SHORT_SHA.apk
+    - cp build/app/outputs/flutter-apk/app-release.apk ../DMB-Mobile-Latest.apk
+  artifacts:
+    name: "DMB-Mobile-$CI_COMMIT_REF_NAME-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - DMB-Mobile-Release-*.apk
+      - DMB-Mobile-Latest.apk
+    expire_in: 30 days # File APK tersimpan 30 hari di GitLab dan bisa langsung didownload
+
+# ------------------------------------------------------------------------------
+# 2. JOB DEPLOY BACKEND KE VPS (OTOMATIS RESTART DOCKER DI SERVER)
+# ------------------------------------------------------------------------------
+deploy-backend-to-vps:
+  stage: deploy-backend
+  image: alpine:latest
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      changes:
+        - cmd/**/*
+        - internal/**/*
+        - pkg/**/*
+        - web/**/*
+        - Dockerfile
+        - docker-compose.yml
+    - when: manual # Bisa dijalankan manual jika tidak ingin otomatis tiap push
+  before_script:
+    - apk add --no-cache openssh-client
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+  script:
+    - echo "Deploying update to VPS $VPS_HOST..."
+    - ssh $VPS_USER@$VPS_HOST "cd ~/mbanking-bpr && git pull origin main && docker compose up -d --build app"
+    - echo "Deploy Backend Berhasil!"
+

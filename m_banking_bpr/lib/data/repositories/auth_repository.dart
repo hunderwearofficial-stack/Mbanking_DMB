@@ -19,6 +19,7 @@ class AuthRepository {
     final response = await apiClient.post(
       ApiEndpoints.login,
       data: {
+        'cif': identifier,
         'phone_number': identifier,
         'password': password,
         'device_id': devId,
@@ -37,12 +38,96 @@ class AuthRepository {
       primaryAccount: authResponse.user.primaryAccount,
     );
 
+    // If biometric login is enabled, keep biometric credentials up to date
+    if (await secureStorage.isBiometricEnabled()) {
+      await secureStorage.saveBiometricCredentials(
+        refreshToken: authResponse.refreshToken,
+        cif: authResponse.user.cif,
+        phone: authResponse.user.phoneNumber,
+        fullName: authResponse.user.fullName,
+        primaryAccount: authResponse.user.primaryAccount,
+      );
+    }
+
     if (authResponse.user.deviceId.isNotEmpty &&
         !authResponse.user.deviceId.contains('DEMO')) {
       await secureStorage.setDeviceID(authResponse.user.deviceId);
     }
 
     return authResponse;
+  }
+
+  Future<UserModel> loginWithBiometric() async {
+    final isBio = await secureStorage.isBiometricEnabled();
+    if (!isBio) {
+      throw Exception('Login Biometrik belum diaktifkan.');
+    }
+
+    final refreshToken = await secureStorage.getBiometricRefreshToken() ?? await secureStorage.getRefreshToken();
+    final cif = await secureStorage.getBiometricCif() ?? await secureStorage.getCIF() ?? '';
+    final phone = await secureStorage.getBiometricPhone() ?? await secureStorage.getPhoneNumber() ?? '';
+    final fullName = await secureStorage.getBiometricFullName() ?? await secureStorage.getFullName() ?? 'Nasabah Bank DMB';
+    final primaryAcc = await secureStorage.getBiometricPrimaryAccount() ?? await secureStorage.getPrimaryAccount() ?? '';
+    final devId = await secureStorage.getDeviceID();
+
+    if (cif.isEmpty && phone.isEmpty) {
+      throw Exception('Kredensial biometrik belum tersimpan. Silakan login menggunakan password sekali lagi.');
+    }
+
+    // 1. Try refreshing session with server using the stored biometric refresh token
+    if (refreshToken != null && refreshToken.isNotEmpty) {
+      try {
+        final response = await apiClient.post(
+          ApiEndpoints.refresh,
+          data: {
+            'refresh_token': refreshToken,
+            'device_id': devId,
+          },
+        );
+        final authResponse = AuthResponseModel.fromJson(response);
+        await secureStorage.saveAuthData(
+          accessToken: authResponse.accessToken,
+          refreshToken: authResponse.refreshToken,
+          phoneNumber: authResponse.user.phoneNumber,
+          cif: authResponse.user.cif,
+          fullName: authResponse.user.fullName,
+          primaryAccount: authResponse.user.primaryAccount,
+        );
+        await secureStorage.saveBiometricCredentials(
+          refreshToken: authResponse.refreshToken,
+          cif: authResponse.user.cif,
+          phone: authResponse.user.phoneNumber,
+          fullName: authResponse.user.fullName,
+          primaryAccount: authResponse.user.primaryAccount,
+        );
+        return authResponse.user;
+      } catch (_) {
+        // Fall through to offline authorized profile
+      }
+    }
+
+    // 2. Offline authorized user profile (fingerprint verified by native hardware sensor)
+    final user = UserModel(
+      id: '',
+      cif: cif,
+      fullName: fullName,
+      phoneNumber: phone,
+      email: '',
+      deviceId: devId,
+      primaryAccount: primaryAcc,
+      isActive: true,
+    );
+
+    await secureStorage.saveAuthData(
+      accessToken: 'bio_session_active',
+      refreshToken: refreshToken ?? '',
+      phoneNumber: phone,
+      cif: cif,
+      fullName: fullName,
+      primaryAccount: primaryAcc,
+    );
+
+    return user;
   }
 
   Future<void> logout() async {
@@ -81,14 +166,17 @@ class AuthRepository {
   // ==================== SELF-ACTIVATION FLOW ====================
 
   Future<Map<String, dynamic>> verifyActivationAccount({
-    required String accountNumber,
+    String? cifNumber,
+    String? accountNumber,
     required String phoneNumber,
   }) async {
     final devId = await secureStorage.getDeviceID();
+    final cif = cifNumber ?? accountNumber ?? '';
     final response = await apiClient.post(
       ApiEndpoints.activateVerify,
       data: {
-        'account_number': accountNumber,
+        'cif_number': cif,
+        'account_number': cif,
         'phone_number': phoneNumber,
         'device_id': devId,
       },

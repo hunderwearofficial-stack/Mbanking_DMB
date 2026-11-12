@@ -9,6 +9,8 @@ import '../../../blocs/auth/auth_cubit.dart';
 import '../../../blocs/auth/auth_state.dart';
 import '../../mutation/mutation_screen.dart';
 import '../../product/product_simulator_sheet.dart';
+import '../../loan/loan_screen.dart';
+import '../../deposit/deposit_screen.dart';
 
 class FigmaBalanceCardCarousel extends StatefulWidget {
   final AccountModel? account;
@@ -51,6 +53,81 @@ class _FigmaBalanceCardCarouselState extends State<FigmaBalanceCardCarousel> {
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  static Widget _buildEmvChip() {
+    return Container(
+      width: 30,
+      height: 22,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFFFFE082),
+            Color(0xFFFFC107),
+            Color(0xFFFFA000),
+            Color(0xFFFFD54F),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: const Color(0xFFB58106), width: 0.75),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.18),
+            blurRadius: 3,
+            offset: const Offset(0, 1.5),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Padding(
+              padding: const EdgeInsets.all(2.2),
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: const Color(0xFF9E7200), width: 0.55),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            right: BorderSide(color: Color(0xFF9E7200), width: 0.55),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Container(
+                      width: 9,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFFFE082),
+                        border: Border(
+                          left: BorderSide(color: Color(0xFF9E7200), width: 0.55),
+                          right: BorderSide(color: Color(0xFF9E7200), width: 0.55),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            left: BorderSide(color: Color(0xFF9E7200), width: 0.55),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -107,11 +184,11 @@ class _FigmaBalanceCardCarouselState extends State<FigmaBalanceCardCarousel> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Informasi Rekening CBS',
+                            'Informasi Rekening',
                             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
                           ),
                           Text(
-                            'Data Real-Time Core Banking System BPR DMB',
+                            'Data Real-Time Layanan Bank DMB',
                             style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                           ),
                         ],
@@ -120,19 +197,19 @@ class _FigmaBalanceCardCarouselState extends State<FigmaBalanceCardCarousel> {
                   ],
                 ),
                 const SizedBox(height: 24),
-                _buildDetailRow('Nama Pemilik (CBS)', (acc != null && acc.holderName.isNotEmpty) ? acc.holderName : userFullName),
+                _buildDetailRow('Nama Pemilik Rekening', (acc != null && acc.holderName.isNotEmpty) ? acc.holderName : userFullName),
                 _buildDetailRow('Nama Produk', acc?.accountType ?? 'Tabungan Mandiri DMB'),
                 if (acc != null && acc.productCode.isNotEmpty)
-                  _buildDetailRow('Kode Produk CBS', acc.productCode),
+                  _buildDetailRow('Kode Produk', acc.productCode),
                 _buildDetailRow('Nomor Rekening', acc?.accountNumber ?? '-'),
                 _buildDetailRow('Nomor CIF', userCif),
-                _buildDetailRow('Saldo Akhir (CBS)', CurrencyFormatter.formatRupiah(acc?.balance ?? 0)),
+                _buildDetailRow('Saldo Akhir', CurrencyFormatter.formatRupiah(acc?.balance ?? 0)),
                 _buildDetailRow('Saldo Efektif', CurrencyFormatter.formatRupiah(acc?.effectiveBalance ?? 0)),
                 _buildDetailRow('Saldo Minimum', CurrencyFormatter.formatRupiah(acc?.minimumBalance ?? 0)),
                 _buildDetailRow('Saldo Blokir', CurrencyFormatter.formatRupiah(acc?.blockedBalance ?? 0)),
-                _buildDetailRow('Status Rekening', 'Aktif (Live CBS OpenAPI)'),
+                _buildDetailRow('Status Rekening', 'Aktif'),
                 if (acc?.cbsRefId != null && acc!.cbsRefId!.isNotEmpty)
-                  _buildDetailRow('Ref ID CBS', acc.cbsRefId!),
+                  _buildDetailRow('Nomor Referensi', acc.cbsRefId!),
                 const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
@@ -363,14 +440,13 @@ class _FigmaBalanceCardCarouselState extends State<FigmaBalanceCardCarousel> {
             controller: _pageController,
             onPageChanged: (idx) => setState(() => _currentPage = idx),
             children: [
-              // Card 1: Tabungan Mandiri DMB (wondr luxury teal card - Live CBS)
+              // Card 1: Tabungan Mandiri DMB (Executive Royal Blue DMB)
               _buildWondrCard(
                 context: context,
                 gradient: const LinearGradient(
                   colors: [
-                    Color(0xFF00382E), // Deep luxury midnight teal
-                    Color(0xFF005B4D),
-                    Color(0xFF00897B), // Official Backoffice Teal
+                    Color(0xFF0B356D), // Deep Executive Navy
+                    Color(0xFF0062E3), // Vibrant Royal Blue
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -394,14 +470,13 @@ class _FigmaBalanceCardCarouselState extends State<FigmaBalanceCardCarousel> {
                 },
               ),
 
-              // Card 2: Pinjaman / Kredit Produktif BPR (Wondr style)
+              // Card 2: Pinjaman / Kredit Produktif BPR (Executive Royal Blue DMB)
               _buildWondrCard(
                 context: context,
                 gradient: const LinearGradient(
                   colors: [
-                    Color(0xFF1E293B), // Slate 800
-                    Color(0xFF0F766E), // Deep Teal
-                    Color(0xFF00897B), // Backoffice Teal
+                    Color(0xFF0B356D), // Deep Executive Navy
+                    Color(0xFF0062E3), // Vibrant Royal Blue
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -412,37 +487,44 @@ class _FigmaBalanceCardCarouselState extends State<FigmaBalanceCardCarousel> {
                 accLabel: 'No. Akad',
                 amountLabel: 'Sisa pinjaman (Baki Debet)',
                 amount: loan.remainingPrincipal,
-                chipColor: const Color(0xFF67E8F9),
+                chipColor: const Color(0xFFFFD54F),
                 primaryActionLabel: 'Rincian',
                 primaryActionIcon: Icons.receipt_long_rounded,
-                onPrimaryAction: () => _showLoanDetailsModal(context, loan),
+                onPrimaryAction: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const LoanScreen()),
+                  );
+                },
                 secondaryActionLabel: 'Ajukan',
                 secondaryActionIcon: Icons.add_chart_rounded,
                 onSecondaryAction: () => ProductSimulatorSheet.show(context, initialType: 'PINJAMAN'),
               ),
 
-              // Card 3: Deposito Berjangka DMB
+              // Card 3: Deposito Berjangka DMB (Executive Royal Blue DMB)
               _buildWondrCard(
                 context: context,
                 gradient: const LinearGradient(
                   colors: [
-                    Color(0xFF0A3B66), // Corporate Navy DMB
-                    Color(0xFF0E528E),
-                    Color(0xFF00897B),
+                    Color(0xFF0B356D), // Deep Executive Navy
+                    Color(0xFF0062E3), // Vibrant Royal Blue
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 brandTag: 'SIMPANAN',
                 title: 'DEPOSITO BERJANGKA DMB',
-                accNo: 'Bunga 6.25% p.a.',
+                accNo: 'Bunga 6.00% p.a.',
                 accLabel: 'Suku Bunga',
-                amountLabel: 'Simulasi Penempatan Deposito',
-                amount: 50000000.0,
+                amountLabel: 'Portofolio Deposito Aktif',
+                amount: 1797507397.0,
                 chipColor: const Color(0xFFFFD54F),
-                primaryActionLabel: 'Buka Baru',
-                primaryActionIcon: Icons.add_circle_outline_rounded,
-                onPrimaryAction: () => ProductSimulatorSheet.show(context, initialType: 'DEPOSITO'),
+                primaryActionLabel: 'Portofolio',
+                primaryActionIcon: Icons.folder_shared_rounded,
+                onPrimaryAction: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const DepositScreen()),
+                  );
+                },
                 secondaryActionLabel: 'Simulasi',
                 secondaryActionIcon: Icons.calculate_rounded,
                 onSecondaryAction: () => ProductSimulatorSheet.show(context, initialType: 'DEPOSITO'),
@@ -497,7 +579,7 @@ class _FigmaBalanceCardCarouselState extends State<FigmaBalanceCardCarousel> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF004D40).withOpacity(0.25),
+            color: const Color(0xFF0062E3).withOpacity(0.28),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),
@@ -579,15 +661,7 @@ class _FigmaBalanceCardCarouselState extends State<FigmaBalanceCardCarousel> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Container(
-                        width: 26,
-                        height: 18,
-                        decoration: BoxDecoration(
-                          color: chipColor.withOpacity(0.85),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: Colors.white.withOpacity(0.4), width: 0.8),
-                        ),
-                      ),
+                      _buildEmvChip(),
                     ],
                   ),
 
@@ -717,14 +791,14 @@ class _FigmaBalanceCardCarouselState extends State<FigmaBalanceCardCarousel> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(secondaryActionIcon, color: const Color(0xFF004D40), size: 12),
+                                  Icon(secondaryActionIcon, color: const Color(0xFF0B356D), size: 12),
                                   const SizedBox(width: 3),
                                   Text(
                                     secondaryActionLabel,
                                     style: const TextStyle(
                                       fontSize: 10.5,
                                       fontWeight: FontWeight.w800,
-                                      color: Color(0xFF004D40),
+                                      color: Color(0xFF0B356D),
                                     ),
                                   ),
                                 ],
