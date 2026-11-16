@@ -73,11 +73,11 @@ async function loadAuditLogs() {
                 <span class="font-bold text-slate-800">${esc(log.actor_name || '-')}</span>
               </div>
             </td>
-            <td class="py-3 px-4 font-mono font-bold text-slate-800">${esc(log.action)}</td>
-            <td class="py-3 px-4 font-mono text-slate-600">${esc(log.target || '-')}</td>
-            <td class="py-3 px-4 font-mono text-[11px] text-slate-600">${esc(log.device_id || '-')}</td>
-            <td class="py-3 px-4 text-slate-600 max-w-xs">${esc(log.details || '-')}</td>
-            <td class="py-3 px-4">
+            <td class="py-3 px-4 font-mono font-bold text-slate-800 whitespace-nowrap">${esc(log.action)}</td>
+            <td class="py-3 px-4 font-mono text-slate-600 text-xs">${esc(log.target || '-')}</td>
+            <td class="py-3 px-4 font-mono text-[11px] text-slate-600 whitespace-nowrap">${esc(log.device_id || '-')}</td>
+            <td class="py-3 px-4 text-slate-600 max-w-md break-all leading-relaxed">${esc(log.details || '-')}</td>
+            <td class="py-3 px-4 whitespace-nowrap text-right">
               <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${statusClass}">
                 ${esc(log.status)}
               </span>

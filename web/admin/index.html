@@ -140,22 +140,19 @@
       class="w-full md:w-64 bg-white text-slate-800 flex flex-col border-r border-slate-200/90 shadow-sm select-none">
 
       <!-- App Header with Dynamic Uploaded Bank Logo -->
-      <div class="p-4 px-5 flex items-center gap-3 border-b border-slate-100 bg-[#FBFDFE]">
+      <div class="p-4 px-5 flex items-center border-b border-slate-100 bg-[#FBFDFE]">
         <!-- Live Uploaded Bank Logo Image -->
         <img id="sidebarLogoImg" src="images/bank_logo.png" alt="Logo Bank"
-          class="h-10 w-auto max-w-[110px] object-contain drop-shadow-xs"
+          class="h-10 w-auto max-w-[200px] object-contain drop-shadow-xs"
           onerror="this.classList.add('hidden'); document.getElementById('sidebarLogoFallback').classList.remove('hidden');">
         <!-- Fallback if logo not loaded -->
         <div id="sidebarLogoFallback"
           class="w-10 h-10 rounded-xl bg-teal-50 text-[#00897B] border border-teal-200 flex items-center justify-center font-black text-sm hidden">
           DMB
         </div>
-        <div class="overflow-hidden border-l border-slate-200 pl-3 py-0.5">
-          <h1 class="text-sm font-black text-slate-900 tracking-tight leading-tight uppercase" id="sidebarBankTitle">
-            BANK DMB</h1>
-          <p class="text-[9px] text-[#00897B] font-bold tracking-wider uppercase truncate" id="sidebarBankSub">PT BPR
-            DANA MANDIRI BOGOR</p>
-        </div>
+        <!-- Hidden labels to preserve script compatibility -->
+        <span id="sidebarBankTitle" class="hidden"></span>
+        <span id="sidebarBankSub" class="hidden"></span>
       </div>
 
       <!-- Navigation Links -->
@@ -769,13 +766,13 @@
               <table class="w-full text-left text-xs">
                 <thead class="bg-slate-50 text-slate-600 uppercase tracking-wider font-bold border-b border-slate-200">
                   <tr>
-                    <th class="py-3 px-4">Waktu</th>
-                    <th class="py-3 px-4">Aktor</th>
-                    <th class="py-3 px-4">Aksi / Event</th>
+                    <th class="py-3 px-4 whitespace-nowrap">Waktu</th>
+                    <th class="py-3 px-4 whitespace-nowrap">Aktor</th>
+                    <th class="py-3 px-4 whitespace-nowrap">Aksi / Event</th>
                     <th class="py-3 px-4">Target / Objek</th>
-                    <th class="py-3 px-4">Perangkat (Device ID)</th>
-                    <th class="py-3 px-4">Rincian Aktivitas</th>
-                    <th class="py-3 px-4">Status</th>
+                    <th class="py-3 px-4 whitespace-nowrap">Perangkat (Device ID)</th>
+                    <th class="py-3 px-4 min-w-[280px]">Rincian Aktivitas</th>
+                    <th class="py-3 px-4 whitespace-nowrap text-right">Status</th>
                   </tr>
                 </thead>
                 <tbody id="auditLogsTableBody" class="divide-y divide-slate-100">
@@ -1275,7 +1272,7 @@
   <script src="js/auth.js?v=20261116_01"></script>
   <script src="js/dashboard.js?v=20261116_01"></script>
   <script src="js/customers.js?v=20261116_01"></script>
-  <script src="js/transactions.js?v=20261116_01"></script>
+  <script src="js/transactions.js?v=20261116_02"></script>
   <script src="js/admin_users.js?v=20261116_01"></script>
   <script src="js/settings.js?v=20261116_01"></script>
   <script src="js/legal_terms.js?v=20261116_01"></script>
