@@ -36,9 +36,10 @@ void main() async {
 
   // Initialize Firebase native bindings before any services run
   try {
-    if (Firebase.apps.isEmpty) {
+    final firebaseOpts = DefaultFirebaseOptions.currentPlatform;
+    if (firebaseOpts != null && Firebase.apps.isEmpty) {
       await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
+        options: firebaseOpts,
       );
     }
   } catch (e) {

@@ -86,6 +86,10 @@ class FCMService {
   Future<void> initialize({ApiClient? apiClient}) async {
     _api = apiClient ?? _api;
     if (_initialized) return;
+    if (Platform.isIOS) {
+      _initialized = true;
+      return;
+    }
     try {
       if (Firebase.apps.isEmpty) {
         await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
