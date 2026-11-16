@@ -102,6 +102,9 @@ func NewRouter(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, cbsPr
 	})
 
 	rl := func(max, window int, prefix string, key middleware.KeyFunc) gin.HandlerFunc {
+		if cfg.AppEnv == "development" || cfg.AppEnv == "local" {
+			max *= 50 // Bebas testing di dev tanpa terblokir 429
+		}
 		return middleware.RateLimiterBy(redisClient, max, window, prefix, key)
 	}
 	byIdentity := middleware.ByJSONField("phone_number", "cif", "username")
