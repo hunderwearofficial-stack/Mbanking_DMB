@@ -1,0 +1,56 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_base_url:
+        description: 'Backend API Base URL (misal: http://IP_VPS:8080 atau domain backend)'
+        required: false
+        default: 'http://103.93.134.64:8080'
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build iOS Unsigned IPA
+    runs-on: macos-14
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install Flutter & CocoaPods Dependencies
+        run: |
+          cd m_banking_bpr
+          flutter pub get
+          cd ios
+          pod install
+
+      - name: Build iOS Application
+        run: |
+          cd m_banking_bpr
+          API_URL="${{ inputs.api_base_url }}"
+          if [ -z "$API_URL" ]; then
+            API_URL="http://103.93.134.64:8080"
+          fi
+          flutter build ios --release --no-codesign --dart-define-from-file=config/local.json --dart-define=API_BASE_URL=$API_URL
+
+      - name: Package into IPA
+        run: |
+          cd m_banking_bpr/build/ios/iphoneos
+          mkdir -p Payload
+          cp -r Runner.app Payload/
+          zip -r MBanking_DMB.ipa Payload
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MBanking_DMB_iOS
+          path: m_banking_bpr/build/ios/iphoneos/MBanking_DMB.ipa
+          retention-days: 7
