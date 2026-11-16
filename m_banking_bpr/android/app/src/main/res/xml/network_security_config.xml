@@ -1,14 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  SECURITY (audit DMB-010): release builds permit HTTPS only and trust only the
-  system certificate store (user-installed CAs are NOT trusted, which blocks the
-  common "install a proxy CA" interception technique).
-  Debug builds override this file from src/debug/res/xml/.
--->
 <network-security-config>
-    <base-config cleartextTrafficPermitted="false">
+    <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
     </base-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">103.93.134.64</domain>
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain>
+    </domain-config>
 </network-security-config>

@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:flutter/foundation.dart';
 
+import '../config/app_environment.dart';
 import '../constants/api_endpoints.dart';
 import '../security/secure_storage_service.dart';
 import '../security/ssl_pinning_service.dart';
@@ -54,7 +55,8 @@ class ApiClient {
     d.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
-          if (kReleaseMode && options.uri.scheme.toLowerCase() != 'https') {
+          final isLocalOrDev = AppEnvironment.flavor == AppFlavor.local || AppEnvironment.flavor == AppFlavor.development;
+          if (kReleaseMode && !isLocalOrDev && options.uri.scheme.toLowerCase() != 'https') {
             return handler.reject(
               DioException(
                 requestOptions: options,
