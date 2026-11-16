@@ -64,15 +64,12 @@ class AppEnvironment {
 
     switch (flavor) {
       case AppFlavor.local:
-        if (isRelease) {
-          return 'Flavor local hanya untuk build debug. Gunakan flavor staging/production untuk rilis.';
-        }
+      case AppFlavor.development:
         if (isLoopback) {
-          return 'API_BASE_URL local tidak boleh localhost/127.0.0.1: HP Android fisik harus memakai IP LAN '
-              'komputer Windows (mis. http://192.168.1.20:8080).';
+          return 'API_BASE_URL local tidak boleh localhost/127.0.0.1: HP fisik harus memakai IP server/VPS '
+              '(mis. http://103.93.134.64:8080).';
         }
         return null;
-      case AppFlavor.development:
       case AppFlavor.staging:
       case AppFlavor.production:
         if (uri.scheme != 'https') {

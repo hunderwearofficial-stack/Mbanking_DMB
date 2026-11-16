@@ -21,12 +21,13 @@ void main() {
     expect(check('local', 'http://127.0.0.1:8080'), contains('IP LAN'));
   });
 
-  test('local flavor is debug-only', () {
-    expect(check('local', 'http://192.168.1.20:8080', release: true), contains('debug'));
+  test('local and development allow release testing over HTTP', () {
+    expect(check('local', 'http://192.168.1.20:8080', release: true), isNull);
+    expect(check('development', 'http://103.93.134.64:8080', release: true), isNull);
   });
 
-  test('development, staging and production require HTTPS', () {
-    for (final f in ['development', 'staging', 'production']) {
+  test('staging and production require HTTPS', () {
+    for (final f in ['staging', 'production']) {
       expect(check(f, 'http://192.168.1.20:8080'), contains('HTTPS'), reason: f);
       expect(check(f, 'https://api-$f.example.invalid'), isNull, reason: f);
     }
