@@ -56,23 +56,6 @@ func (h *CustomerHandler) MarkNotificationsRead(c *gin.Context) {
 	response.Success(c, "Seluruh notifikasi ditandai telah dibaca", gin.H{"read": true})
 }
 
-type FCMTokenRequest struct {
-	FCMToken string `json:"fcm_token" binding:"required"`
-}
-
-func (h *CustomerHandler) UpdateFCMToken(c *gin.Context) {
-	var req FCMTokenRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, "fcm_token wajib diisi", "01", nil)
-		return
-	}
-	if err := h.svc.UpdateFCMToken(c.Request.Context(), userID(c), req.FCMToken); err != nil {
-		fail(c, err, "Gagal mendaftarkan FCM token")
-		return
-	}
-	response.Success(c, "FCM token perangkat berhasil didaftarkan", gin.H{"registered": true})
-}
-
 // ---- Rekening favorit ----
 
 func (h *CustomerHandler) ListBeneficiaries(c *gin.Context) {

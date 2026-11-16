@@ -295,16 +295,14 @@ func (c *AppConfig) Public() PublicAppConfig {
 // AdminAppConfigView is returned to backoffice users: secrets are reported only as "configured" flags.
 type AdminAppConfigView struct {
 	AppConfig
-	OTPGatewayTokenSet     bool `json:"otp_gateway_token_set"`
-	FCMServerKeyConfigured bool `json:"fcm_server_key_set"`
+	OTPGatewayTokenSet bool `json:"otp_gateway_token_set"`
 }
 
 // AdminView returns the backoffice projection with masked secrets.
 func (c *AppConfig) AdminView() AdminAppConfigView {
 	return AdminAppConfigView{
-		AppConfig:              *c,
-		OTPGatewayTokenSet:     c.OTPGatewayToken != "",
-		FCMServerKeyConfigured: c.FCMServerKey != "",
+		AppConfig:          *c,
+		OTPGatewayTokenSet: c.OTPGatewayToken != "",
 	}
 }
 

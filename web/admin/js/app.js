@@ -28,7 +28,7 @@ function switchTab(tabId) {
   if (tabId === 'cms-mobile' || tabId === 'cms' || tabId === 'banners') tabId = 'content';
 
   currentTab = tabId;
-  const tabs = ['dashboard', 'customers', 'transactions', 'content', 'terms', 'admin-users', 'settings'];
+  const tabs = ['dashboard', 'customers', 'transactions', 'content', 'terms', 'push', 'admin-users', 'settings'];
 
   let matched = false;
   tabs.forEach(t => {
@@ -62,6 +62,7 @@ function switchTab(tabId) {
     'transactions': 'Transaksi & Audit Trail',
     'content': 'Konten Aplikasi',
     'terms': 'Syarat & Ketentuan',
+    'push': 'Notifikasi Push',
     'admin-users': 'Petugas & Hak Akses',
     'settings': 'Pengaturan Operasional'
   };
@@ -81,6 +82,7 @@ function refreshCurrentTab() {
     if (currentTab === 'customers' && typeof loadCustomers === 'function') loadCustomers();
     if (currentTab === 'content' && typeof loadContent === 'function') loadContent();
     if (currentTab === 'terms' && typeof loadTermsVersions === 'function') loadTermsVersions();
+    if (currentTab === 'push' && typeof loadPush === 'function') loadPush();
     if (currentTab === 'transactions' && typeof loadTransactions === 'function') loadTransactions();
     if (currentTab === 'admin-users' && typeof loadAdminUsers === 'function') loadAdminUsers();
     if (currentTab === 'settings' && typeof loadConfig === 'function') loadConfig();

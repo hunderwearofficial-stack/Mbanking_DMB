@@ -96,6 +96,7 @@ class AuthCubit extends Cubit<AuthState> {
   /// Explicit logout: revokes the server-side session (audit DMB-014).
   Future<void> logout() async {
     await authRepository.logout();
+    FCMService().onLoggedOut();
     emit(AuthUnauthenticated());
   }
 

@@ -28,8 +28,10 @@ import (
 	txHttp "mbanking-bpr/internal/module/transaction/delivery/http"
 	txRepo "mbanking-bpr/internal/module/transaction/repository"
 	txSvc "mbanking-bpr/internal/module/transaction/service"
+	"mbanking-bpr/internal/notification"
 	"mbanking-bpr/internal/otp"
 	"mbanking-bpr/internal/ownership"
+	"mbanking-bpr/internal/push"
 	"mbanking-bpr/internal/session"
 	"mbanking-bpr/pkg/logger"
 	"mbanking-bpr/pkg/middleware"
@@ -42,6 +44,7 @@ import (
 
 // Deps exposes components needed by integration tests.
 type Deps struct {
+	Push     *push.Service
 	Sessions *session.Manager
 	OTPStore *otp.Store
 }
@@ -54,6 +57,9 @@ func NewRouter(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, cbsPr
 	terms := legaldoc.NewService(db, legaldoc.NewDBFileStore(db), pdfdoc.RenderPDF)
 	termsHandler := legaldoc.NewHandler(terms)
 	contentHandler := mobilecontent.NewHandler(mobilecontent.NewService(db))
+	pushSvc := push.NewService(db)
+	pushHandler := push.NewHandler(pushSvc)
+	notification.SetPusher(pushSvc)
 
 	authHandler := authHttp.NewAuthHandler(authSvc.NewAuthService(cfg, authRepo.NewAuthRepository(db), cbsProv, otpStore, sessions, terms))
 	accHandler := accountHttp.NewAccountHandler(accountSvc.NewAccountService(cbsProv, resolver))
@@ -153,7 +159,18 @@ func NewRouter(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, cbsPr
 				a.DELETE("/banners/:id", roles(SA, MK), adminHandler.DeleteBanner)
 				a.GET("/transactions", roles(SA, CS, CO), adminHandler.ListTransactions)
 				a.GET("/audit-logs", roles(SA, CO), adminHandler.ListAuditLogs)
-				a.POST("/notifications/broadcast", roles(SA, MK), adminHandler.BroadcastNotification)
+				// Push notifications (FCM HTTP v1): Firebase integration is managed by SUPER_ADMIN;
+				// officer notifications need approval by a different officer before sending
+				a.GET("/push/settings", roles(SA, MK, CO), pushHandler.GetSettings)
+				a.POST("/push/credential", rl(5, 300, "push_cred", middleware.ByIP), roles(SA), pushHandler.UploadCredential)
+				a.POST("/push/test", rl(10, 300, "push_test", middleware.ByIP), roles(SA), pushHandler.Test)
+				a.PUT("/push/settings", roles(SA), pushHandler.SetEnabled)
+				a.GET("/push/campaigns", roles(SA, MK, CO), pushHandler.ListCampaigns)
+				a.POST("/push/campaigns", rl(30, 3600, "push_campaign", middleware.ByIP), roles(SA, MK), pushHandler.CreateCampaign)
+				a.POST("/push/campaigns/:id/submit", roles(SA, MK), pushHandler.Submit)
+				a.POST("/push/campaigns/:id/approve", roles(SA, MK, CO), pushHandler.Approve)
+				a.POST("/push/campaigns/:id/reject", roles(SA, MK, CO), pushHandler.Reject)
+				a.GET("/push/campaigns/:id/deliveries", roles(SA, MK, CO), pushHandler.Deliveries)
 				a.GET("/applications", roles(SA, CS, MK, CO), adminHandler.ListAllApplicationsAdmin)
 				a.PUT("/applications/:id/status", roles(SA, CS, MK), adminHandler.UpdateApplicationStatusAdmin)
 				a.GET("/config", roles(SA), adminHandler.GetConfig)
@@ -199,7 +216,7 @@ func NewRouter(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, cbsPr
 		p := v1.Group("")
 		p.Use(customerAuth, rl(120, 60, "customer", middleware.ByUser))
 		{
-			p.POST("/auth/logout", authHandler.Logout)
+			p.POST("/auth/logout", pushHandler.DetachOnLogout, authHandler.Logout)
 			p.GET("/terms/status", termsHandler.Status)
 			p.POST("/auth/change-password", rl(5, 300, "chg_pw", middleware.ByUser), authHandler.ChangePassword)
 			p.POST("/auth/change-pin", rl(5, 300, "chg_pin", middleware.ByUser), authHandler.ChangePIN)
@@ -231,7 +248,9 @@ func NewRouter(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, cbsPr
 			{
 				notif.GET("", customerHandler.ListNotifications)
 				notif.POST("/read", customerHandler.MarkNotificationsRead)
-				notif.POST("/fcm-token", customerHandler.UpdateFCMToken)
+				notif.POST("/fcm-token", rl(20, 3600, "fcm_token", middleware.ByUser), pushHandler.RegisterToken)
+				notif.DELETE("/fcm-token", pushHandler.UnregisterToken)
+				notif.POST("/opened", pushHandler.Opened)
 			}
 
 			p.POST("/transaction/transfer", rl(10, 60, "tx_transfer", middleware.ByUser), txHandler.Transfer)
@@ -241,7 +260,7 @@ func NewRouter(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, cbsPr
 	// Web backoffice (static, same origin)
 	r.Static("/admin", "./web/admin")
 
-	return r, &Deps{Sessions: sessions, OTPStore: otpStore}, nil
+	return r, &Deps{Sessions: sessions, OTPStore: otpStore, Push: pushSvc}, nil
 }
 
 func checkReady(ctx context.Context, db *gorm.DB, rc *redis.Client) error {

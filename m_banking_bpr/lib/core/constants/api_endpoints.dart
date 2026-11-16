@@ -27,6 +27,7 @@ class ApiEndpoints {
   static const String notifications = '/api/v1/notifications';
   static const String notificationsRead = '/api/v1/notifications/read';
   static const String notificationsFcmToken = '/api/v1/notifications/fcm-token';
+  static const String notificationsOpened = '/api/v1/notifications/opened';
   static const String balance = '/api/v1/account/balance';
   static const String mutations = '/api/v1/account/mutations';
   static const String accountInquiry = '/api/v1/account/inquiry';

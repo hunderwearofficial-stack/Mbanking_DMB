@@ -47,7 +47,6 @@ type ProductApplicationInput struct {
 type CustomerService interface {
 	ListNotifications(ctx context.Context, userID string, limit int) ([]model.Notification, error)
 	MarkNotificationsRead(ctx context.Context, userID string) error
-	UpdateFCMToken(ctx context.Context, userID, fcmToken string) error
 
 	ListBeneficiaries(ctx context.Context, userID string) ([]model.SavedBeneficiary, error)
 	SaveBeneficiary(ctx context.Context, userID string, in BeneficiaryInput) (*model.SavedBeneficiary, error)
@@ -79,14 +78,6 @@ func (s *customerService) ListNotifications(ctx context.Context, userID string, 
 
 func (s *customerService) MarkNotificationsRead(ctx context.Context, userID string) error {
 	return s.repo.MarkNotificationsRead(ctx, userID)
-}
-
-func (s *customerService) UpdateFCMToken(ctx context.Context, userID, fcmToken string) error {
-	fcmToken = strings.TrimSpace(fcmToken)
-	if len(fcmToken) < 20 || len(fcmToken) > 4096 {
-		return fmt.Errorf("%w: FCM token tidak valid", ErrValidation)
-	}
-	return s.repo.UpdateFCMToken(ctx, userID, fcmToken)
 }
 
 func (s *customerService) ListBeneficiaries(ctx context.Context, userID string) ([]model.SavedBeneficiary, error) {

@@ -76,9 +76,7 @@ type AppConfigUpdate struct {
 	OTPProvider          string       `json:"otp_provider"`
 	OTPGatewayURL        string       `json:"otp_gateway_url"`
 	OTPGatewayToken      string       `json:"otp_gateway_token"` // write-only
-	FCMServerKey         string       `json:"fcm_server_key"`    // write-only
 	ClearOTPGatewayToken bool         `json:"clear_otp_gateway_token"`
-	ClearFCMServerKey    bool         `json:"clear_fcm_server_key"`
 }
 
 // BannerInput is the editable banner data (Image + URL centric).
@@ -120,7 +118,6 @@ type AdminService interface {
 	UpdateAppConfig(ctx context.Context, in AppConfigUpdate) (*model.AppConfig, error)
 
 	ListAuditLogs(ctx context.Context, actorType string, limit int) ([]model.AuditLog, error)
-	BroadcastNotification(ctx context.Context, title, message, category string) error
 
 	ListAllApplications(ctx context.Context, productType string, limit int) ([]model.ProductApplication, error)
 	UpdateApplicationStatus(ctx context.Context, id string, status string, adminNotes string) (*model.ProductApplication, error)
@@ -403,13 +400,6 @@ func (s *adminService) UpdateAppConfig(ctx context.Context, in AppConfigUpdate) 
 		updated.OTPGatewayToken = t
 		secretChanges = append(secretChanges, "otp_gateway_token diganti")
 	}
-	if in.ClearFCMServerKey {
-		updated.FCMServerKey = ""
-		secretChanges = append(secretChanges, "fcm_server_key dihapus")
-	} else if k := strings.TrimSpace(in.FCMServerKey); k != "" {
-		updated.FCMServerKey = k
-		secretChanges = append(secretChanges, "fcm_server_key diganti")
-	}
 
 	if err := s.repo.UpdateAppConfig(ctx, &updated); err != nil {
 		return nil, err
@@ -501,23 +491,6 @@ func (s *adminService) DeleteAdminUser(ctx context.Context, id string) error {
 
 func (s *adminService) ListAuditLogs(ctx context.Context, actorType string, limit int) ([]model.AuditLog, error) {
 	return s.repo.ListAuditLogs(ctx, actorType, limit)
-}
-
-func (s *adminService) BroadcastNotification(ctx context.Context, title, message, category string) error {
-	category = strings.ToUpper(strings.TrimSpace(category))
-	if category == "" {
-		category = "PROMO"
-	}
-	if category != "PROMO" && category != "INFO" {
-		return fmt.Errorf("%w: kategori broadcast hanya PROMO atau INFO", ErrValidation)
-	}
-	title, message = limitLen(title, 150), limitLen(message, 1000)
-	if title == "" || message == "" {
-		return fmt.Errorf("%w: judul dan isi wajib diisi", ErrValidation)
-	}
-	notification.CreateAndPush(ctx, s.repo.DB(), "ALL", title, message, category)
-	s.audit(ctx, "BROADCAST_NOTIFICATION", "ALL_CUSTOMERS", "SUCCESS", fmt.Sprintf("Broadcast notifikasi [%s]: %s", category, title))
-	return nil
 }
 
 func (s *adminService) ListAllApplications(ctx context.Context, productType string, limit int) ([]model.ProductApplication, error) {

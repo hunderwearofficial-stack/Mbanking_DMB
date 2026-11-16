@@ -386,25 +386,6 @@ func (h *AdminHandler) ListAuditLogs(c *gin.Context) {
 	response.Success(c, "Data audit trail berhasil dimuat", logs)
 }
 
-type BroadcastNotificationRequest struct {
-	Title    string `json:"title" binding:"required"`
-	Message  string `json:"message" binding:"required"`
-	Category string `json:"category"`
-}
-
-func (h *AdminHandler) BroadcastNotification(c *gin.Context) {
-	var req BroadcastNotificationRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, "Judul dan isi pesan notifikasi wajib diisi", "01", nil)
-		return
-	}
-	if err := h.adminService.BroadcastNotification(c.Request.Context(), req.Title, req.Message, req.Category); err != nil {
-		fail(c, err, "Gagal mengirim broadcast notifikasi")
-		return
-	}
-	response.Success(c, "Notifikasi broadcast berhasil dikirimkan ke seluruh nasabah", nil)
-}
-
 // ---- Pengajuan produk nasabah (backoffice) ----
 
 func (h *AdminHandler) ListAllApplicationsAdmin(c *gin.Context) {

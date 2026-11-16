@@ -42,13 +42,6 @@ async function loadConfig() {
           ? 'Token tersimpan (kosongkan untuk tetap memakai token saat ini)'
           : 'Masukkan Token Fonnte / Wablas';
       }
-      if (document.getElementById('cfgFcmServerKey')) {
-        const el = document.getElementById('cfgFcmServerKey');
-        el.value = '';
-        el.placeholder = c.fcm_server_key_set
-          ? 'Server key tersimpan (kosongkan untuk tetap memakai key saat ini)'
-          : 'Masukkan FCM Server Key untuk Push Notification';
-      }
 
       // Live UI sync everywhere
       updateDOMBranding(c);
@@ -147,8 +140,7 @@ async function handleSaveConfig(e) {
     daily_transfer_limit: document.getElementById('cfgDailyLimit') ? Number(document.getElementById('cfgDailyLimit').value) || 25000000 : 25000000,
     otp_provider: document.getElementById('cfgOtpProvider') ? document.getElementById('cfgOtpProvider').value : 'SANDBOX',
     otp_gateway_url: document.getElementById('cfgOtpGatewayUrl') ? document.getElementById('cfgOtpGatewayUrl').value.trim() : '',
-    otp_gateway_token: document.getElementById('cfgOtpGatewayToken') ? document.getElementById('cfgOtpGatewayToken').value.trim() : '',
-    fcm_server_key: document.getElementById('cfgFcmServerKey') ? document.getElementById('cfgFcmServerKey').value.trim() : ''
+    otp_gateway_token: document.getElementById('cfgOtpGatewayToken') ? document.getElementById('cfgOtpGatewayToken').value.trim() : ''
   };
 
   try {

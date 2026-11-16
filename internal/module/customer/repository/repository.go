@@ -22,7 +22,6 @@ type CustomerRepository interface {
 
 	ListNotifications(ctx context.Context, userID string, limit int) ([]model.Notification, error)
 	MarkNotificationsRead(ctx context.Context, userID string) error
-	UpdateFCMToken(ctx context.Context, userID, fcmToken string) error
 
 	ListBeneficiaries(ctx context.Context, userID string) ([]model.SavedBeneficiary, error)
 	SaveBeneficiary(ctx context.Context, b *model.SavedBeneficiary) error
@@ -82,15 +81,6 @@ func (r *customerRepository) MarkNotificationsRead(ctx context.Context, userID s
 		return err
 	}
 	return db.Model(&model.Notification{}).Where("user_id = ? AND is_read = ?", userID, false).Update("is_read", true).Error
-}
-
-func (r *customerRepository) UpdateFCMToken(ctx context.Context, userID, fcmToken string) error {
-	db, err := r.q(ctx)
-	if err != nil || userID == "" {
-		return err
-	}
-	return db.Model(&model.User{}).Where("id = ?", userID).
-		Updates(map[string]interface{}{"fcm_token": fcmToken, "updated_at": time.Now()}).Error
 }
 
 func (r *customerRepository) ListBeneficiaries(ctx context.Context, userID string) ([]model.SavedBeneficiary, error) {

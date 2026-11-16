@@ -361,7 +361,7 @@ func (r *adminRepository) UpdateAppConfig(ctx context.Context, cfg *model.AppCon
 		"bank_name", "bank_short_name", "email_cs", "website_url", "head_office_address",
 		"maintenance_mode", "maintenance_message", "min_transfer_amount", "daily_transfer_limit",
 		"interbank_transfer_fee", "enforce_device_binding", "max_login_attempts", "otp_provider",
-		"otp_gateway_url", "otp_gateway_token", "fcm_server_key", "updated_at",
+		"otp_gateway_url", "otp_gateway_token", "updated_at",
 	).Updates(cfg).Error
 }
 
