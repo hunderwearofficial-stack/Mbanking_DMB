@@ -1,0 +1,38 @@
+# systemd unit untuk menjalankan backend tanpa Docker (alternatif docker-compose).
+# Pasang: sudo cp mbanking-api.service /etc/systemd/system/ && sudo systemctl daemon-reload
+#         sudo systemctl enable --now mbanking-api
+# Secret TIDAK ditulis di file ini: EnvironmentFile dibuat dari secret manager dengan
+# permission 0600 milik root (lihat docs/DEPLOYMENT_AND_CICD.md).
+[Unit]
+Description=DMB Mobile Banking API
+After=network-online.target postgresql.service redis-server.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=mbanking
+Group=mbanking
+WorkingDirectory=/opt/mbanking
+EnvironmentFile=/etc/mbanking/mbanking.env
+ExecStart=/opt/mbanking/server
+Restart=on-failure
+RestartSec=5s
+# Startup gagal karena konfigurasi tidak valid: jangan restart berulang tanpa batas.
+StartLimitIntervalSec=120
+StartLimitBurst=5
+# Graceful shutdown: server menunggu request berjalan hingga 10 detik.
+KillSignal=SIGTERM
+TimeoutStopSec=20s
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/mbanking/web/admin/uploads
+CapabilityBoundingSet=
+LimitNOFILE=65535
+MemoryMax=1G
+
+[Install]
+WantedBy=multi-user.target

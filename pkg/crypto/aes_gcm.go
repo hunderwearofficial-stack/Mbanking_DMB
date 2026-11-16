@@ -3,9 +3,7 @@ package crypto
 import (
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/hmac"
 	"crypto/rand"
-	"crypto/sha256"
 	"database/sql/driver"
 	"encoding/base64"
 	"encoding/hex"
@@ -16,152 +14,195 @@ import (
 	"sync"
 )
 
+// Column-level encryption for customer PII (UU PDP).
+//
+// SECURITY (audit DMB-008):
+//   - There is NO built-in default key. The process must call InitKeys with a
+//     key supplied from the secret manager; Encrypt/Decrypt fail otherwise.
+//   - Ciphertext format v2: "enc:v2:" + base64(nonce|ciphertext|tag), encrypted
+//     with the ACTIVE key.
+//   - Legacy format v1 ("enc:v1:") was produced with a key that was published in
+//     the repository. v1 values are decrypted with the PREVIOUS key (if set) or
+//     the active key, and are re-encrypted to v2 on the next write or by running
+//     `go run ./cmd/rekey`.
+//   - Decryption failures are returned as errors (fail-closed), never silently
+//     replaced by raw ciphertext.
+
 const (
 	// AESKeyLength is 32 bytes for AES-256
 	AESKeyLength = 32
 	// GCMNonceLength standard 12 bytes for AES-GCM
 	GCMNonceLength = 12
-	// CipherPrefix identifies AES-256-GCM encrypted fields version 1
-	CipherPrefix = "enc:v1:"
+	// CipherPrefix identifies the current ciphertext format (active key).
+	CipherPrefix = "enc:v2:"
+	// LegacyCipherPrefix identifies ciphertext produced before key rotation.
+	LegacyCipherPrefix = "enc:v1:"
 )
 
 var (
-	// Default master key (used for development/fallback, overridden in production via DB_ENCRYPTION_KEY)
-	defaultKey = []byte("dmb-bank-aes256-gcm-master-key32")
+	keyMu       sync.RWMutex
+	activeKey   []byte
+	previousKey []byte
 
-	keyMu        sync.RWMutex
-	activeKey    = defaultKey
-	activeKeySet = false
-
+	ErrKeyNotInitialized = errors.New("kunci enkripsi database belum diinisialisasi")
 	ErrInvalidCiphertext = errors.New("ciphertext tidak valid atau format rusak")
 	ErrDecryptionFailed  = errors.New("dekripsi AES-256-GCM gagal: tag integritas tidak cocok atau kunci salah")
-	ErrKeyLengthInvalid  = errors.New("kunci enkripsi AES-256 harus tepat 32 byte (256-bit)")
+	ErrKeyLengthInvalid  = errors.New("kunci enkripsi AES-256 harus tepat 32 byte (64 karakter hex atau base64 32 byte)")
 )
 
-// InitEncryptionKey sets the global 256-bit AES master key from configuration or environment
-func InitEncryptionKey(rawKey string) error {
-	keyMu.Lock()
-	defer keyMu.Unlock()
-
-	trimmed := strings.TrimSpace(rawKey)
+// ParseKey decodes a 256-bit key given as 64 hex characters or base64 of 32 bytes.
+// Raw passphrases are rejected: keys must be generated randomly (e.g. `openssl rand -hex 32`).
+func ParseKey(raw string) ([]byte, error) {
+	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
-		// Keep default development key
-		return nil
+		return nil, ErrKeyLengthInvalid
 	}
-
-	// 1. Try decoding as 64-char Hex (32 bytes)
 	if len(trimmed) == 64 {
-		if decodedHex, err := hex.DecodeString(trimmed); err == nil && len(decodedHex) == AESKeyLength {
-			activeKey = decodedHex
-			activeKeySet = true
-			return nil
+		if k, err := hex.DecodeString(trimmed); err == nil && len(k) == AESKeyLength {
+			return k, nil
 		}
 	}
-
-	// 2. Try decoding as Base64 (32 bytes)
-	if decodedB64, err := base64.StdEncoding.DecodeString(trimmed); err == nil && len(decodedB64) == AESKeyLength {
-		activeKey = decodedB64
-		activeKeySet = true
-		return nil
+	if k, err := base64.StdEncoding.DecodeString(trimmed); err == nil && len(k) == AESKeyLength {
+		return k, nil
 	}
+	return nil, ErrKeyLengthInvalid
+}
 
-	// 3. Raw byte string: pad or derive SHA-256 to ensure exactly 32 bytes
+// parseLegacyKey additionally accepts the historical 32-character raw-string key
+// format, ONLY for decrypting legacy enc:v1 data during rotation.
+func parseLegacyKey(raw string) ([]byte, error) {
+	if k, err := ParseKey(raw); err == nil {
+		return k, nil
+	}
+	trimmed := strings.TrimSpace(raw)
 	if len(trimmed) == AESKeyLength {
-		activeKey = []byte(trimmed)
-		activeKeySet = true
-		return nil
+		return []byte(trimmed), nil
 	}
+	return nil, ErrKeyLengthInvalid
+}
 
-	// Derive uniform 32-byte key using SHA-256
-	h := sha256.Sum256([]byte(trimmed))
-	activeKey = h[:]
-	activeKeySet = true
+// InitKeys configures the active key (required) and an optional previous key
+// (decrypt-only, used for legacy/rotated ciphertext).
+func InitKeys(active, previous string) error {
+	ak, err := ParseKey(active)
+	if err != nil {
+		return fmt.Errorf("DB_ENCRYPTION_KEY: %w", err)
+	}
+	var pk []byte
+	if strings.TrimSpace(previous) != "" {
+		pk, err = parseLegacyKey(previous)
+		if err != nil {
+			return fmt.Errorf("DB_ENCRYPTION_KEY_PREVIOUS: %w", err)
+		}
+	}
+	keyMu.Lock()
+	defer keyMu.Unlock()
+	activeKey = ak
+	previousKey = pk
 	return nil
 }
 
-// GetActiveKey safely returns a copy of current active master key
-func GetActiveKey() []byte {
+func getKeys() (active, previous []byte, err error) {
 	keyMu.RLock()
 	defer keyMu.RUnlock()
-	keyCopy := make([]byte, len(activeKey))
-	copy(keyCopy, activeKey)
-	return keyCopy
+	if len(activeKey) != AESKeyLength {
+		return nil, nil, ErrKeyNotInitialized
+	}
+	a := append([]byte(nil), activeKey...)
+	var p []byte
+	if len(previousKey) == AESKeyLength {
+		p = append([]byte(nil), previousKey...)
+	}
+	return a, p, nil
 }
 
-// Encrypt encrypts raw plaintext bytes using AES-256-GCM with a cryptographically secure random nonce.
-// The result is prefixed with "enc:v1:" and Base64-encoded (nonce + ciphertext + tag).
+func newGCM(key []byte) (cipher.AEAD, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, fmt.Errorf("gagal membuat AES cipher: %w", err)
+	}
+	return cipher.NewGCM(block)
+}
+
+// Encrypt encrypts plaintext with the active key (format v2).
 func Encrypt(plaintext []byte) (string, error) {
 	if len(plaintext) == 0 {
 		return "", nil
 	}
-
-	key := GetActiveKey()
-	block, err := aes.NewCipher(key)
+	key, _, err := getKeys()
 	if err != nil {
-		return "", fmt.Errorf("gagal membuat AES cipher: %w", err)
+		return "", err
 	}
-
-	gcm, err := cipher.NewGCM(block)
+	gcm, err := newGCM(key)
 	if err != nil {
-		return "", fmt.Errorf("gagal menginisialisasi GCM mode: %w", err)
+		return "", err
 	}
-
-	// Generate 12-byte cryptographically secure random nonce
 	nonce := make([]byte, GCMNonceLength)
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
 		return "", fmt.Errorf("gagal menghasilkan nonce acak: %w", err)
 	}
-
-	// Seal: appends ciphertext + 16-byte authentication tag to nonce
 	sealed := gcm.Seal(nonce, nonce, plaintext, nil)
-
-	// Return prefixed base64 string
 	return CipherPrefix + base64.StdEncoding.EncodeToString(sealed), nil
 }
 
-// Decrypt decrypts an "enc:v1:" prefixed Base64 string using AES-256-GCM.
-// If the input is not prefixed (e.g. legacy unencrypted plaintext during migration), it gracefully returns the input as-is.
+func openWith(key []byte, raw []byte) ([]byte, error) {
+	gcm, err := newGCM(key)
+	if err != nil {
+		return nil, err
+	}
+	plaintext, err := gcm.Open(nil, raw[:GCMNonceLength], raw[GCMNonceLength:], nil)
+	if err != nil {
+		return nil, ErrDecryptionFailed
+	}
+	return plaintext, nil
+}
+
+// NeedsReencryption reports whether a stored value is plaintext or legacy v1.
+func NeedsReencryption(v string) bool {
+	t := strings.TrimSpace(v)
+	return t != "" && !strings.HasPrefix(t, CipherPrefix)
+}
+
+// Decrypt decrypts v2 (active key) or v1 (previous key, then active key).
+// Values without any prefix are legacy plaintext and returned unchanged so the
+// rekey migration can encrypt them; they are reported by NeedsReencryption.
 func Decrypt(ciphertextStr string) ([]byte, error) {
 	trimmed := strings.TrimSpace(ciphertextStr)
 	if trimmed == "" {
 		return []byte(""), nil
 	}
 
-	// Backward Compatibility: If not encrypted with prefix, return plain string bytes
-	if !strings.HasPrefix(trimmed, CipherPrefix) {
+	var payload string
+	legacy := false
+	switch {
+	case strings.HasPrefix(trimmed, CipherPrefix):
+		payload = strings.TrimPrefix(trimmed, CipherPrefix)
+	case strings.HasPrefix(trimmed, LegacyCipherPrefix):
+		payload = strings.TrimPrefix(trimmed, LegacyCipherPrefix)
+		legacy = true
+	default:
 		return []byte(trimmed), nil
 	}
 
-	rawB64 := strings.TrimPrefix(trimmed, CipherPrefix)
-	ciphertext, err := base64.StdEncoding.DecodeString(rawB64)
-	if err != nil {
+	raw, err := base64.StdEncoding.DecodeString(payload)
+	if err != nil || len(raw) < GCMNonceLength+16 {
 		return nil, ErrInvalidCiphertext
 	}
 
-	if len(ciphertext) < GCMNonceLength+16 {
-		return nil, ErrInvalidCiphertext
-	}
-
-	key := GetActiveKey()
-	block, err := aes.NewCipher(key)
+	active, previous, err := getKeys()
 	if err != nil {
-		return nil, fmt.Errorf("gagal membuat AES cipher: %w", err)
+		return nil, err
 	}
 
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, fmt.Errorf("gagal menginisialisasi GCM mode: %w", err)
+	if !legacy {
+		return openWith(active, raw)
 	}
-
-	nonce := ciphertext[:GCMNonceLength]
-	actualCiphertext := ciphertext[GCMNonceLength:]
-
-	plaintext, err := gcm.Open(nil, nonce, actualCiphertext, nil)
-	if err != nil {
-		return nil, ErrDecryptionFailed
+	if previous != nil {
+		if pt, err := openWith(previous, raw); err == nil {
+			return pt, nil
+		}
 	}
-
-	return plaintext, nil
+	return openWith(active, raw)
 }
 
 // EncryptString is a convenience helper for string plaintext
@@ -177,22 +218,11 @@ func DecryptString(ciphertext string) (string, error) {
 	if ciphertext == "" {
 		return "", nil
 	}
-	bytes, err := Decrypt(ciphertext)
+	b, err := Decrypt(ciphertext)
 	if err != nil {
 		return "", err
 	}
-	return string(bytes), nil
-}
-
-// BlindIndex creates a deterministic HMAC-SHA256 hash of a search term (e.g. for looking up encrypted columns).
-func BlindIndex(term string) string {
-	if strings.TrimSpace(term) == "" {
-		return ""
-	}
-	key := GetActiveKey()
-	mac := hmac.New(sha256.New, key)
-	mac.Write([]byte(strings.ToLower(strings.TrimSpace(term))))
-	return hex.EncodeToString(mac.Sum(nil))
+	return string(b), nil
 }
 
 // ============================================================================
@@ -203,18 +233,23 @@ func BlindIndex(term string) string {
 // on INSERT/UPDATE (Valuer) and automatically decrypts on SELECT (Scanner).
 type EncryptedString string
 
-// Value implements driver.Valuer interface for GORM / database writes
+// Value implements driver.Valuer interface for GORM / database writes.
+// Values are always written in the current (v2) format.
 func (e EncryptedString) Value() (driver.Value, error) {
 	val := string(e)
 	if val == "" {
 		return "", nil
 	}
-
-	// If already encrypted with prefix, don't double-encrypt
 	if strings.HasPrefix(val, CipherPrefix) {
 		return val, nil
 	}
-
+	if strings.HasPrefix(val, LegacyCipherPrefix) {
+		pt, err := DecryptString(val)
+		if err != nil {
+			return nil, fmt.Errorf("gagal re-enkripsi kolom legacy: %w", err)
+		}
+		val = pt
+	}
 	encrypted, err := EncryptString(val)
 	if err != nil {
 		return nil, fmt.Errorf("gagal mengenkripsi kolom database: %w", err)
@@ -222,13 +257,12 @@ func (e EncryptedString) Value() (driver.Value, error) {
 	return encrypted, nil
 }
 
-// Scan implements sql.Scanner interface for GORM / database reads
+// Scan implements sql.Scanner interface for GORM / database reads (fail-closed).
 func (e *EncryptedString) Scan(value interface{}) error {
 	if value == nil {
 		*e = ""
 		return nil
 	}
-
 	var raw string
 	switch v := value.(type) {
 	case string:
@@ -238,19 +272,14 @@ func (e *EncryptedString) Scan(value interface{}) error {
 	default:
 		return fmt.Errorf("tipe data tidak didukung untuk EncryptedString: %T", value)
 	}
-
 	if raw == "" {
 		*e = ""
 		return nil
 	}
-
 	decrypted, err := DecryptString(raw)
 	if err != nil {
-		// In case of integrity error, keep raw string rather than crashing application
-		*e = EncryptedString(raw)
-		return nil
+		return fmt.Errorf("dekripsi kolom PII gagal: %w", err)
 	}
-
 	*e = EncryptedString(decrypted)
 	return nil
 }
@@ -262,4 +291,3 @@ func (e EncryptedString) String() string {
 func (e EncryptedString) IsEmpty() bool {
 	return string(e) == ""
 }
-

@@ -7,6 +7,8 @@ import '../../../data/repositories/account_repository.dart';
 import '../../blocs/auth/auth_cubit.dart';
 import '../../blocs/auth/auth_state.dart';
 import '../helpdesk/helpdesk_screen.dart';
+import '../../../core/network/api_exception.dart';
+import '../../../core/money/money.dart';
 
 class LoanScreen extends StatefulWidget {
   const LoanScreen({super.key});
@@ -51,7 +53,13 @@ class _LoanScreenState extends State<LoanScreen> {
         cif = await storage.getCIF();
       }
       if (cif == null || cif.isEmpty) {
-        cif = '001000309659';
+        if (mounted) {
+          setState(() {
+            _loans = [];
+            _isLoading = false;
+          });
+        }
+        return;
       }
 
       final repo = context.read<AccountRepository>();
@@ -66,7 +74,7 @@ class _LoanScreenState extends State<LoanScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'Gagal memuat data pinjaman';
+          _errorMessage = e is ApiException ? e.message : 'Layanan sedang mengalami gangguan. Silakan coba kembali beberapa saat lagi.';
           _isLoading = false;
         });
       }
@@ -90,11 +98,15 @@ class _LoanScreenState extends State<LoanScreen> {
 
   void _showLoanDetailSheet(BuildContext context, Map<String, dynamic> loan) {
     final accNo = loan['nomor_rekening']?.toString() ?? '-';
-    final prodName = loan['nama_produk']?.toString() ?? 'Kredit Modal Kerja';
-    final plafon = (loan['plafon'] ?? 0).toDouble();
-    final bakiDebet = (loan['baki_debet'] ?? 0).toDouble();
-    final statusKet = loan['status_rekening_keterangan']?.toString() ?? 'Aktif';
-    final kolKet = loan['kolektibilitas_keterangan']?.toString() ?? 'Lancar';
+    final prodName = loan['nama_produk']?.toString() ?? '-';
+    final plafon = Money.tryParse(loan['plafon']);
+    final bakiDebet = Money.tryParse(loan['baki_debet']);
+    final pokokTerbayar = (plafon != null && bakiDebet != null && plafon >= bakiDebet) ? plafon - bakiDebet : null;
+    final statusKet = loan['status_rekening_keterangan']?.toString() ?? '-';
+    final kolKet = loan['kolektibilitas_keterangan']?.toString() ?? '-';
+    final kolNo = loan['kolektibilitas'];
+    final kolLabel = kolNo != null ? '$kolKet (Kol $kolNo)' : kolKet;
+    final isLancar = kolNo == 1;
 
     showModalBottomSheet(
       context: context,
@@ -172,10 +184,9 @@ class _LoanScreenState extends State<LoanScreen> {
 
               _buildDetailRow('Plafon Pinjaman', CurrencyFormatter.formatRupiah(plafon)),
               _buildDetailRow('Sisa Pokok (Baki Debet)', CurrencyFormatter.formatRupiah(bakiDebet), isBold: true),
-              _buildDetailRow('Pokok Terbayar', CurrencyFormatter.formatRupiah((plafon - bakiDebet).clamp(0, plafon))),
-              _buildDetailRow('Status Kolektibilitas', '$kolKet (Kol 1)', isGreen: true),
-              _buildDetailRow('Sistem Pembayaran', 'Autodebet Rekening Tabungan Utama'),
-              _buildDetailRow('Kantor Pelayanan', 'KC Bogor Pusat (Jl. Pajajaran 88)'),
+              _buildDetailRow('Pokok Terbayar', CurrencyFormatter.formatRupiah(pokokTerbayar)),
+              _buildDetailRow('Status Kolektibilitas', kolLabel, isGreen: isLancar),
+              _buildDetailRow('Kantor Pelayanan', (loan['nama_kantor'] ?? '-').toString()),
 
               const SizedBox(height: 22),
 
@@ -245,17 +256,20 @@ class _LoanScreenState extends State<LoanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    double totalPlafon = 0;
-    double totalBakiDebet = 0;
-
+    // Totals are shown only when every loan carries valid amounts (otherwise "-").
+    Money? totalPlafon = const Money.zero();
+    Money? totalBakiDebet = const Money.zero();
     for (final loan in _loans) {
-      totalPlafon += (loan['plafon'] ?? 0).toDouble();
-      totalBakiDebet += (loan['baki_debet'] ?? 0).toDouble();
+      final p = Money.tryParse(loan['plafon']);
+      final b = Money.tryParse(loan['baki_debet']);
+      totalPlafon = (totalPlafon == null || p == null) ? null : totalPlafon + p;
+      totalBakiDebet = (totalBakiDebet == null || b == null) ? null : totalBakiDebet + b;
     }
 
+    // UI progress ratio only (not a monetary computation).
     double progress = 0.0;
-    if (totalPlafon > 0) {
-      progress = ((totalPlafon - totalBakiDebet) / totalPlafon).clamp(0.0, 1.0);
+    if (totalPlafon != null && totalBakiDebet != null && !totalPlafon.isZero) {
+      progress = (totalPlafon - totalBakiDebet).ratioOf(totalPlafon);
     }
 
     return Scaffold(
@@ -552,15 +566,15 @@ class _LoanScreenState extends State<LoanScreen> {
                                 final loan = _loans[index];
                                 final rawAccNo = loan['nomor_rekening']?.toString() ?? '-';
                                 final formattedAcc = _formatAccountNumber(rawAccNo);
-                                final productName = loan['nama_produk']?.toString() ?? 'Kredit Modal Kerja';
-                                final plafon = (loan['plafon'] ?? 0).toDouble();
-                                final bakiDebet = (loan['baki_debet'] ?? 0).toDouble();
-                                final statusKet = loan['status_rekening_keterangan']?.toString() ?? 'Aktif';
-                                final kolKet = loan['kolektibilitas_keterangan']?.toString() ?? 'Lancar';
+                                final productName = loan['nama_produk']?.toString() ?? '-';
+                                final plafon = Money.tryParse(loan['plafon']);
+                                final bakiDebet = Money.tryParse(loan['baki_debet']);
+                                final statusKet = loan['status_rekening_keterangan']?.toString() ?? '-';
+                                final kolKet = loan['kolektibilitas_keterangan']?.toString() ?? '-';
 
                                 double itemProgress = 0.0;
-                                if (plafon > 0) {
-                                  itemProgress = ((plafon - bakiDebet) / plafon).clamp(0.0, 1.0);
+                                if (plafon != null && bakiDebet != null && !plafon.isZero) {
+                                  itemProgress = (plafon - bakiDebet).ratioOf(plafon);
                                 }
 
                                 return Container(

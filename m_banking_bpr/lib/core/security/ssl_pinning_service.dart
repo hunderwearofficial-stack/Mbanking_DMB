@@ -1,75 +1,65 @@
 import 'dart:convert';
-import 'dart:developer';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
+
+/// Certificate pinning for the banking API (audit DMB-010).
+///
+/// The previous implementation used `badCertificateCallback`, which is only
+/// invoked for certificates that FAILED validation and therefore *accepted*
+/// invalid certificates; its "SHA-256" was not a hash. This version:
+///   * never overrides the platform's normal TLS/CA validation;
+///   * additionally (when pins are configured) requires the SHA-256 of the
+///     server's leaf certificate (DER) to match one of the pins.
+///
+/// Pins are injected at build time (comma separated, hex with or without
+/// colons, or base64):
+///   --dart-define=API_CERT_PINS=<current-cert-sha256>,<backup-cert-sha256>
+/// Always ship at least one backup pin and rotate certificates only after an app
+/// update containing the new pin. Pinning complements — never replaces — server-side
+/// authorization; it does not protect a rooted/instrumented device.
 class SslPinningService {
-  /// Toggle for enforcing strict SSL Pinning
-  /// Set to true for production HTTPS domains; gracefully handles dev HTTP IP environments
-  static bool isSslPinningEnforced = true;
+  static const String _pinsDefine = String.fromEnvironment('API_CERT_PINS');
 
-  /// Official SHA-256 Fingerprints (SPKI / Cert Fingerprint) for Bank DMB production hosts
-  static const Map<String, List<String>> pinnedFingerprints = {
-    'bprdanamandiribogor.co.id': [
-      // Primary Certificate Fingerprint (SHA-256)
-      '4E:3F:8A:12:9C:5D:7B:6A:88:1F:2E:3C:4D:5E:6F:70:81:92:A3:B4:C5:D6:E7:F8:09:1A:2B:3C:4D:5E:6F:70',
-      // Backup Certificate Fingerprint
-      '9A:8B:7C:6D:5E:4F:3A:2B:1C:0D:FE:ED:DC:CB:BA:A9:98:87:76:65:54:43:32:21:10:0F:ED:CB:A9:87:65:43',
-    ],
-    'api.dmb.co.id': [
-      '4E:3F:8A:12:9C:5D:7B:6A:88:1F:2E:3C:4D:5E:6F:70:81:92:A3:B4:C5:D6:E7:F8:09:1A:2B:3C:4D:5E:6F:70',
-    ],
-  };
+  static final List<String> pins = parsePins(_pinsDefine);
 
-  /// Validates an X509 certificate during TLS handshake
-  static bool validateCertificate(X509Certificate cert, String host, int port) {
-    // 1. Allow local development & direct IP dev connections without HTTPS certificate
-    final isIpOrLocal = host == 'localhost' ||
-        host == '127.0.0.1' ||
-        host == '10.0.2.2' ||
-        RegExp(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$').hasMatch(host);
+  static bool get isPinningConfigured => pins.isNotEmpty;
 
-    if (isIpOrLocal) {
-      log('[SSL PINNING] Host $host:$port terdeteksi sebagai Environment Dev / IP. Meloloskan handshake TLS.');
-      return true;
-    }
-
-    // 2. If SSL pinning is temporarily relaxed in settings
-    if (!isSslPinningEnforced) {
-      log('[SSL PINNING WARNING] SSL Pinning dinonaktifkan sementara.');
-      return true;
-    }
-
-    // 3. For official Bank DMB HTTPS domains, strictly verify the SHA-256 fingerprint
-    final pins = pinnedFingerprints[host];
-    if (pins != null && pins.isNotEmpty) {
-      // Calculate SHA-256 hash of certificate DER bytes
-      final derBytes = cert.der;
-      final certSha256 = _calculateSha256Hex(derBytes);
-
-      for (final pin in pins) {
-        final cleanPin = pin.replaceAll(':', '').toLowerCase();
-        if (cleanPin == certSha256.toLowerCase()) {
-          log('[SSL PINNING SUCCESS] Sertifikat host $host valid & cocok dengan PIN terdaftar.');
-          return true;
-        }
+  /// Normalizes a comma-separated pin list (hex with/without colons, or base64) to lowercase hex.
+  static List<String> parsePins(String raw) {
+    final out = <String>[];
+    for (final p in raw.split(',')) {
+      final v = p.trim();
+      if (v.isEmpty) continue;
+      final hex = v.replaceAll(':', '').toLowerCase();
+      if (RegExp(r'^[0-9a-f]{64}$').hasMatch(hex)) {
+        out.add(hex);
+        continue;
       }
-
-      log('[SSL PINNING ERROR] Man-In-The-Middle (MITM) terdeteksi! Sertifikat host $host tidak cocok dengan PIN resmi!');
-      return false;
+      try {
+        final bytes = base64.decode(v);
+        if (bytes.length == 32) {
+          out.add(bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join());
+        }
+      } catch (_) {
+        // ignore malformed pin
+      }
     }
-
-    // Default: allow standard CA chain if host is not explicitly pinned
-    return true;
+    return out;
   }
 
-  static String _calculateSha256Hex(List<int> bytes) {
-    // Basic fast SHA-256 formatting for DER bytes
-    // In production, matching the raw DER hash hex string
-    var hex = '';
-    for (final b in bytes.take(32)) {
-      hex += b.toRadixString(16).padLeft(2, '0');
+  /// SHA-256 (hex) of a DER-encoded certificate.
+  static String fingerprint(List<int> der) => sha256.convert(der).toString();
+
+  /// Used as dio's `IOHttpClientAdapter.validateCertificate`, which runs AFTER the
+  /// platform has already validated the certificate chain.
+  static bool validateCertificate(X509Certificate? cert, String host, int port) {
+    if (!isPinningConfigured) {
+      return true; // standard CA validation still applies
     }
-    return hex;
+    if (cert == null) {
+      return false; // no TLS => refuse when pinning is required
+    }
+    return pins.contains(fingerprint(cert.der));
   }
 }
-

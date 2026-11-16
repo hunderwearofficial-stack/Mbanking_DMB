@@ -2,33 +2,44 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"mbanking-bpr/pkg/money"
+	"strings"
 	"time"
 
 	"mbanking-bpr/internal/domain"
 	"mbanking-bpr/internal/model"
 	"mbanking-bpr/pkg/crypto"
-	"mbanking-bpr/pkg/utils"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
+var (
+	// ErrPhoneInUse is returned when a phone number is already bound to another CIF.
+	ErrPhoneInUse = errors.New("nomor handphone sudah terdaftar pada nasabah lain")
+	// ErrAccountOwnedByOther is returned when an account is linked to a different customer.
+	ErrAccountOwnedByOther = errors.New("rekening terhubung dengan nasabah lain")
+)
+
 type AuthRepository interface {
 	DB() *gorm.DB
 	FindByIdentifier(ctx context.Context, identifier string) (*model.User, error)
+	FindByCIF(ctx context.Context, cif string) (*model.User, error)
 	FindByID(ctx context.Context, id string) (*model.User, error)
 	FindPrimaryAccount(ctx context.Context, userID string) (*model.Account, error)
 	EnsurePrimaryAccount(ctx context.Context, user *model.User, preferredAccountNo string) (*model.Account, error)
 	FindAccountWithUser(ctx context.Context, accountNo string) (*model.Account, *model.User, error)
-	UpdateUserCredentials(ctx context.Context, userID, passwordHash, pinHash, phoneNumber, deviceID string) error
+	PhoneUsedByOtherUser(ctx context.Context, phone, userID string) (bool, error)
+	SetActivationCredentials(ctx context.Context, userID, passwordHash, pinHash, phoneNumber, deviceID string) error
 	UpdatePasswordHash(ctx context.Context, userID, passwordHash, deviceID string) error
 	UpdateOnlyPINHash(ctx context.Context, userID, pinHash string) error
 	IncrementFailedLogin(ctx context.Context, userID string, maxAttempts int) (int, bool, error)
 	ResetFailedLogin(ctx context.Context, userID string) error
-	UpdateDeviceID(ctx context.Context, userID, deviceID string) error
-	CreateUser(ctx context.Context, user *model.User) error
-	UpsertCBSUserAndAccount(ctx context.Context, nasabah *domain.CBSNasabahData, bal *domain.BalanceResponse, phone string) (*model.User, *model.Account, error)
+	IncrementFailedPIN(ctx context.Context, userID string, maxAttempts int) (int, bool, error)
+	ResetFailedPIN(ctx context.Context, userID string) error
+	UpsertCBSUserAndAccount(ctx context.Context, nasabah *domain.CBSNasabahData, bal *domain.BalanceResponse) (*model.User, *model.Account, error)
 }
 
 type authRepository struct {
@@ -43,16 +54,26 @@ func (r *authRepository) DB() *gorm.DB {
 	return r.db
 }
 
+// FindByIdentifier finds a customer by exact phone number or exact CIF.
 func (r *authRepository) FindByIdentifier(ctx context.Context, identifier string) (*model.User, error) {
-	if r.db == nil {
+	if r.db == nil || strings.TrimSpace(identifier) == "" {
 		return nil, gorm.ErrRecordNotFound
 	}
 	var user model.User
-	// Match either phone_number or cif
-	err := r.db.WithContext(ctx).
+	if err := r.db.WithContext(ctx).
 		Where("phone_number = ? OR cif = ?", identifier, identifier).
-		First(&user).Error
-	if err != nil {
+		First(&user).Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (r *authRepository) FindByCIF(ctx context.Context, cif string) (*model.User, error) {
+	if r.db == nil || strings.TrimSpace(cif) == "" {
+		return nil, gorm.ErrRecordNotFound
+	}
+	var user model.User
+	if err := r.db.WithContext(ctx).Where("cif = ?", strings.TrimSpace(cif)).First(&user).Error; err != nil {
 		return nil, err
 	}
 	return &user, nil
@@ -84,6 +105,21 @@ func (r *authRepository) FindPrimaryAccount(ctx context.Context, userID string) 
 	return &account, nil
 }
 
+// pendingPhonePlaceholder is a non-numeric (never routable) value for the unique
+// phone column of customers that have not completed activation.
+func pendingPhonePlaceholder(cif string) string {
+	p := "P-" + cif
+	if len(p) > 20 {
+		p = p[:20]
+	}
+	return p
+}
+
+// IsPendingPhone reports whether phone is an activation placeholder.
+func IsPendingPhone(phone string) bool {
+	return strings.HasPrefix(phone, "P-")
+}
+
 func deriveAccountNoFromCIF(cif string) string {
 	if len(cif) >= 8 {
 		return "00101" + cif[len(cif)-8:]
@@ -94,6 +130,17 @@ func deriveAccountNoFromCIF(cif string) string {
 	return fmt.Sprintf("00101%d", time.Now().Unix()%100000000)
 }
 
+func truncateString(s string, max int) string {
+	s = strings.TrimSpace(s)
+	if len(s) > max {
+		return s[:max]
+	}
+	return s
+}
+
+// EnsurePrimaryAccount returns the user's primary account, creating a local
+// placeholder record if none exists. An existing account that belongs to a
+// different customer is NEVER re-assigned (audit DMB-003).
 func (r *authRepository) EnsurePrimaryAccount(ctx context.Context, user *model.User, preferredAccountNo string) (*model.Account, error) {
 	if r.db == nil || user == nil {
 		return nil, gorm.ErrInvalidDB
@@ -107,29 +154,16 @@ func (r *authRepository) EnsurePrimaryAccount(ctx context.Context, user *model.U
 	}
 	var acc model.Account
 	if err := r.db.WithContext(ctx).Where("account_number = ?", accNo).First(&acc).Error; err == nil {
-		_ = r.db.WithContext(ctx).Model(&acc).Updates(map[string]interface{}{
-			"user_id":     user.ID,
-			"holder_name": user.FullName,
-			"status":      model.AccountStatusActive,
-			"updated_at":  time.Now(),
-		}).Error
+		if acc.UserID != user.ID {
+			return nil, ErrAccountOwnedByOther
+		}
 		return &acc, nil
 	}
 	now := time.Now()
 	newAcc := model.Account{
-		ID:               uuid.NewString(),
-		UserID:           user.ID,
-		AccountNumber:    accNo,
-		HolderName:       user.FullName,
-		ProductCode:      "01",
-		AccountType:      "Tabungan Mandiri DMB",
-		Balance:          0,
-		MinimumBalance:   0,
-		BlockedBalance:   0,
-		EffectiveBalance: 0,
-		Status:           model.AccountStatusActive,
-		CreatedAt:        now,
-		UpdatedAt:        now,
+		ID: uuid.NewString(), UserID: user.ID, AccountNumber: accNo, HolderName: user.FullName,
+		ProductCode: "01", AccountType: "Tabungan Mandiri DMB", Status: model.AccountStatusActive,
+		CreatedAt: now, UpdatedAt: now,
 	}
 	if err := r.db.WithContext(ctx).Create(&newAcc).Error; err != nil {
 		return nil, err
@@ -148,9 +182,21 @@ func (r *authRepository) FindAccountWithUser(ctx context.Context, accountNo stri
 	return &account, account.User, nil
 }
 
-func (r *authRepository) UpdateUserCredentials(ctx context.Context, userID, passwordHash, pinHash, phoneNumber, deviceID string) error {
+func (r *authRepository) PhoneUsedByOtherUser(ctx context.Context, phone, userID string) (bool, error) {
 	if r.db == nil {
-		return nil
+		return false, gorm.ErrInvalidDB
+	}
+	var n int64
+	err := r.db.WithContext(ctx).Model(&model.User{}).
+		Where("phone_number = ? AND id <> ?", phone, userID).Count(&n).Error
+	return n > 0, err
+}
+
+// SetActivationCredentials stores credentials after a successful OTP verification
+// and binds the verified phone number and device.
+func (r *authRepository) SetActivationCredentials(ctx context.Context, userID, passwordHash, pinHash, phoneNumber, deviceID string) error {
+	if r.db == nil {
+		return gorm.ErrInvalidDB
 	}
 	updates := map[string]interface{}{
 		"password_hash":         passwordHash,
@@ -169,7 +215,7 @@ func (r *authRepository) UpdateUserCredentials(ctx context.Context, userID, pass
 
 func (r *authRepository) UpdatePasswordHash(ctx context.Context, userID, passwordHash, deviceID string) error {
 	if r.db == nil {
-		return nil
+		return gorm.ErrInvalidDB
 	}
 	updates := map[string]interface{}{
 		"password_hash":         passwordHash,
@@ -185,7 +231,7 @@ func (r *authRepository) UpdatePasswordHash(ctx context.Context, userID, passwor
 
 func (r *authRepository) UpdateOnlyPINHash(ctx context.Context, userID, pinHash string) error {
 	if r.db == nil {
-		return nil
+		return gorm.ErrInvalidDB
 	}
 	return r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
 		"pin_hash":            pinHash,
@@ -194,235 +240,193 @@ func (r *authRepository) UpdateOnlyPINHash(ctx context.Context, userID, pinHash 
 	}).Error
 }
 
-func (r *authRepository) IncrementFailedLogin(ctx context.Context, userID string, maxAttempts int) (int, bool, error) {
-	if r.db == nil {
-		return 1, false, nil
+// incrementCounter atomically increments a failure counter and blocks the
+// account when the limit is reached (no read-modify-write race, audit DMB-018).
+func incrementCounter(ctx context.Context, db *gorm.DB, userID, column string, maxAttempts int) (int, bool, error) {
+	if db == nil {
+		return 0, false, gorm.ErrInvalidDB
 	}
 	if maxAttempts <= 0 {
 		maxAttempts = 3
 	}
-	var user model.User
-	if err := r.db.WithContext(ctx).Where("id = ?", userID).First(&user).Error; err != nil {
-		return 1, false, err
+	var attempts int
+	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&model.User{}).Where("id = ?", userID).
+			Updates(map[string]interface{}{column: gorm.Expr(column + " + 1"), "updated_at": time.Now()}).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&model.User{}).Where("id = ?", userID).Select(column).Scan(&attempts).Error; err != nil {
+			return err
+		}
+		if attempts >= maxAttempts {
+			return tx.Model(&model.User{}).Where("id = ?", userID).Update("is_active", false).Error
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, false, err
 	}
-	attempts := user.FailedLoginAttempts + 1
-	blocked := attempts >= maxAttempts
-	updates := map[string]interface{}{
-		"failed_login_attempts": attempts,
-		"updated_at":            time.Now(),
-	}
-	if blocked {
-		updates["is_active"] = false
-	}
-	_ = r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", userID).Updates(updates).Error
-	return attempts, blocked, nil
+	return attempts, attempts >= maxAttempts, nil
+}
+
+func (r *authRepository) IncrementFailedLogin(ctx context.Context, userID string, maxAttempts int) (int, bool, error) {
+	return incrementCounter(ctx, r.db, userID, "failed_login_attempts", maxAttempts)
 }
 
 func (r *authRepository) ResetFailedLogin(ctx context.Context, userID string) error {
 	if r.db == nil {
-		return nil
+		return gorm.ErrInvalidDB
 	}
 	return r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
-		"failed_login_attempts": 0,
-		"updated_at":            time.Now(),
+		"failed_login_attempts": 0, "updated_at": time.Now(),
 	}).Error
 }
 
-func (r *authRepository) UpdateDeviceID(ctx context.Context, userID, deviceID string) error {
-	if r.db == nil {
-		return nil
-	}
-	return r.db.WithContext(ctx).
-		Model(&model.User{}).
-		Where("id = ?", userID).
-		Update("device_id", deviceID).Error
+func (r *authRepository) IncrementFailedPIN(ctx context.Context, userID string, maxAttempts int) (int, bool, error) {
+	return incrementCounter(ctx, r.db, userID, "failed_pin_attempts", maxAttempts)
 }
 
-func (r *authRepository) CreateUser(ctx context.Context, user *model.User) error {
+func (r *authRepository) ResetFailedPIN(ctx context.Context, userID string) error {
 	if r.db == nil {
-		return nil
+		return gorm.ErrInvalidDB
 	}
-	return r.db.WithContext(ctx).Create(user).Error
+	return r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+		"failed_pin_attempts": 0, "updated_at": time.Now(),
+	}).Error
 }
 
-func (r *authRepository) UpsertCBSUserAndAccount(ctx context.Context, nasabah *domain.CBSNasabahData, bal *domain.BalanceResponse, phone string) (*model.User, *model.Account, error) {
+// UpsertCBSUserAndAccount mirrors a CBS customer (looked up strictly by CIF) into the
+// local database. New customers are created WITHOUT credentials: login is impossible
+// until the activation flow (OTP to the CBS-registered phone) sets password and PIN
+// (audit DMB-003). Existing credentials, phone and device bindings are not modified.
+func (r *authRepository) UpsertCBSUserAndAccount(ctx context.Context, nasabah *domain.CBSNasabahData, bal *domain.BalanceResponse) (*model.User, *model.Account, error) {
 	if r.db == nil {
 		return nil, nil, gorm.ErrInvalidDB
 	}
+	if nasabah == nil || strings.TrimSpace(nasabah.CIF) == "" {
+		return nil, nil, errors.New("data nasabah CBS tidak lengkap")
+	}
+	cif := strings.TrimSpace(nasabah.CIF)
 
-	accountNo := ""
-	fullName := ""
-	productCode := ""
-	accountType := "Tabungan Mandiri DMB"
-	balance := 0.0
-	minBal := 0.0
-	blockBal := 0.0
-	effBal := 0.0
-
+	accountNo, fullName, productCode, accountType := "", nasabah.Nama, "", "Tabungan Mandiri DMB"
+	var balance, minBal, blockBal, effBal money.Amount
 	if bal != nil {
 		accountNo = bal.AccountNumber
-		fullName = bal.HolderName
+		if fullName == "" {
+			fullName = bal.HolderName
+		}
 		productCode = bal.ProductCode
 		if bal.AccountType != "" {
 			accountType = bal.AccountType
 		}
-		balance = bal.Balance
-		minBal = bal.MinimumBalance
-		blockBal = bal.BlockedBalance
-		effBal = bal.EffectiveBalance
+		balance, minBal, blockBal, effBal = bal.Balance, bal.MinimumBalance, bal.BlockedBalance, bal.EffectiveBalance
 	}
 
-	cif := ""
-	nik := ""
-	email := ""
-	alamat := ""
-	kodePos := ""
-	jenisKelamin := ""
-	agama := ""
-	tglLahir := ""
-	tempatLahir := ""
-	namaIbuKandung := ""
-
-	if nasabah != nil {
-		cif = nasabah.CIF
-		nik = nasabah.NIK
-		if nasabah.Nama != "" {
-			fullName = nasabah.Nama
-		}
-		if nasabah.NoHP != "" && nasabah.NoHP != "0" && phone == "" {
-			phone = nasabah.NoHP
-		}
-		email = nasabah.Email
-		alamat = nasabah.Alamat
-		kodePos = nasabah.KodePos
-		jenisKelamin = nasabah.JenisKelamin
-		agama = nasabah.Agama
-		tglLahir = nasabah.TglLahir
-		tempatLahir = nasabah.TempatLahir
-		namaIbuKandung = nasabah.NamaIbuKandung
-	}
-
-	if cif == "" {
-		if len(accountNo) >= 9 {
-			cif = "001" + accountNo[len(accountNo)-9:]
-		} else {
-			cif = fmt.Sprintf("CBS-%s", accountNo)
+	fullName = truncateString(strings.TrimSpace(fullName), 100)
+	cif = truncateString(strings.TrimSpace(cif), 20)
+	accountNo = truncateString(strings.TrimSpace(accountNo), 30)
+	productCode = truncateString(strings.TrimSpace(productCode), 20)
+	accountType = truncateString(strings.TrimSpace(accountType), 30)
+	kodePos := truncateString(strings.TrimSpace(nasabah.KodePos), 15)
+	rawJK := strings.ToUpper(strings.TrimSpace(nasabah.JenisKelamin))
+	jenisKelamin := truncateString(rawJK, 5)
+	if len(rawJK) > 5 {
+		if strings.HasPrefix(rawJK, "L") {
+			jenisKelamin = "L"
+		} else if strings.HasPrefix(rawJK, "P") || strings.HasPrefix(rawJK, "W") {
+			jenisKelamin = "P"
 		}
 	}
+	agama := truncateString(strings.TrimSpace(nasabah.Agama), 30)
 
-	defaultPw, _ := utils.HashPassword("rahasia123")
-	defaultPin, _ := utils.HashPIN("123456")
-
-	// Check if user with this CIF or phone already exists
 	var user model.User
-	err := r.db.WithContext(ctx).Where("cif = ? OR phone_number = ?", cif, phone).First(&user).Error
-	if err != nil {
+	err := r.db.WithContext(ctx).Where("cif = ?", cif).First(&user).Error
+	switch {
+	case errors.Is(err, gorm.ErrRecordNotFound):
+		// The phone column is unique and not null; until activation completes we store a
+		// non-routable placeholder derived from the CIF (never a customer-supplied number).
 		user = model.User{
 			ID:             uuid.NewString(),
-			NIK:            crypto.EncryptedString(nik),
+			NIK:            crypto.EncryptedString(nasabah.NIK),
 			CIF:            cif,
 			FullName:       fullName,
-			PhoneNumber:    phone,
-			Email:          crypto.EncryptedString(email),
-			Alamat:         crypto.EncryptedString(alamat),
+			PhoneNumber:    pendingPhonePlaceholder(cif),
+			Email:          crypto.EncryptedString(nasabah.Email),
+			Alamat:         crypto.EncryptedString(nasabah.Alamat),
 			KodePos:        kodePos,
 			JenisKelamin:   jenisKelamin,
 			Agama:          agama,
-			TglLahir:       crypto.EncryptedString(tglLahir),
-			TempatLahir:    crypto.EncryptedString(tempatLahir),
-			NamaIbuKandung: crypto.EncryptedString(namaIbuKandung),
-			PasswordHash:   defaultPw,
-			PINHash:        defaultPin,
+			TglLahir:       crypto.EncryptedString(nasabah.TglLahir),
+			TempatLahir:    crypto.EncryptedString(nasabah.TempatLahir),
+			NamaIbuKandung: crypto.EncryptedString(nasabah.NamaIbuKandung),
+			PasswordHash:   "", // not activated
+			PINHash:        "", // not activated
 			IsActive:       true,
 			CreatedAt:      time.Now(),
 			UpdatedAt:      time.Now(),
 		}
-		if createErr := r.db.WithContext(ctx).Create(&user).Error; createErr != nil {
-			return nil, nil, createErr
+		if err := r.db.WithContext(ctx).Create(&user).Error; err != nil {
+			return nil, nil, fmt.Errorf("create user (cif=%s, agama=%q len=%d, jk=%q len=%d, pos=%q len=%d): %w", user.CIF, user.Agama, len(user.Agama), user.JenisKelamin, len(user.JenisKelamin), user.KodePos, len(user.KodePos), err)
 		}
-	} else {
-		updates := map[string]interface{}{
-			"updated_at": time.Now(),
-		}
+	case err != nil:
+		return nil, nil, err
+	default:
+		updates := map[string]interface{}{"updated_at": time.Now()}
 		if fullName != "" {
 			updates["full_name"] = fullName
 		}
-		if nik != "" {
-			encNIK, _ := crypto.EncryptString(nik)
-			updates["nik"] = encNIK
+		for col, v := range map[string]string{
+			"nik": nasabah.NIK, "email": nasabah.Email, "alamat": nasabah.Alamat, "tgl_lahir": nasabah.TglLahir,
+			"tempat_lahir": nasabah.TempatLahir, "nama_ibu_kandung": nasabah.NamaIbuKandung,
+		} {
+			if v == "" {
+				continue
+			}
+			enc, encErr := crypto.EncryptString(v)
+			if encErr != nil {
+				return nil, nil, encErr
+			}
+			updates[col] = enc
 		}
-		if email != "" {
-			encEmail, _ := crypto.EncryptString(email)
-			updates["email"] = encEmail
-		}
-		if alamat != "" {
-			encAlamat, _ := crypto.EncryptString(alamat)
-			updates["alamat"] = encAlamat
-		}
-		if kodePos != "" {
+		if nasabah.KodePos != "" {
 			updates["kode_pos"] = kodePos
 		}
-		if jenisKelamin != "" {
+		if nasabah.JenisKelamin != "" {
 			updates["jenis_kelamin"] = jenisKelamin
 		}
-		if agama != "" {
+		if nasabah.Agama != "" {
 			updates["agama"] = agama
 		}
-		if tglLahir != "" {
-			encTgl, _ := crypto.EncryptString(tglLahir)
-			updates["tgl_lahir"] = encTgl
+		if err := r.db.WithContext(ctx).Model(&user).Updates(updates).Error; err != nil {
+			return nil, nil, fmt.Errorf("update user (cif=%s): %w", user.CIF, err)
 		}
-		if tempatLahir != "" {
-			encTempat, _ := crypto.EncryptString(tempatLahir)
-			updates["tempat_lahir"] = encTempat
-		}
-		if namaIbuKandung != "" {
-			encIbu, _ := crypto.EncryptString(namaIbuKandung)
-			updates["nama_ibu_kandung"] = encIbu
-		}
-		_ = r.db.WithContext(ctx).Model(&user).Updates(updates).Error
 	}
 
 	if accountNo == "" {
-		if existing, findErr := r.FindPrimaryAccount(ctx, user.ID); findErr == nil && existing != nil {
-			return &user, existing, nil
-		}
-		accountNo = deriveAccountNoFromCIF(user.CIF)
+		acc, err := r.EnsurePrimaryAccount(ctx, &user, "")
+		return &user, acc, err
 	}
 
+	// The account comes from CBS for this CIF, which is authoritative for ownership.
 	var acc model.Account
 	if err := r.db.WithContext(ctx).Where("account_number = ?", accountNo).First(&acc).Error; err != nil {
 		acc = model.Account{
-			ID:               uuid.NewString(),
-			UserID:           user.ID,
-			AccountNumber:    accountNo,
-			HolderName:       fullName,
-			ProductCode:      productCode,
-			AccountType:      accountType,
-			Balance:          balance,
-			MinimumBalance:   minBal,
-			BlockedBalance:   blockBal,
-			EffectiveBalance: effBal,
-			Status:           model.AccountStatusActive,
-			CreatedAt:        time.Now(),
-			UpdatedAt:        time.Now(),
+			ID: uuid.NewString(), UserID: user.ID, AccountNumber: accountNo, HolderName: fullName,
+			ProductCode: productCode, AccountType: accountType, Balance: balance, MinimumBalance: minBal,
+			BlockedBalance: blockBal, EffectiveBalance: effBal, Status: model.AccountStatusActive,
+			CreatedAt: time.Now(), UpdatedAt: time.Now(),
 		}
-		if createAccErr := r.db.WithContext(ctx).Create(&acc).Error; createAccErr != nil {
-			return &user, nil, createAccErr
+		if err := r.db.WithContext(ctx).Create(&acc).Error; err != nil {
+			return &user, nil, fmt.Errorf("create account (acc=%q len=%d, type=%q len=%d, prod=%q len=%d): %w", acc.AccountNumber, len(acc.AccountNumber), acc.AccountType, len(acc.AccountType), acc.ProductCode, len(acc.ProductCode), err)
 		}
 	} else {
-		_ = r.db.WithContext(ctx).Model(&acc).Updates(map[string]interface{}{
-			"user_id":           user.ID,
-			"holder_name":       fullName,
-			"product_code":      productCode,
-			"account_type":      accountType,
-			"balance":           balance,
-			"minimum_balance":   minBal,
-			"blocked_balance":   blockBal,
-			"effective_balance": effBal,
-			"updated_at":        time.Now(),
-		}).Error
+		if err := r.db.WithContext(ctx).Model(&acc).Updates(map[string]interface{}{
+			"user_id": user.ID, "holder_name": fullName, "product_code": productCode, "account_type": accountType,
+			"balance": balance, "minimum_balance": minBal, "blocked_balance": blockBal, "effective_balance": effBal,
+			"updated_at": time.Now(),
+		}).Error; err != nil {
+			return &user, nil, fmt.Errorf("update account (acc=%q): %w", acc.AccountNumber, err)
+		}
 	}
-
 	return &user, &acc, nil
 }

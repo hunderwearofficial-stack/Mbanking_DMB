@@ -3,21 +3,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
-import '../../../data/models/mutation_model.dart';
 import '../../blocs/account/account_cubit.dart';
 import '../../blocs/account/account_state.dart';
 import '../../blocs/auth/auth_cubit.dart';
 import '../../blocs/auth/auth_state.dart';
 import '../auth/login_screen.dart';
-import '../mutation/mutation_screen.dart';
 import '../notification/notification_screen.dart';
 import '../profile/security_settings_screen.dart';
-import '../statement/estatement_screen.dart';
 import '../helpdesk/helpdesk_screen.dart';
 import '../profile/profile_screen.dart';
 import 'widgets/quick_menu_grid.dart';
+import '../../../core/content/app_content.dart';
+import '../../../core/services/fcm_service.dart';
+import '../../../data/repositories/auth_repository.dart';
+import '../../../core/money/money.dart';
+import '../../widgets/smart_security_capsule.dart';
+import '../../widgets/app_validation_feedback.dart';
+import '../../../core/services/dynamic_config_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -28,13 +31,11 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentNavIndex = 0;
-  bool _maintenanceMode = false;
-  String _maintenanceMessage = '';
   bool _isBalanceVisible = false; // Persistent balance visibility (default hidden, preserves across refresh)
   int _unreadNotifications = 0; // Dynamic unread notification counter for red dot badge
 
   // Cached live values so during refresh (pull-to-refresh) the screen NEVER flashes fake numbers
-  double? _cachedBalance;
+  Money? _cachedBalance;
   String? _cachedAccountNo;
   String? _cachedUserName;
 
@@ -46,7 +47,6 @@ class _HomeScreenState extends State<HomeScreen> {
   // Executive Brand Colors
   static const Color primaryNavy = Color(0xFF0B356D);
   static const Color royalBlue = Color(0xFF0062E3);
-  static const Color dmbGreen = Color(0xFF16984B);
   static const Color titleDark = Color(0xFF0B2546);
   static const Color textMuted = Color(0xFF64748B);
   static const Color borderLight = Color(0xFFE2E8F0);
@@ -56,8 +56,31 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _startPromoTimer();
     context.read<AccountCubit>().loadDashboardData();
-    _loadBankConfig();
     _checkUnreadNotifications();
+
+    // Ensure FCM Token is actively synced to backend when dashboard loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        final authRepo = context.read<AuthRepository>();
+        FCMService().syncStoredTokenIfLoggedIn(apiClient: authRepo.apiClient);
+      } catch (_) {}
+    });
+  }
+
+  int get _visibleBannerCount =>
+      _bannerSlots.where((s) => AppContent.flag('home.banner${s.number}_visible')).length;
+
+  void _onBannerAction(String action) {
+    switch (action) {
+      case 'profil':
+        setState(() => _currentNavIndex = 1);
+        break;
+      case 'keamanan':
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const SecuritySettingsScreen()));
+        break;
+      default:
+        break;
+    }
   }
 
   void _startPromoTimer() {
@@ -65,7 +88,9 @@ class _HomeScreenState extends State<HomeScreen> {
     _promoTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
       if (!mounted) return;
       if (_promoPageController.hasClients) {
-        final nextPage = (_currentPromoPage + 1) % 3;
+        final count = _visibleBannerCount;
+        if (count < 2) return;
+        final nextPage = (_currentPromoPage + 1) % count;
         _promoPageController.animateToPage(
           nextPage,
           duration: const Duration(milliseconds: 450),
@@ -80,19 +105,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _promoTimer?.cancel();
     _promoPageController.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadBankConfig() async {
-    try {
-      final apiClient = context.read<AccountCubit>().accountRepository.apiClient;
-      final res = await apiClient.get('/api/v1/config');
-      if (mounted && res is Map<String, dynamic>) {
-        setState(() {
-          _maintenanceMode = res['maintenance_mode'] == true;
-          _maintenanceMessage = (res['maintenance_message'] as String?) ?? '';
-        });
-      }
-    } catch (_) {}
   }
 
   Future<void> _checkUnreadNotifications() async {
@@ -112,108 +124,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _onLogout() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (bottomSheetContext) => SafeArea(
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 44,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: borderLight,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF1F2),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFFFECDD3)),
-                ),
-                child: const Icon(Icons.logout_rounded, color: Color(0xFFDC2626), size: 28),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Keluar dari Aplikasi?',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: titleDark,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Sesi login Anda di Bank DMB akan diakhiri dengan aman. Anda dapat masuk kembali kapan saja.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: textMuted, height: 1.45),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: textMuted,
-                        side: const BorderSide(color: borderLight),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      onPressed: () => Navigator.pop(bottomSheetContext),
-                      child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.w700)),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFDC2626),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        elevation: 0,
-                      ),
-                      onPressed: () {
-                        Navigator.pop(bottomSheetContext);
-                        context.read<AuthCubit>().logout();
-                      },
-                      child: const Text('Ya, Keluar', style: TextStyle(fontWeight: FontWeight.w700)),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   void _showToast(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          msg,
-          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, fontSize: 12.5),
-        ),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        duration: const Duration(seconds: 2),
-        backgroundColor: titleDark,
-      ),
-    );
+    AppToast.showInfo(context, msg);
   }
 
   String _formatAccountNumber(String raw) {
@@ -260,7 +172,6 @@ class _HomeScreenState extends State<HomeScreen> {
               index: _currentNavIndex,
               children: [
                 _buildHomeContent(),
-                const MutationScreen(isTab: true),
                 const ProfileScreen(isTab: true),
               ],
             ),
@@ -277,8 +188,8 @@ class _HomeScreenState extends State<HomeScreen> {
         final authState = context.watch<AuthCubit>().state;
         String userName = _cachedUserName ?? '';
         String rawAccountNo = _cachedAccountNo ?? '';
-        double balance = _cachedBalance ?? 0.0;
-        List<MutationModel> mutations = [];
+        // null = balance not (successfully) obtained: never render a placeholder number.
+        Money? balance = _cachedBalance;
 
         if (authState is AuthAuthenticated) {
           if (userName.isEmpty && authState.user.fullName.isNotEmpty) {
@@ -290,6 +201,10 @@ class _HomeScreenState extends State<HomeScreen> {
         }
         if (userName.isEmpty) userName = 'Nasabah Bank DMB';
 
+        if (state is AccountError) {
+          balance = null;
+          _cachedBalance = null;
+        }
         if (state is AccountLoaded) {
           balance = state.account.balance;
           _cachedBalance = balance;
@@ -302,7 +217,6 @@ class _HomeScreenState extends State<HomeScreen> {
             userName = state.account.holderName;
             _cachedUserName = userName;
           }
-          mutations = state.mutations;
         }
 
         final formattedAccountNo = _formatAccountNumber(rawAccountNo);
@@ -352,8 +266,10 @@ class _HomeScreenState extends State<HomeScreen> {
             SafeArea(
               child: RefreshIndicator(
                 onRefresh: () async {
-                  _loadBankConfig();
-                  await context.read<AccountCubit>().refresh();
+                  final error = await context.read<AccountCubit>().refresh();
+                  if (error != null && context.mounted) {
+                    AppToast.showWarning(context, 'Saldo belum dapat diperbarui. $error', title: 'Pemberitahuan');
+                  }
                 },
                 color: primaryNavy,
                 child: SingleChildScrollView(
@@ -362,10 +278,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Header Top: Sapaan & Notification Bell
-                      _buildTopHeader(userName),
+                      // Header Top: Smart Security Capsule, Sapaan & Action Icons
+                      _buildTopHeader(userName, rawAccountNo),
 
-                      const SizedBox(height: 18),
+                      _buildAnnouncementBanner(),
+
+                      const SizedBox(height: 16),
 
                       // Main Saldo Card (Ocean-Green Gradient Card per new mockup)
                       _buildMainBalanceCard(
@@ -404,133 +322,34 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ==================== 1. TOP HEADER ====================
-  Widget _buildTopHeader(String userName) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  // ==================== 1. TOP HEADER WITH SMART SECURITY CAPSULE ====================
+  Widget _buildTopHeader(String userName, String rawAccountNo) {
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Greeting & Name
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Selamat Datang,',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 13.0,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF0B2A63),
-                letterSpacing: -0.1,
-              ),
-            ),
-            const SizedBox(height: 1.5),
-            Row(
-              children: [
-                Text(
-                  userName,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 18.0,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF072152),
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                const SizedBox(width: 5),
-                const Text('👋', style: TextStyle(fontSize: 16)),
-              ],
-            ),
-            const SizedBox(height: 2.5),
-            Text(
-              'Semoga harimu menyenangkan!',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w500,
-                color: const Color(0xFF1E3A6E), // Deep Navy-Blue tone, definitely NOT washed-out grey
-                letterSpacing: 0.1,
-              ),
-            ),
-          ],
-        ),
-
-        // Top Action Icons: Bantuan, Pengaturan, Notifikasi
+        // Upper Status Bar: Smart Security Capsule + Action Icons
         Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // 1. Pusat Bantuan (Helpdesk)
-            InkWell(
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const HelpdeskScreen()),
-                );
-              },
-              borderRadius: BorderRadius.circular(20),
-              child: Container(
-                padding: const EdgeInsets.all(9),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.92),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: borderLight),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.headset_mic_outlined,
-                  color: titleDark,
-                  size: 20,
-                ),
-              ),
+            // Smart Security Capsule (Bank DMB Connected / Offline Indicator)
+            SmartSecurityCapsule(
+              customerName: userName,
+              accountNumber: rawAccountNo,
             ),
-            const SizedBox(width: 8),
 
-            // 2. Pengaturan (Settings)
-            InkWell(
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const SecuritySettingsScreen()),
-                );
-              },
-              borderRadius: BorderRadius.circular(20),
-              child: Container(
-                padding: const EdgeInsets.all(9),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.92),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: borderLight),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.settings_outlined,
-                  color: titleDark,
-                  size: 20,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-
-            // 3. Notification Bell Icon with Dynamic Red Dot Badge (Only shown if unread > 0)
-            InkWell(
-              onTap: () async {
-                await Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const NotificationScreen()),
-                );
-                _checkUnreadNotifications();
-              },
-              borderRadius: BorderRadius.circular(20),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Container(
+            // Top Action Icons: Bantuan, Pengaturan, Notifikasi
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 1. Pusat Bantuan (Helpdesk)
+                InkWell(
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const HelpdeskScreen()),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
                     padding: const EdgeInsets.all(9),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.92),
@@ -545,37 +364,200 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                     child: const Icon(
-                      Icons.notifications_none_rounded,
+                      Icons.headset_mic_outlined,
                       color: titleDark,
                       size: 20,
                     ),
                   ),
-                  if (_unreadNotifications > 0)
-                    Positioned(
-                      top: 2,
-                      right: 2,
-                      child: Container(
-                        width: 9,
-                        height: 9,
+                ),
+                const SizedBox(width: 8),
+
+                // 2. Pengaturan (Settings)
+                InkWell(
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const SecuritySettingsScreen()),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.all(9),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.92),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: borderLight),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.04),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.settings_outlined,
+                      color: titleDark,
+                      size: 20,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // 3. Notification Bell Icon with Dynamic Red Dot Badge (Only shown if unread > 0)
+                InkWell(
+                  onTap: () async {
+                    await Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const NotificationScreen()),
+                    );
+                    _checkUnreadNotifications();
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(9),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFEF4444),
+                          color: Colors.white.withOpacity(0.92),
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 1.5),
+                          border: Border.all(color: borderLight),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.04),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.notifications_none_rounded,
+                          color: titleDark,
+                          size: 20,
                         ),
                       ),
-                    ),
-                ],
-              ),
+                      if (_unreadNotifications > 0)
+                        Positioned(
+                          top: 2,
+                          right: 2,
+                          child: Container(
+                            width: 9,
+                            height: 9,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEF4444),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 1.5),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ],
+        ),
+
+        const SizedBox(height: 12),
+
+        // Greeting & Name
+        Text(
+          AppContent.text('home.greeting_title'),
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 13.0,
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFF0B2A63),
+            letterSpacing: -0.1,
+          ),
+        ),
+        const SizedBox(height: 1.5),
+        Row(
+          children: [
+            Text(
+              userName,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 18.0,
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFF072152),
+                letterSpacing: -0.3,
+              ),
+            ),
+            const SizedBox(width: 5),
+            const Text('👋', style: TextStyle(fontSize: 16)),
+          ],
+        ),
+        const SizedBox(height: 2.5),
+        Text(
+          AppContent.text('home.greeting_subtitle'),
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w500,
+            color: const Color(0xFF1E3A6E), // Deep Navy-Blue tone, definitely NOT washed-out grey
+            letterSpacing: 0.1,
+          ),
         ),
       ],
     );
   }
 
+  // ==================== LIVE ANNOUNCEMENT BANNER ====================
+  Widget _buildAnnouncementBanner() {
+    return ListenableBuilder(
+      listenable: DynamicConfigService(),
+      builder: (context, _) {
+        final text = AppContent.text('app.announcement').trim();
+        if (text.isEmpty) return const SizedBox.shrink();
+
+        return Container(
+          margin: const EdgeInsets.only(top: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF0FDF4),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFBBF7D0)),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF16984B).withOpacity(0.06),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF16984B).withOpacity(0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.campaign_rounded,
+                  color: Color(0xFF16984B),
+                  size: 16,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  text,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF0F172A),
+                    height: 1.35,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   // ==================== 2. MAIN SALDO CARD (NEW DESIGN) ====================
   Widget _buildMainBalanceCard({
-    required double balance,
+    required Money? balance,
     required String accountNoFormatted,
     required String rawAccountNo,
     required bool isBalanceVisible,
@@ -713,11 +695,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   // Big Balance Nominal
                   Text(
-                    isBalanceVisible
-                        ? CurrencyFormatter.formatRupiah(balance)
-                        : 'Rp •••••••••',
-                    style: const TextStyle(
-                      fontSize: 27,
+                    balance == null
+                        ? 'Saldo belum dapat ditampilkan'
+                        : isBalanceVisible
+                            ? CurrencyFormatter.formatRupiah(balance)
+                            : 'Rp •••••••••',
+                    style: TextStyle(
+                      fontSize: balance == null ? 15 : 27,
                       fontWeight: FontWeight.w800,
                       color: Colors.white,
                       letterSpacing: -0.4,
@@ -737,38 +721,22 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_promoTimer == null || !_promoTimer!.isActive) {
       _startPromoTimer();
     }
-    final banners = [
-      _PromoBannerData(
-        imagePath: 'assets/images/banner_promo_1.jpg',
-        title: 'DMB Mobile',
-        subtitle: 'Lebih Mudah, Lebih Dekat dengan Anda',
-        gradientColors: const [Color(0xFFE8F7F2), Color(0xFFE0F2FE)],
-        onTap: () {
-          setState(() => _currentNavIndex = 2); // Profil tab
-        },
-      ),
-      _PromoBannerData(
-        imagePath: 'assets/images/banner_promo_2.jpg',
-        title: 'Tabungan Mikro DMB',
-        subtitle: 'Bunga Kompetitif, Aman & Dijamin LPS',
-        gradientColors: const [Color(0xFFEBF7F0), Color(0xFFE1F5FE)],
-        onTap: () {
-          setState(() => _currentNavIndex = 2); // Profil tab (Informasi Rekening)
-        },
-      ),
-      _PromoBannerData(
-        imagePath: 'assets/images/banner_promo_3.jpg',
-        title: 'Keamanan Berlapis',
-        subtitle: 'Proteksi PIN & OTP untuk Setiap Transaksi',
-        gradientColors: const [Color(0xFFE8EEF8), Color(0xFFE5F5F0)],
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const SecuritySettingsScreen()),
-          );
-        },
-      ),
+    // 3 carousel slots; visibility, image, fallback texts and tap action are managed content
+    // (Backoffice → Konten Aplikasi → Beranda). Slots keep their bundled image and colours.
+    final banners = <_PromoBannerData>[
+      for (final slot in _bannerSlots)
+        if (AppContent.flag('home.banner${slot.number}_visible'))
+          _PromoBannerData(
+            imagePath: slot.asset,
+            imageUrl: AppContent.imageUrl('home.banner${slot.number}_image'),
+            title: AppContent.text('home.banner${slot.number}_title'),
+            subtitle: AppContent.text('home.banner${slot.number}_subtitle'),
+            gradientColors: slot.gradient,
+            onTap: () => _onBannerAction(AppContent.text('home.banner${slot.number}_action')),
+          ),
     ];
+    if (banners.isEmpty) return const SizedBox.shrink();
+    if (_currentPromoPage >= banners.length) _currentPromoPage = 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -802,10 +770,19 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(18),
-                      child: Image.asset(
-                        item.imagePath,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
+                      child: item.imageUrl != null
+                          ? Image.network(
+                              item.imageUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => Image.asset(
+                                item.imagePath,
+                                fit: BoxFit.cover,
+                              ),
+                            )
+                          : Image.asset(
+                              item.imagePath,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
                           // Clean fallback card if asset fails or loading
                           return Container(
                             decoration: BoxDecoration(
@@ -892,7 +869,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ==================== 6. BOTTOM NAVIGATION BAR (3 TABS) ====================
+  // ==================== 6. BOTTOM NAVIGATION BAR (2 TABS: BERANDA & PROFIL) ====================
   Widget _buildBottomNavigationBar() {
     return Container(
       decoration: BoxDecoration(
@@ -913,8 +890,7 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildNavItem(0, Icons.home_rounded, 'Beranda'),
-              _buildNavItem(1, Icons.history_rounded, 'Riwayat'),
-              _buildNavItem(2, Icons.person_outline_rounded, 'Profil'),
+              _buildNavItem(1, Icons.person_outline_rounded, 'Profil'),
             ],
           ),
         ),
@@ -967,8 +943,22 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
+class _BannerSlot {
+  final int number;
+  final String asset;
+  final List<Color> gradient;
+  const _BannerSlot(this.number, this.asset, this.gradient);
+}
+
+const _bannerSlots = [
+  _BannerSlot(1, 'assets/images/banner_promo_1.jpg', [Color(0xFFE8F7F2), Color(0xFFE0F2FE)]),
+  _BannerSlot(2, 'assets/images/banner_promo_2.jpg', [Color(0xFFEBF7F0), Color(0xFFE1F5FE)]),
+  _BannerSlot(3, 'assets/images/banner_promo_3.jpg', [Color(0xFFE8EEF8), Color(0xFFE5F5F0)]),
+];
+
 class _PromoBannerData {
   final String imagePath;
+  final String? imageUrl;
   final String title;
   final String subtitle;
   final List<Color> gradientColors;
@@ -976,6 +966,7 @@ class _PromoBannerData {
 
   const _PromoBannerData({
     required this.imagePath,
+    this.imageUrl,
     required this.title,
     required this.subtitle,
     required this.gradientColors,

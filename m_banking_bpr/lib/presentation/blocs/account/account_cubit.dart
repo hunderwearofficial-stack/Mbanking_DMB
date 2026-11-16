@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../core/network/api_exception.dart';
 import '../../../data/repositories/account_repository.dart';
 import 'account_state.dart';
 
@@ -7,7 +8,10 @@ class AccountCubit extends Cubit<AccountState> {
 
   AccountCubit({required this.accountRepository}) : super(AccountInitial());
 
-  Future<void> loadDashboardData({String? accountNumber, bool isSilentRefresh = false}) async {
+  /// Loads balance & mutations. Returns null on success, or a user-facing error
+  /// message. On a silent refresh failure the previous state is kept and the
+  /// caller must inform the user that the data could not be updated.
+  Future<String?> loadDashboardData({String? accountNumber, bool isSilentRefresh = false}) async {
     final bool keepVisible = (state is AccountLoaded) ? (state as AccountLoaded).isBalanceVisible : false;
     if (!isSilentRefresh) {
       emit(AccountLoading());
@@ -29,10 +33,13 @@ class AccountCubit extends Cubit<AccountState> {
         mutations: mutations,
         isBalanceVisible: keepVisible,
       ));
+      return null;
     } catch (e) {
+      final message = e is ApiException ? e.message : 'Saldo belum dapat ditampilkan. Silakan coba kembali.';
       if (!isSilentRefresh) {
-        emit(AccountError(e.toString()));
+        emit(AccountError(message));
       }
+      return message;
     }
   }
 
@@ -67,12 +74,12 @@ class AccountCubit extends Cubit<AccountState> {
     }
   }
 
-  Future<void> refresh() async {
+  /// Silent refresh; returns a user-facing error message when the data could not be updated.
+  Future<String?> refresh() async {
     if (state is AccountLoaded) {
       final currentAccount = (state as AccountLoaded).account.accountNumber;
-      await loadDashboardData(accountNumber: currentAccount, isSilentRefresh: true);
-    } else {
-      await loadDashboardData(isSilentRefresh: true);
+      return loadDashboardData(accountNumber: currentAccount, isSilentRefresh: true);
     }
+    return loadDashboardData();
   }
 }

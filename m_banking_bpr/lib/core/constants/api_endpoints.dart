@@ -1,11 +1,16 @@
+import '../config/app_environment.dart';
+
 class ApiEndpoints {
-  // Primary: Live Biznet Ubuntu VPS IP (port 8080).
-  // Fallback: Localhost for local development over USB ('adb reverse tcp:8080 tcp:8080').
-  static String baseUrl = 'http://103.93.134.64:8080';
-  static String fallbackUrl = 'http://localhost:8080';
+  // The backend URL comes ONLY from the build configuration (AppEnvironment):
+  // no hardcoded default server and no localhost fallback.
+  static String get baseUrl => AppEnvironment.apiBaseUrl;
+
+  /// True when the configured endpoint uses TLS.
+  static bool get isSecure => baseUrl.toLowerCase().startsWith('https://');
 
   // API Paths
   static const String login = '/api/v1/auth/login';
+  static const String logout = '/api/v1/auth/logout';
   static const String refresh = '/api/v1/auth/refresh';
   static const String activateVerify = '/api/v1/auth/activate/verify';
   static const String activateOtp = '/api/v1/auth/activate/otp';
@@ -18,6 +23,7 @@ class ApiEndpoints {
   static const String beneficiaries = '/api/v1/beneficiaries';
   static const String applications = '/api/v1/applications';
   static const String appConfig = '/api/v1/config';
+  static const String appContent = '/api/v1/content';
   static const String notifications = '/api/v1/notifications';
   static const String notificationsRead = '/api/v1/notifications/read';
   static const String notificationsFcmToken = '/api/v1/notifications/fcm-token';
@@ -31,7 +37,12 @@ class ApiEndpoints {
   static const String deposits = '/api/v1/account/deposits';
   static const String depositDetail = '/api/v1/account/deposits/';
   static const String products = '/api/v1/account/products';
-  static const String cbsHealth = '/api/v1/cbs/health';
-  static const String cbsRefreshToken = '/api/v1/cbs/refresh-token';
+  static const String transfer = '/api/v1/transaction/transfer';
   static const String health = '/health';
+
+  // Syarat dan Ketentuan (versi terbit, PDF, persetujuan sebelum login)
+  static const String termsActive = '/api/v1/terms/active';
+  static const String termsAcceptances = '/api/v1/terms/acceptances';
+  static const String termsStatus = '/api/v1/terms/status';
+  static String termsPdf(String versionId) => '/api/v1/terms/versions/${Uri.encodeComponent(versionId)}/pdf';
 }

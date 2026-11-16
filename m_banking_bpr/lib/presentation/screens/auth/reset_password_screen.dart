@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/network/api_exception.dart';
 import '../../blocs/auth/auth_cubit.dart';
 import 'login_screen.dart';
+import '../../widgets/app_validation_feedback.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   final String sessionId;
@@ -78,18 +79,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     }
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.check_circle_outline_rounded, color: Colors.white, size: 20),
-            SizedBox(width: 10),
-            Expanded(child: Text('Kata sandi berhasil diperbarui! Silakan masuk kembali.')),
-          ],
-        ),
-        backgroundColor: dmbGreen,
-        behavior: SnackBarBehavior.floating,
-      ),
+    AppToast.showSuccess(
+      context,
+      'Kata sandi berhasil diperbarui! Silakan masuk kembali.',
+      title: 'Reset Sandi Berhasil',
     );
 
     Navigator.of(context).pushAndRemoveUntil(
@@ -99,20 +92,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 20),
-            const SizedBox(width: 10),
-            Expanded(child: Text(msg)),
-          ],
-        ),
-        backgroundColor: const Color(0xFFDC2626),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+    AppToast.showError(context, msg, title: 'Validasi Kata Sandi');
   }
 
   @override
@@ -406,10 +386,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                           const SizedBox(height: 40),
 
                           // Bottom Security Notice
-                          Center(
+                          const Center(
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
-                              children: const [
+                              children: [
                                 Icon(Icons.shield_outlined, size: 16, color: primaryNavy),
                                 SizedBox(width: 6),
                                 Text(

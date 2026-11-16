@@ -18,18 +18,18 @@ async function loadCustomers() {
       tbody.innerHTML = json.data.customers.map(c => `
         <tr class="hover:bg-slate-50/80 transition">
           <td class="py-3 px-4">
-            <div class="font-bold text-slate-900">${c.full_name}</div>
-            <div class="text-[11px] text-slate-400">${c.email || '-'}</div>
+            <div class="font-bold text-slate-900">${esc(c.full_name)}</div>
+            <div class="text-[11px] text-slate-400">${esc(c.email || '-')}</div>
           </td>
           <td class="py-3 px-4">
-            <div class="font-mono font-semibold text-emerald-700">${c.cif}</div>
-            <div class="text-[11px] text-slate-500 font-mono">${c.phone_number}</div>
+            <div class="font-mono font-semibold text-emerald-700">${esc(c.cif)}</div>
+            <div class="text-[11px] text-slate-500 font-mono">${esc(c.phone_number)}</div>
           </td>
           <td class="py-3 px-4">
             ${c.device_id ? `
               <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-mono font-semibold bg-blue-50 text-blue-700 border border-blue-200">
                 <i data-lucide="smartphone" class="w-3 h-3"></i>
-                <span>${c.device_id}</span>
+                <span>${esc(c.device_id)}</span>
               </span>
             ` : `
               <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] text-slate-400 italic">
@@ -45,13 +45,13 @@ async function loadCustomers() {
           </td>
           <td class="py-3 px-4">
             <div class="flex items-center justify-center gap-2">
-              <button onclick="resetCustomerDevice('${c.id}', '${c.full_name}')"
+              <button onclick="resetCustomerDevice(${jsArg(c.id)}, ${jsArg(c.full_name)})"
                 title="Buka ikatan perangkat agar nasabah dapat login di HP baru"
                 class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition flex items-center gap-1">
                 <i data-lucide="unlock" class="w-3 h-3"></i>
                 <span>Unbind Device</span>
               </button>
-              <button onclick="toggleCustomerStatus('${c.id}', ${!c.is_active})"
+              <button onclick="toggleCustomerStatus(${jsArg(c.id)}, ${!c.is_active})"
                 class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold ${c.is_active ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200'} transition">
                 ${c.is_active ? 'Blokir' : 'Aktifkan'}
               </button>
@@ -64,7 +64,7 @@ async function loadCustomers() {
       tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-slate-400">Tidak ada data nasabah ditemukan</td></tr>`;
     }
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-rose-500">Gagal memuat data: ${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-rose-500">Gagal memuat data: ${esc(e.message)}</td></tr>`;
   }
 
   loadProductApplications();
@@ -105,17 +105,17 @@ async function loadProductApplications() {
           <tr class="hover:bg-slate-50/80 transition">
             <td class="py-3 px-4 font-mono text-[11px] text-slate-500">${dt}</td>
             <td class="py-3 px-4">
-              <div class="font-bold text-slate-900">${app.full_name}</div>
-              <div class="text-[11px] font-mono text-slate-500">CIF: ${app.cif || '-'} &bull; HP: ${app.phone_number}</div>
+              <div class="font-bold text-slate-900">${esc(app.full_name)}</div>
+              <div class="text-[11px] font-mono text-slate-500">CIF: ${esc(app.cif || '-')} &bull; HP: ${esc(app.phone_number)}</div>
             </td>
             <td class="py-3 px-4">
               <div class="flex items-center gap-1.5 mb-0.5">${prodBadge}</div>
-              <div class="font-bold text-slate-800 text-xs">${app.product_name}</div>
-              <div class="text-[10px] text-slate-500">${app.purpose_or_source || ''}</div>
+              <div class="font-bold text-slate-800 text-xs">${esc(app.product_name)}</div>
+              <div class="text-[10px] text-slate-500">${esc(app.purpose_or_source || '')}</div>
             </td>
             <td class="py-3 px-4">
               <div class="font-extrabold text-slate-900">${amountFmt}</div>
-              <div class="text-[11px] text-slate-500">Tenor: <strong>${app.tenor_months} Bulan</strong> (${app.interest_rate || '-'})</div>
+              <div class="text-[11px] text-slate-500">Tenor: <strong>${esc(app.tenor_months)} Bulan</strong> (${esc(app.interest_rate || '-')})</div>
             </td>
             <td class="py-3 px-4">
               <div class="font-bold text-emerald-700">${estFmt}</div>
@@ -123,19 +123,19 @@ async function loadProductApplications() {
             </td>
             <td class="py-3 px-4">
               ${statusBadge}
-              ${app.admin_notes ? `<div class="text-[10px] text-slate-500 mt-1 italic">"${app.admin_notes}"</div>` : ''}
+              ${app.admin_notes ? `<div class="text-[10px] text-slate-500 mt-1 italic">"${esc(app.admin_notes)}"</div>` : ''}
             </td>
             <td class="py-3 px-4">
               <div class="flex items-center justify-center gap-1.5">
-                <button onclick="updateProductAppStatus('${app.id}', 'CONTACTED', '${app.product_name}', '${app.full_name}')"
+                <button onclick="updateProductAppStatus(${jsArg(app.id)}, 'CONTACTED', ${jsArg(app.product_name)}, ${jsArg(app.full_name)})"
                   class="px-2 py-1 rounded-lg text-[10px] font-bold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition">
                   Proses
                 </button>
-                <button onclick="updateProductAppStatus('${app.id}', 'APPROVED', '${app.product_name}', '${app.full_name}')"
+                <button onclick="updateProductAppStatus(${jsArg(app.id)}, 'APPROVED', ${jsArg(app.product_name)}, ${jsArg(app.full_name)})"
                   class="px-2 py-1 rounded-lg text-[10px] font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition">
                   Setujui
                 </button>
-                <button onclick="updateProductAppStatus('${app.id}', 'REJECTED', '${app.product_name}', '${app.full_name}')"
+                <button onclick="updateProductAppStatus(${jsArg(app.id)}, 'REJECTED', ${jsArg(app.product_name)}, ${jsArg(app.full_name)})"
                   class="px-2 py-1 rounded-lg text-[10px] font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition">
                   Tolak
                 </button>
@@ -148,7 +148,7 @@ async function loadProductApplications() {
       tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">Belum ada pengajuan Deposito / Pinjaman dari aplikasi Mobile DMB</td></tr>`;
     }
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-rose-500">Gagal memuat pengajuan: ${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-rose-500">Gagal memuat pengajuan: ${esc(e.message)}</td></tr>`;
   }
 }
 

@@ -2,11 +2,21 @@ package repository
 
 import (
 	"context"
+	"errors"
+	"mbanking-bpr/pkg/money"
 	"time"
 
 	"mbanking-bpr/internal/model"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+)
+
+var (
+	// ErrDuplicateRequest is returned with the existing record when the idempotency key was already used.
+	ErrDuplicateRequest = errors.New("idempotency key sudah digunakan")
+	// ErrDailyLimitExceeded is returned when the reservation would exceed the daily limit.
+	ErrDailyLimitExceeded = errors.New("melebihi batas limit transfer harian")
 )
 
 type TransactionRepository interface {
@@ -16,7 +26,11 @@ type TransactionRepository interface {
 	IncrementFailedPIN(ctx context.Context, userID string, maxAttempts int) (int, bool, error)
 	ResetFailedPIN(ctx context.Context, userID string) error
 	GetAppConfig(ctx context.Context) (*model.AppConfig, error)
-	GetTodayTransferTotal(ctx context.Context, userID string, fromAccount string) float64
+	// ReserveTransfer atomically checks idempotency and the daily limit and records a PENDING request.
+	// It returns (existing, ErrDuplicateRequest) if the key was used, or (nil, ErrDailyLimitExceeded) with
+	// the amount already used today.
+	ReserveTransfer(ctx context.Context, req *model.TransferRequest, dailyLimit money.Amount) (*model.TransferRequest, money.Amount, error)
+	CompleteTransfer(ctx context.Context, id, status, cbsRef, responseJSON, failure string) error
 }
 
 type transactionRepository struct {
@@ -33,7 +47,7 @@ func (r *transactionRepository) DB() *gorm.DB {
 
 func (r *transactionRepository) SaveTransaction(ctx context.Context, tx *model.Transaction) error {
 	if r.db == nil {
-		return nil
+		return gorm.ErrInvalidDB
 	}
 	return r.db.WithContext(ctx).Create(tx).Error
 }
@@ -49,37 +63,42 @@ func (r *transactionRepository) GetUserByID(ctx context.Context, userID string) 
 	return &user, nil
 }
 
+// IncrementFailedPIN atomically increments the PIN failure counter and blocks the
+// account at maxAttempts (audit DMB-018).
 func (r *transactionRepository) IncrementFailedPIN(ctx context.Context, userID string, maxAttempts int) (int, bool, error) {
 	if r.db == nil || userID == "" {
-		return 1, false, nil
+		return 0, false, gorm.ErrInvalidDB
 	}
 	if maxAttempts <= 0 {
 		maxAttempts = 3
 	}
-	var user model.User
-	if err := r.db.WithContext(ctx).Where("id = ?", userID).First(&user).Error; err != nil {
-		return 1, false, err
+	var attempts int
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+			"failed_pin_attempts": gorm.Expr("failed_pin_attempts + 1"), "updated_at": time.Now(),
+		}).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&model.User{}).Where("id = ?", userID).Select("failed_pin_attempts").Scan(&attempts).Error; err != nil {
+			return err
+		}
+		if attempts >= maxAttempts {
+			return tx.Model(&model.User{}).Where("id = ?", userID).Update("is_active", false).Error
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, false, err
 	}
-	attempts := user.FailedPINAttempts + 1
-	blocked := attempts >= maxAttempts
-	updates := map[string]interface{}{
-		"failed_pin_attempts": attempts,
-		"updated_at":          time.Now(),
-	}
-	if blocked {
-		updates["is_active"] = false
-	}
-	_ = r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", userID).Updates(updates).Error
-	return attempts, blocked, nil
+	return attempts, attempts >= maxAttempts, nil
 }
 
 func (r *transactionRepository) ResetFailedPIN(ctx context.Context, userID string) error {
 	if r.db == nil || userID == "" {
-		return nil
+		return gorm.ErrInvalidDB
 	}
 	return r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
-		"failed_pin_attempts": 0,
-		"updated_at":          time.Now(),
+		"failed_pin_attempts": 0, "updated_at": time.Now(),
 	}).Error
 }
 
@@ -94,20 +113,57 @@ func (r *transactionRepository) GetAppConfig(ctx context.Context) (*model.AppCon
 	return &cfg, nil
 }
 
-func (r *transactionRepository) GetTodayTransferTotal(ctx context.Context, userID string, fromAccount string) float64 {
+func startOfDay(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+}
+
+func (r *transactionRepository) ReserveTransfer(ctx context.Context, req *model.TransferRequest, dailyLimit money.Amount) (*model.TransferRequest, money.Amount, error) {
 	if r.db == nil {
-		return 0
+		return nil, 0, gorm.ErrInvalidDB
 	}
-	now := time.Now()
-	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	var total float64
-	q := r.db.WithContext(ctx).Model(&model.Transaction{}).
-		Where("status = ? AND created_at >= ?", model.TxStatusSuccess, startOfDay)
-	if userID != "" {
-		q = q.Where("user_id = ? OR from_account = ?", userID, fromAccount)
-	} else {
-		q = q.Where("from_account = ?", fromAccount)
+	var existing *model.TransferRequest
+	var used money.Amount
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Serialize all transfer reservations of this customer.
+		var u model.User
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Select("id").Where("id = ?", req.UserID).First(&u).Error; err != nil {
+			return err
+		}
+
+		var prev model.TransferRequest
+		err := tx.Where("user_id = ? AND idempotency_key = ?", req.UserID, req.IdempotencyKey).First(&prev).Error
+		if err == nil {
+			existing = &prev
+			return ErrDuplicateRequest
+		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+
+		// PENDING and UNKNOWN reservations count against the limit until resolved.
+		if err := tx.Model(&model.TransferRequest{}).
+			Where("user_id = ? AND created_at >= ? AND status IN ?", req.UserID, startOfDay(time.Now()),
+				[]string{model.TransferReqPending, model.TransferReqSuccess, model.TransferReqUnknown}).
+			Select("COALESCE(SUM(amount), 0)").Scan(&used).Error; err != nil {
+			return err
+		}
+		if used+req.Amount > dailyLimit {
+			return ErrDailyLimitExceeded
+		}
+		req.Status = model.TransferReqPending
+		return tx.Create(req).Error
+	})
+	return existing, used, err
+}
+
+func (r *transactionRepository) CompleteTransfer(ctx context.Context, id, status, cbsRef, responseJSON, failure string) error {
+	if r.db == nil {
+		return gorm.ErrInvalidDB
 	}
-	_ = q.Select("COALESCE(SUM(amount), 0)").Scan(&total).Error
-	return total
+	if len(failure) > 255 {
+		failure = failure[:255]
+	}
+	return r.db.WithContext(ctx).Model(&model.TransferRequest{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"status": status, "cbs_reference_no": cbsRef, "response_json": responseJSON, "failure_reason": failure, "updated_at": time.Now(),
+	}).Error
 }

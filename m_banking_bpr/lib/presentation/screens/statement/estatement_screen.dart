@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../blocs/account/account_cubit.dart';
 import '../../blocs/account/account_state.dart';
+import '../../../core/money/money.dart';
 
 class EStatementScreen extends StatefulWidget {
   const EStatementScreen({super.key});
@@ -177,8 +178,8 @@ class _EStatementScreenState extends State<EStatementScreen> {
             BlocBuilder<AccountCubit, AccountState>(
               builder: (context, state) {
                 String accNum = '-';
-                String accType = 'Tabungan Mikro DMB (Kode 20)';
-                double balance = 0.0;
+                String accType = '-';
+                Money? balance;
 
                 if (state is AccountLoaded) {
                   accNum = state.account.accountNumber;

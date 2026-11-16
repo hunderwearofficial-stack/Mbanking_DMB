@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/network/api_exception.dart';
 import '../../blocs/auth/auth_cubit.dart';
 import '../home/home_screen.dart';
+import '../../widgets/app_validation_feedback.dart';
 
 class ActivationScreen extends StatefulWidget {
   const ActivationScreen({super.key});
@@ -72,20 +73,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 20),
-            const SizedBox(width: 10),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: const Color(0xFFDC2626),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+    AppToast.showError(context, message, title: 'Validasi Aktivasi');
   }
 
   // ==================== STEP 1: VERIFIKASI NOMOR CIF ====================
@@ -358,10 +346,10 @@ class _ActivationScreenState extends State<ActivationScreen> {
                           const SizedBox(height: 32),
 
                           // Bottom Security Notice
-                          Center(
+                          const Center(
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
-                              children: const [
+                              children: [
                                 Icon(Icons.shield_outlined, size: 16, color: primaryNavy),
                                 SizedBox(width: 6),
                                 Text(
@@ -559,7 +547,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
               color: Color(0xFF0F172A),
             ),
             decoration: const InputDecoration(
-              hintText: 'Contoh: 001000309659 (12 digit)',
+              hintText: '12 digit nomor CIF (lihat buku tabungan)',
               hintStyle: TextStyle(
                 color: Color(0xFF94A3B8),
                 fontSize: 14,

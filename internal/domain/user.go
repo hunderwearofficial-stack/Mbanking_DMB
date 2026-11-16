@@ -14,7 +14,9 @@ type LoginRequest struct {
 	PhoneNumber string `json:"phone_number"` // Alternative identifier: Phone number
 	Username    string `json:"username"`     // Optional fallback identifier
 	Password    string `json:"password" binding:"required"`
-	DeviceID    string `json:"device_id"`    // For device binding check
+	DeviceID    string `json:"device_id"` // For device binding check
+	// TermsAcceptanceID links the consent given on this device before login (legal_acceptances).
+	TermsAcceptanceID string `json:"terms_acceptance_id"`
 }
 
 type LoginResponse struct {
@@ -26,19 +28,19 @@ type LoginResponse struct {
 }
 
 type UserProfile struct {
-	ID             string    `json:"id"`
-	NIK            string    `json:"nik"`
-	CIF            string    `json:"cif"`
-	FullName       string    `json:"full_name"`
-	PhoneNumber    string    `json:"phone_number"`
-	Email          string    `json:"email"`
-	Alamat         string    `json:"alamat"`
-	KodePos        string    `json:"kode_pos"`
-	JenisKelamin   string    `json:"jenis_kelamin"`
-	Agama          string    `json:"agama"`
-	TglLahir       string    `json:"tgl_lahir"`
-	TempatLahir    string    `json:"tempat_lahir"`
-	NamaIbuKandung string    `json:"nama_ibu_kandung"`
+	ID           string `json:"id"`
+	NIK          string `json:"nik"`
+	CIF          string `json:"cif"`
+	FullName     string `json:"full_name"`
+	PhoneNumber  string `json:"phone_number"`
+	Email        string `json:"email"`
+	Alamat       string `json:"alamat"`
+	KodePos      string `json:"kode_pos"`
+	JenisKelamin string `json:"jenis_kelamin"`
+	Agama        string `json:"agama"`
+	TglLahir     string `json:"tgl_lahir"`
+	TempatLahir  string `json:"tempat_lahir"`
+	// NamaIbuKandung was removed from client responses (knowledge-based verification secret, audit DMB-022).
 	DeviceID       string    `json:"device_id"`
 	PrimaryAccount string    `json:"primary_account"`
 	IsActive       bool      `json:"is_active"`
@@ -47,7 +49,7 @@ type UserProfile struct {
 
 // Activation / Self-Registration DTOs
 type ActivateVerifyRequest struct {
-	CIFNumber     string `json:"cif_number"`     // Primary: 12-digit CIF number (e.g. "001000309659")
+	CIFNumber     string `json:"cif_number"`     // Primary: 12-digit CIF number
 	AccountNumber string `json:"account_number"` // Fallback / backwards-compatibility
 	PhoneNumber   string `json:"phone_number" binding:"required"`
 	DeviceID      string `json:"device_id"`
@@ -71,6 +73,8 @@ type ActivateSetupRequest struct {
 	Password  string `json:"password" binding:"required"`
 	PIN       string `json:"pin" binding:"required"`
 	DeviceID  string `json:"device_id"`
+	// TermsAcceptanceID: consent to the Terms in force given on this device before activation.
+	TermsAcceptanceID string `json:"terms_acceptance_id"`
 }
 
 type RefreshTokenRequest struct {

@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../../core/constants/app_colors.dart';
 import '../../../data/repositories/account_repository.dart';
 import 'product_simulator_sheet.dart';
+import '../../../core/network/api_exception.dart';
 
 class ProductCatalogScreen extends StatefulWidget {
   final int initialTabIndex;
@@ -64,7 +63,7 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> with Single
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'Gagal memuat katalog produk perbankan';
+          _errorMessage = e is ApiException ? e.message : 'Layanan sedang mengalami gangguan. Silakan coba kembali beberapa saat lagi.';
           _isLoading = false;
         });
       }
@@ -75,7 +74,7 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> with Single
     final code = item['kode_produk']?.toString() ?? '-';
     final name = item['nama_produk']?.toString() ?? 'Produk Bank DMB';
     final desc = item['deskripsi']?.toString() ??
-        'Produk resmi perbankan PT BPR Dana Mandiri Bogor yang telah terdaftar dan diawasi oleh OJK serta dijamin oleh LPS.';
+        'Produk perbankan PT BPR Dana Mandiri Bogor (diawasi OJK). Simpanan dijamin LPS sesuai ketentuan yang berlaku.';
 
     final bool isDeposito = category.toLowerCase() == 'deposito';
     final bool isKredit = category.toLowerCase() == 'kredit' || category.toLowerCase() == 'pinjaman';
@@ -205,15 +204,9 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> with Single
                               ? 'Fasilitas Pembiayaan / Pinjaman'
                               : 'Tabungan Perorangan',
                     ),
-                    _buildModalRow(
-                      'Suku Bunga / Imbal Hasil',
-                      isDeposito
-                          ? 's.d 6.25% p.a.'
-                          : isKredit
-                              ? 'Mulai 1.25% flat / bln'
-                              : 'Kompetitif Berjenjang',
-                      isHighlight: true,
-                    ),
+                    // Suku bunga tidak tersedia dari CBS (/api/products); jangan menampilkan angka
+                    // yang belum dikonfirmasi bank (audit DMB-035).
+                    _buildModalRow('Suku Bunga / Imbal Hasil', 'Sesuai ketentuan bank (hubungi CS)', isHighlight: true),
                     _buildModalRow('Lembaga Pengawas', 'Otoritas Jasa Keuangan (OJK)'),
                     _buildModalRow('Penjaminan Simpanan', 'Lembaga Penjamin Simpanan (LPS)'),
                   ],
@@ -481,14 +474,14 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> with Single
                             case 1:
                               return _buildCategoryView(
                                 title: 'Fasilitas Pinjaman & Pembiayaan',
-                                badge: 'Kredit Resmi OJK',
+                                badge: 'Fasilitas Kredit',
                                 items: kreditList,
                                 category: 'kredit',
                               );
                             case 2:
                               return _buildCategoryView(
                                 title: 'Portofolio Deposito Berjangka',
-                                badge: 'Bunga s.d 6.25% p.a.',
+                                badge: 'Deposito Berjangka',
                                 items: depositoList,
                                 category: 'deposito',
                               );
@@ -602,7 +595,7 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> with Single
           ),
           const SizedBox(height: 6),
           Text(
-            'Produk perbankan resmi berizin OJK dengan suku bunga kompetitif dan jaminan keamanan LPS.',
+            'Produk perbankan PT BPR Dana Mandiri Bogor. Simpanan dijamin LPS sesuai ketentuan yang berlaku.',
             style: GoogleFonts.plusJakartaSans(
               fontSize: 11.5,
               color: Colors.white.withOpacity(0.85),
@@ -802,10 +795,10 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> with Single
                               const SizedBox(width: 4),
                               Text(
                                 isDeposito
-                                    ? 'Dijamin LPS • Bunga 6.00% p.a.'
+                                    ? 'Deposito Berjangka'
                                     : isKredit
-                                        ? 'Bunga Kompetitif • Fleksibel'
-                                        : 'Simpanan Bebas Biaya Admin',
+                                        ? 'Fasilitas Pinjaman'
+                                        : 'Tabungan',
                                 style: GoogleFonts.plusJakartaSans(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,

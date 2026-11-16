@@ -9,14 +9,14 @@ import (
 
 // Response Code Constants following standard banking / middleware convention
 const (
-	CodeSuccess               = "00"
-	CodeUnauthorized          = "01"
-	CodeInvalidCredentials    = "02"
-	CodeBadRequest            = "03"
-	CodeNotFound              = "04"
-	CodeInsufficientBalance   = "05"
-	CodeRateLimitExceeded     = "06"
-	CodeInternalError         = "99"
+	CodeSuccess             = "00"
+	CodeUnauthorized        = "01"
+	CodeInvalidCredentials  = "02"
+	CodeBadRequest          = "03"
+	CodeNotFound            = "04"
+	CodeInsufficientBalance = "05"
+	CodeRateLimitExceeded   = "06"
+	CodeInternalError       = "99"
 )
 
 // StandardBankingResponse is the JSON envelope for all API responses
@@ -32,17 +32,6 @@ type StandardBankingResponse struct {
 // Success sends an HTTP 200 response with banking CodeSuccess
 func Success(c *gin.Context, message string, data interface{}) {
 	c.JSON(http.StatusOK, StandardBankingResponse{
-		Success:      true,
-		ResponseCode: CodeSuccess,
-		Message:      message,
-		Data:         data,
-		Timestamp:    time.Now().Format(time.RFC3339),
-	})
-}
-
-// Created sends an HTTP 201 response with banking CodeSuccess
-func Created(c *gin.Context, message string, data interface{}) {
-	c.JSON(http.StatusCreated, StandardBankingResponse{
 		Success:      true,
 		ResponseCode: CodeSuccess,
 		Message:      message,
@@ -110,14 +99,3 @@ func ErrorWithCode(c *gin.Context, httpStatus int, responseCode, message string,
 		Timestamp:    time.Now().Format(time.RFC3339),
 	})
 }
-
-// InternalServerError sends an HTTP 500 error response
-func InternalServerError(c *gin.Context, message string) {
-	c.JSON(http.StatusInternalServerError, StandardBankingResponse{
-		Success:      false,
-		ResponseCode: CodeInternalError,
-		Message:      message,
-		Timestamp:    time.Now().Format(time.RFC3339),
-	})
-}
-

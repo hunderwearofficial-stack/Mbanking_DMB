@@ -1,0 +1,32 @@
+# docker-compose KHUSUS PENGUJIAN LOKAL (komputer sendiri) — bukan untuk server.
+# Hanya menjalankan PostgreSQL di 127.0.0.1:5433. Backend dijalankan langsung dengan
+# `go run` (lihat docs/LOCAL_SETUP.md dan scripts/local/*.ps1).
+#
+# Password diambil dari .env (di-ignore git):
+#   docker compose --env-file .env -f docker-compose.local.yml up -d
+# Role yang dibuat sama dengan server: pemilik skema (LOCAL_DB_OWNER_USER),
+# mbanking_app (aplikasi), mbanking_audit_reader (baca audit).
+name: mbanking-local
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: mbanking_local_postgres
+    environment:
+      POSTGRES_USER: ${MIGRATION_DB_USER:?isi MIGRATION_DB_USER di .env}
+      POSTGRES_PASSWORD: ${MIGRATION_DB_PASS:?isi MIGRATION_DB_PASS di .env}
+      POSTGRES_DB: ${DB_NAME:?isi DB_NAME di .env}
+      APP_DB_PASS: ${DB_PASS:?isi DB_PASS di .env}
+      AUDIT_DB_PASS: ${AUDIT_DB_PASS:?isi AUDIT_DB_PASS di .env}
+    ports:
+      - "127.0.0.1:${DB_PORT:?isi DB_PORT di .env (mis. 5433)}:5432"
+    volumes:
+      - mbanking_local_pg:/var/lib/postgresql/data
+      - ./deploy/docker/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  mbanking_local_pg:

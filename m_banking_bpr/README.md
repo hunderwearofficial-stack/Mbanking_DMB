@@ -1,16 +1,38 @@
-# m_banking_bpr
+# Aplikasi Mobile MBanking BPR (Flutter)
 
-A new Flutter project.
+Panduan menjalankan: [../docs/LOCAL_SETUP.md](../docs/LOCAL_SETUP.md) · konfigurasi flavor:
+[../docs/ENVIRONMENT_SETUP.md](../docs/ENVIRONMENT_SETUP.md) §4 · arsitektur:
+[../docs/SYSTEM_ARCHITECTURE.md](../docs/SYSTEM_ARCHITECTURE.md) §10 · fitur nasabah:
+[../docs/USER_MANUAL.md](../docs/USER_MANUAL.md).
 
-## Getting Started
+## Struktur
 
-This project is a starting point for a Flutter application.
+```
+lib/
+├── main.dart                 validasi konfigurasi build → aplikasi / layar kesalahan konfigurasi
+├── core/   config (flavor) · constants · money · network (ApiClient) · security · services (FCM) · theme · utils
+├── data/   models · repositories (meneruskan error; tanpa data dummy)
+└── presentation/  blocs (AuthCubit, AccountCubit) · screens (termasuk transfer)
+config/     local.json · development.json · staging.json · production.json (tanpa secret)
+test/       core · data · presentation · helpers
+```
 
-A few resources to get you started if this is your first Flutter project:
+## Menjalankan di HP Android (local)
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+```powershell
+..\scripts\local\run-flutter.ps1     # dari root repository: .\scripts\local\run-flutter.ps1
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Pengujian
+
+```powershell
+flutter analyze
+flutter test --dart-define=APP_FLAVOR=local --dart-define=API_BASE_URL=http://192.168.1.20:8080
+```
+
+## Perlu dikonfirmasi bank sebelum rilis
+
+Kontak layanan (`lib/core/constants/bank_contact.dart`) · suku bunga ilustrasi
+(`lib/core/constants/product_rates.dart`) · proyek Firebase resmi · `applicationId` & keystore
+rilis · domain & pin sertifikat per environment (`config/*.json`) · temuan tampilan di
+[../docs/USER_MANUAL.md](../docs/USER_MANUAL.md) bagian 13.

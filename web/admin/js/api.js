@@ -3,10 +3,39 @@
  * Centralizes all HTTP calls, token authorization headers, error handling, and branding sync.
  */
 
-// Dynamically determine backend API base URL
-const API_BASE = (window.location.protocol === 'file:' || window.location.port !== '8080')
+// The console is served by the backend itself (/admin) and talks to the same origin
+// (/api/v1) on any host or port — the CSP only allows same-origin requests anyway.
+// Only a file opened directly from disk falls back to the local backend.
+const API_BASE = window.location.protocol === 'file:'
   ? 'http://localhost:8080/api/v1'
   : `${window.location.origin}/api/v1`;
+
+/**
+ * SECURITY (audit DMB-017): every server-provided value inserted into HTML must
+ * be escaped. esc() escapes for HTML text/attribute context; jsArg() produces a
+ * safely quoted JavaScript string literal for use inside onclick="..." handlers.
+ */
+function esc(value) {
+  if (value === null || value === undefined) return '';
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/`/g, '&#96;');
+}
+
+function jsArg(value) {
+  return esc(JSON.stringify(value === null || value === undefined ? '' : String(value)));
+}
+
+/** Prevents spreadsheet formula injection when exporting CSV. */
+function csvCell(value) {
+  let s = value === null || value === undefined ? '' : String(value);
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+  return '"' + s.replace(/"/g, '""') + '"';
+}
 
 /**
  * Returns standard authorization headers with JWT Bearer Token
@@ -28,10 +57,10 @@ async function safeFetch(endpoint, options = {}) {
   try {
     const res = await fetch(url, options);
 
-    // Auto-detect expired token
-    if (res.status === 401) {
+    // Auto-detect expired token for authenticated requests
+    if (res.status === 401 && !endpoint.includes('/login')) {
       handleSessionExpired();
-      return { ok: false, status: 401, json: { message: 'Sesi telah berakhir' } };
+      return { ok: false, status: 401, json: { message: 'Sesi telah berakhir. Silakan login kembali.' } };
     }
 
     const text = await res.text();

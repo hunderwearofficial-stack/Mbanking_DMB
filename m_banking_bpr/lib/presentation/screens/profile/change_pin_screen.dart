@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/network/api_exception.dart';
 import '../../blocs/auth/auth_cubit.dart';
 import '../../blocs/auth/auth_state.dart';
+import '../../widgets/app_validation_feedback.dart';
 
 class ChangePinScreen extends StatefulWidget {
   const ChangePinScreen({super.key});
@@ -68,18 +69,11 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
   }
 
   void _showToast(String message, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, fontSize: 12.5),
-        ),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 3),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        backgroundColor: isError ? dmbRed : titleDark,
-      ),
-    );
+    if (isError) {
+      AppToast.showError(context, message, title: 'Validasi PIN Transaksi');
+    } else {
+      AppToast.showSuccess(context, message);
+    }
   }
 
   void _onProceedToOtp() {
@@ -216,7 +210,7 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = context.watch<AuthCubit>().state;
-    String userPhone = '081234567890';
+    String userPhone = '';
     if (authState is AuthAuthenticated) {
       userPhone = authState.user.phoneNumber;
     }

@@ -45,68 +45,80 @@ type LogEntry struct {
 	Fields    map[string]interface{} `json:"fields,omitempty"`
 }
 
-// Sensitive field names to automatically mask
-var sensitiveKeys = map[string]bool{
-	"pin":          true,
-	"password":     true,
-	"old_pin":      true,
-	"new_pin":      true,
-	"confirm_pin":  true,
-	"cvv":          true,
-	"token":        true,
-	"access_token": true,
-	"secret":       true,
-	"otp":          true,
-	"pan":          true,
-	"card_number":  true,
+// sensitiveKeyPattern matches any key that may carry credentials, secrets or
+// personal data (audit DMB-011). Matching is by substring on the normalized key,
+// so variants such as new_password, otp_code, refresh_token, fcm_token,
+// nama_ibu_kandung or client_secret are all covered.
+var sensitiveKeyPattern = regexp.MustCompile(`(?i)(pass|pin|otp|token|secret|session|authorization|cookie|cvv|card|pan|nik|ibu|mother|signature|key)`)
+
+// IsSensitiveKey reports whether a field name must be masked in logs.
+func IsSensitiveKey(k string) bool {
+	return sensitiveKeyPattern.MatchString(k)
 }
 
-// MaskSensitiveData scans maps or structs and replaces sensitive keys with masked string
+const maskValue = "******"
+
+func maskValueRec(v interface{}) interface{} {
+	switch t := v.(type) {
+	case map[string]interface{}:
+		return MaskSensitiveData(t)
+	case []interface{}:
+		out := make([]interface{}, len(t))
+		for i := range t {
+			out[i] = maskValueRec(t[i])
+		}
+		return out
+	default:
+		return v
+	}
+}
+
+// MaskSensitiveData returns a copy of data with sensitive keys masked (recursive).
 func MaskSensitiveData(data map[string]interface{}) map[string]interface{} {
 	if data == nil {
 		return nil
 	}
-	masked := make(map[string]interface{})
+	masked := make(map[string]interface{}, len(data))
 	for k, v := range data {
-		lowerKey := strings.ToLower(k)
-		if sensitiveKeys[lowerKey] {
-			masked[k] = "******"
-		} else if nestedMap, ok := v.(map[string]interface{}); ok {
-			masked[k] = MaskSensitiveData(nestedMap)
-		} else {
-			masked[k] = v
+		if IsSensitiveKey(k) {
+			masked[k] = maskValue
+			continue
 		}
+		masked[k] = maskValueRec(v)
 	}
 	return masked
 }
 
-// MaskJSONString masks sensitive JSON keys in raw string
+// MaskJSONString parses a JSON document and masks sensitive keys. Anything that
+// is not valid JSON is not logged at all (returns a placeholder).
 func MaskJSONString(rawJSON string) string {
-	if rawJSON == "" {
+	if strings.TrimSpace(rawJSON) == "" {
 		return ""
 	}
-	// Regex pattern to replace JSON values for sensitive fields
-	// e.g. "pin": "123456" -> "pin": "******"
-	re := regexp.MustCompile(`(?i)"(pin|password|old_pin|new_pin|cvv|token|access_token|otp|secret)"\s*:\s*"[^"]*"`)
-	masked := re.ReplaceAllStringFunc(rawJSON, func(match string) string {
-		parts := strings.Split(match, ":")
-		if len(parts) >= 2 {
-			return fmt.Sprintf(`%s: "******"`, parts[0])
-		}
-		return match
-	})
+	var v interface{}
+	if err := json.Unmarshal([]byte(rawJSON), &v); err != nil {
+		return "[non-json body omitted]"
+	}
+	out, err := json.Marshal(maskValueRec(v))
+	if err != nil {
+		return "[body omitted]"
+	}
+	return string(out)
+}
 
-	// Also handle numeric values: "pin": 123456 -> "pin": "******"
-	reNum := regexp.MustCompile(`(?i)"(pin|password|old_pin|new_pin|cvv|otp)"\s*:\s*\d+`)
-	masked = reNum.ReplaceAllStringFunc(masked, func(match string) string {
-		parts := strings.Split(match, ":")
-		if len(parts) >= 2 {
-			return fmt.Sprintf(`%s: "******"`, parts[0])
+// MaskQuery masks sensitive and identifying query parameters (account / CIF numbers).
+func MaskQuery(rawQuery string) string {
+	if rawQuery == "" {
+		return ""
+	}
+	parts := strings.Split(rawQuery, "&")
+	for i, p := range parts {
+		kv := strings.SplitN(p, "=", 2)
+		if len(kv) == 2 && (IsSensitiveKey(kv[0]) || strings.Contains(strings.ToLower(kv[0]), "account") || strings.Contains(strings.ToLower(kv[0]), "cif")) {
+			parts[i] = kv[0] + "=" + maskValue
 		}
-		return match
-	})
-
-	return masked
+	}
+	return strings.Join(parts, "&")
 }
 
 func (l *Logger) log(level Level, msg string, fields map[string]interface{}) {
@@ -166,4 +178,3 @@ func (l *Logger) Fatal(msg string, fields ...map[string]interface{}) {
 	l.log(LevelError, msg, f)
 	os.Exit(1)
 }
-

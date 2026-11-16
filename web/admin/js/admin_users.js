@@ -18,7 +18,7 @@ async function loadAdminUsers() {
       tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-xs text-rose-500">Gagal memuat data petugas admin.</td></tr>';
     }
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-xs text-rose-500">Error: ${err.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-xs text-rose-500">Error: ${esc(err.message)}</td></tr>`;
   }
 }
 
@@ -58,7 +58,7 @@ function renderAdminUsers(users) {
         roleDesc = 'Audit Log & Laporan (Read-Only)';
         break;
       default:
-        roleBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">${u.role}</span>`;
+        roleBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">${esc(u.role)}</span>`;
         roleDesc = 'Petugas Operasional';
     }
 
@@ -75,18 +75,18 @@ function renderAdminUsers(users) {
         <td class="p-4">
           <div class="flex items-center gap-3">
             <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-slate-800 to-slate-700 text-emerald-400 font-extrabold text-xs flex items-center justify-center shadow-sm">
-              ${initials}
+              ${esc(initials)}
             </div>
             <div>
               <div class="font-bold text-xs text-slate-800 flex items-center gap-2">
-                ${u.full_name || u.username}
+                ${esc(u.full_name || u.username)}
                 ${isCurrent ? '<span class="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 font-semibold">Anda</span>' : ''}
               </div>
-              <div class="text-[11px] text-slate-400">${u.email || '-'}</div>
+              <div class="text-[11px] text-slate-400">${esc(u.email || '-')}</div>
             </div>
           </div>
         </td>
-        <td class="p-4 text-xs font-mono font-bold text-slate-600">@${u.username}</td>
+        <td class="p-4 text-xs font-mono font-bold text-slate-600">@${esc(u.username)}</td>
         <td class="p-4">
           ${roleBadge}
           <div class="text-[10px] text-slate-400 mt-1">${roleDesc}</div>
@@ -96,12 +96,12 @@ function renderAdminUsers(users) {
         <td class="p-4 text-right">
           <div class="flex items-center justify-end gap-1.5">
             ${!isCurrent ? `
-              <button onclick="toggleAdminStatus('${u.id}', ${!u.is_active})" title="${u.is_active ? 'Nonaktifkan Akun' : 'Aktifkan Akun'}"
+              <button onclick="toggleAdminStatus(${jsArg(u.id)}, ${!u.is_active})" title="${u.is_active ? 'Nonaktifkan Akun' : 'Aktifkan Akun'}"
                 class="px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition flex items-center gap-1 ${u.is_active ? 'border-amber-200 text-amber-700 hover:bg-amber-50' : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'}">
                 <i data-lucide="${u.is_active ? 'user-x' : 'user-check'}" class="w-3.5 h-3.5"></i>
                 <span class="hidden sm:inline">${u.is_active ? 'Nonaktifkan' : 'Aktifkan'}</span>
               </button>
-              <button onclick="deleteAdminUser('${u.id}', '${u.username}')" title="Hapus Petugas"
+              <button onclick="deleteAdminUser(${jsArg(u.id)}, ${jsArg(u.username)})" title="Hapus Petugas"
                 class="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition">
                 <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
               </button>

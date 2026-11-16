@@ -7,8 +7,22 @@
 mbanking-server-linux
 server
 
-# Environment files
+# Environment files (secrets) — only .env.example is versioned
 .env
+.env.*
+!.env.example
+
+# Key material & signing secrets (audit DMB-007 / DMB-020)
+*.jks
+*.keystore
+*.p12
+*.pem
+*.key
+key.properties
+**/key.properties
+
+# Flutter obfuscation symbols (keep in a protected artifact store, not git)
+m_banking_bpr/build/symbols/
 
 # Flutter build & ephemeral files
 m_banking_bpr/build/
@@ -16,3 +30,7 @@ m_banking_bpr/.dart_tool/
 m_banking_bpr/.flutter-plugins
 m_banking_bpr/.flutter-plugins-dependencies
 
+
+# Local database backups (never commit)
+backups/
+*.dump

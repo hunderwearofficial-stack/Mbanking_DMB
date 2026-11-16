@@ -6,6 +6,8 @@ import '../../../core/utils/currency_formatter.dart';
 import '../../../data/repositories/account_repository.dart';
 import '../../blocs/auth/auth_cubit.dart';
 import '../../blocs/auth/auth_state.dart';
+import '../../../core/network/api_exception.dart';
+import '../../../core/money/money.dart';
 
 class DepositScreen extends StatefulWidget {
   const DepositScreen({super.key});
@@ -51,7 +53,13 @@ class _DepositScreenState extends State<DepositScreen> {
         cif = await storage.getCIF();
       }
       if (cif == null || cif.isEmpty) {
-        cif = '001000309659';
+        if (mounted) {
+          setState(() {
+            _deposits = [];
+            _isLoading = false;
+          });
+        }
+        return;
       }
 
       final repo = context.read<AccountRepository>();
@@ -63,10 +71,10 @@ class _DepositScreenState extends State<DepositScreen> {
           _isLoading = false;
         });
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'Gagal memuat data portofolio deposito';
+          _errorMessage = e is ApiException ? e.message : 'Layanan sedang mengalami gangguan. Silakan coba kembali beberapa saat lagi.';
           _isLoading = false;
         });
       }
@@ -88,13 +96,22 @@ class _DepositScreenState extends State<DepositScreen> {
     );
   }
 
+  /// Returns the first non-empty CBS field, or '-' (never a fabricated value).
+  String _field(Map<String, dynamic> item, List<String> keys) {
+    for (final k in keys) {
+      final v = item[k];
+      if (v != null && v.toString().trim().isNotEmpty) return v.toString();
+    }
+    return '-';
+  }
+
   void _showDepositDetailSheet(BuildContext context, Map<String, dynamic> item) {
     final accNo = item['nomor_rekening']?.toString() ?? '-';
-    final prodName = item['nama_produk']?.toString() ?? 'DEPOSITO BERJANGKA';
-    final nominal = (item['nominal'] ?? 0).toDouble();
-    final rate = '${item['suku_bunga_tahunan'] ?? 6.0}% p.a.';
+    final prodName = item['nama_produk']?.toString() ?? '-';
+    final nominal = Money.tryParse(item['nominal']);
+    final rate = item['suku_bunga_tahunan'] != null ? '${item['suku_bunga_tahunan']}% p.a.' : '-';
     final jatuhTempo = item['tanggal_jatuh_tempo']?.toString() ?? '-';
-    final statusKet = item['status_rekening_keterangan']?.toString() ?? 'Aktif';
+    final statusKet = item['status_rekening_keterangan']?.toString() ?? '-';
     final isAktif = statusKet.toLowerCase() == 'aktif';
 
     showModalBottomSheet(
@@ -192,11 +209,10 @@ class _DepositScreenState extends State<DepositScreen> {
                     const Divider(height: 16),
                     _buildModalRow('Suku Bunga', rate),
                     _buildModalRow('Tanggal Jatuh Tempo', jatuhTempo),
-                    _buildModalRow('Nomor Bilyet', 'BLT-DMB-${accNo.length >= 6 ? accNo.substring(accNo.length - 6) : accNo}'),
-                    _buildModalRow('Sistem Perpanjangan', 'Automatic Roll Over (ARO)'),
-                    _buildModalRow('Rekening Pencairan', '0500103000006961'),
-                    _buildModalRow('Kantor Pelayanan', 'KC Bogor Utama'),
-                    _buildModalRow('Jaminan Simpanan', 'Dijamin LPS s.d. Rp 2 Miliar'),
+                    _buildModalRow('Nomor Bilyet', _field(item, ['nomor_bilyet'])),
+                    _buildModalRow('Sistem Perpanjangan', _field(item, ['jenis_aro'])),
+                    _buildModalRow('Rekening Pencairan', _field(item, ['rekening_pencairan_bunga', 'rekening_pencairan'])),
+                    _buildModalRow('Kantor Pelayanan', _field(item, ['nama_kantor'])),
                   ],
                 ),
               ),
@@ -260,13 +276,14 @@ class _DepositScreenState extends State<DepositScreen> {
 
   @override
   Widget build(BuildContext context) {
-    double totalDana = 0;
+    // Total is shown only when every deposit has a valid nominal.
+    Money? totalDana = const Money.zero();
     int countAktif = 0;
     int countBlokir = 0;
 
     for (final item in _deposits) {
-      final nominal = (item['nominal'] ?? 0).toDouble();
-      totalDana += nominal;
+      final nominal = Money.tryParse(item['nominal']);
+      totalDana = (totalDana == null || nominal == null) ? null : totalDana + nominal;
       final status = item['status_rekening_keterangan']?.toString().toLowerCase() ?? '';
       if (status == 'aktif') {
         countAktif++;
@@ -457,7 +474,7 @@ class _DepositScreenState extends State<DepositScreen> {
     );
   }
 
-  Widget _buildSummaryBanner(double totalDana, int totalBilyet) {
+  Widget _buildSummaryBanner(Money? totalDana, int totalBilyet) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -570,10 +587,10 @@ class _DepositScreenState extends State<DepositScreen> {
                 ),
                 Row(
                   children: [
-                    const Icon(Icons.trending_up_rounded, color: Color(0xFF86EFAC), size: 16),
+                    const Icon(Icons.verified_rounded, color: Color(0xFF86EFAC), size: 16),
                     const SizedBox(width: 6),
                     Text(
-                      'Bunga 6.00% p.a.',
+                      'Data Core Banking',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
@@ -630,11 +647,11 @@ class _DepositScreenState extends State<DepositScreen> {
 
   Widget _buildDepositCard(Map<String, dynamic> item) {
     final accNo = item['nomor_rekening']?.toString() ?? '-';
-    final prodName = item['nama_produk']?.toString() ?? 'DEPOSITO 01 BULAN';
-    final nominal = (item['nominal'] ?? 0).toDouble();
-    final rate = '${item['suku_bunga_tahunan'] ?? 6.0}% p.a.';
+    final prodName = item['nama_produk']?.toString() ?? '-';
+    final nominal = Money.tryParse(item['nominal']);
+    final rate = item['suku_bunga_tahunan'] != null ? '${item['suku_bunga_tahunan']}% p.a.' : '-';
     final jatuhTempo = item['tanggal_jatuh_tempo']?.toString() ?? '-';
-    final statusKet = item['status_rekening_keterangan']?.toString() ?? 'Aktif';
+    final statusKet = item['status_rekening_keterangan']?.toString() ?? '-';
     final isAktif = statusKet.toLowerCase() == 'aktif';
 
     return Container(

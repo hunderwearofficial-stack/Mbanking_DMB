@@ -1,14 +1,23 @@
 package http
 
 import (
+	"errors"
+	"net/http"
+
+	"mbanking-bpr/internal/cbsprovider"
 	"mbanking-bpr/internal/domain"
 	"mbanking-bpr/internal/module/account/service"
+	"mbanking-bpr/pkg/logger"
 	"mbanking-bpr/pkg/middleware"
 	"mbanking-bpr/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )
 
+// AccountHandler serves customer account data. The customer identity (user id,
+// CIF) is ALWAYS taken from the verified token; the legacy `cif_number` query
+// parameter is ignored. A client-supplied account number is accepted only if the
+// service confirms it belongs to the caller (audit DMB-005).
 type AccountHandler struct {
 	accountService service.AccountService
 }
@@ -17,39 +26,36 @@ func NewAccountHandler(accountService service.AccountService) *AccountHandler {
 	return &AccountHandler{accountService: accountService}
 }
 
-// GetBalance handles GET /api/v1/account/balance
+func caller(c *gin.Context) service.Caller {
+	return service.Caller{
+		UserID:       c.GetString(middleware.CtxUserID),
+		CIF:          c.GetString(middleware.CtxCIF),
+		TokenAccount: c.GetString(middleware.CtxAccountNo),
+	}
+}
+
+// respondErr distinguishes authorization failures, genuinely missing data and
+// runtime service disruptions. Disruptions never return (stale) data and are
+// reported with a retry message; technical details stay in the server log.
+func respondErr(c *gin.Context, err error, notFoundMsg, unavailableMsg string) {
+	switch {
+	case errors.Is(err, service.ErrForbidden):
+		response.Error(c, http.StatusForbidden, "Rekening tidak terdaftar atas nama Anda", "01", nil)
+	case errors.Is(err, cbsprovider.ErrAccountNotFound):
+		response.NotFound(c, notFoundMsg)
+	default:
+		logger.GetLogger().Warn("Data rekening tidak dapat diambil", map[string]interface{}{"path": c.FullPath(), "error": err.Error()})
+		response.Error(c, http.StatusServiceUnavailable, unavailableMsg, "SERVICE_UNAVAILABLE", nil)
+	}
+}
+
+// GetBalance handles GET /api/v1/account/balance[?account_number=<owned account>]
 func (h *AccountHandler) GetBalance(c *gin.Context) {
-	// Account number, CIF, and UserID can be inferred from JWT context or passed via query
-	accountNo := c.Query("account_number")
-	if accountNo == "" {
-		if val, exists := c.Get(middleware.CtxAccountNo); exists {
-			accountNo, _ = val.(string)
-		}
-	}
-
-	cifNo := c.Query("cif_number")
-	if cifNo == "" {
-		if val, exists := c.Get(middleware.CtxCIF); exists {
-			cifNo, _ = val.(string)
-		}
-	}
-
-	userID := ""
-	if val, exists := c.Get(middleware.CtxUserID); exists {
-		userID, _ = val.(string)
-	}
-
-	if accountNo == "" && cifNo == "" && userID == "" {
-		response.BadRequest(c, "Identitas rekening atau nasabah tidak ditemukan", nil)
-		return
-	}
-
-	res, err := h.accountService.GetBalance(c.Request.Context(), accountNo, cifNo, userID)
+	res, err := h.accountService.GetBalance(c.Request.Context(), caller(c), c.Query("account_number"))
 	if err != nil {
-		response.NotFound(c, err.Error())
+		respondErr(c, err, "Data saldo rekening tidak ditemukan", "Saldo belum dapat ditampilkan. Silakan coba kembali.")
 		return
 	}
-
 	response.Success(c, "Inquiry saldo berhasil", res)
 }
 
@@ -57,58 +63,37 @@ func (h *AccountHandler) GetBalance(c *gin.Context) {
 func (h *AccountHandler) GetMutations(c *gin.Context) {
 	var query domain.MutationQueryParam
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.BadRequest(c, "Format parameter query mutasi tidak valid", err.Error())
+		response.BadRequest(c, "Format parameter query mutasi tidak valid", nil)
 		return
 	}
-
-	if query.AccountNumber == "" {
-		if val, exists := c.Get(middleware.CtxAccountNo); exists {
-			query.AccountNumber, _ = val.(string)
-		}
-	}
-
-	cifNo := ""
-	if val, exists := c.Get(middleware.CtxCIF); exists {
-		cifNo, _ = val.(string)
-	}
-
-	userID := ""
-	if val, exists := c.Get(middleware.CtxUserID); exists {
-		userID, _ = val.(string)
-	}
-
-	if query.AccountNumber == "" && cifNo == "" && userID == "" {
-		response.BadRequest(c, "Nomor rekening wajib disertakan", nil)
-		return
-	}
-
-	mutations, err := h.accountService.GetMutations(c.Request.Context(), query.AccountNumber, cifNo, userID, query)
+	accNo, mutations, err := h.accountService.GetMutations(c.Request.Context(), caller(c), query)
 	if err != nil {
-		response.NotFound(c, err.Error())
+		respondErr(c, err, "Riwayat mutasi tidak ditemukan", "Riwayat mutasi belum dapat ditampilkan. Silakan coba kembali.")
 		return
 	}
-
 	response.Success(c, "Pengambilan riwayat mutasi rekening berhasil", gin.H{
-		"account_number": query.AccountNumber,
+		"account_number": accNo,
 		"total_records":  len(mutations),
 		"mutations":      mutations,
 	})
 }
 
-// InquiryAccount handles GET /api/v1/account/inquiry?account_number=... (for recipient lookup via CBS)
+// InquiryAccount handles GET /api/v1/account/inquiry?account_number=... (transfer recipient lookup).
+// Returns only the data needed to confirm the beneficiary — never balances.
 func (h *AccountHandler) InquiryAccount(c *gin.Context) {
 	accountNo := c.Query("account_number")
 	if accountNo == "" {
 		response.BadRequest(c, "Nomor rekening tujuan wajib diisi", nil)
 		return
 	}
-
-	res, err := h.accountService.GetBalance(c.Request.Context(), accountNo, "", "")
-	if err != nil || res == nil {
-		response.NotFound(c, "Nomor rekening tujuan tidak ditemukan di Core Banking")
+	res, err := h.accountService.InquiryRecipient(c.Request.Context(), accountNo)
+	if err == nil && res == nil {
+		err = cbsprovider.ErrAccountNotFound
+	}
+	if err != nil {
+		respondErr(c, err, "Nomor rekening tujuan tidak ditemukan di Core Banking", "Rekening tujuan belum dapat diverifikasi. Silakan coba kembali.")
 		return
 	}
-
 	response.Success(c, "Verifikasi rekening tujuan berhasil", gin.H{
 		"account_number": res.AccountNumber,
 		"holder_name":    res.HolderName,
@@ -118,130 +103,71 @@ func (h *AccountHandler) InquiryAccount(c *gin.Context) {
 	})
 }
 
-// GetCustomerProfile handles GET /api/v1/account/profile (calls CBS POST /api/nasabah)
+// GetCustomerProfile handles GET /api/v1/account/profile (own profile only)
 func (h *AccountHandler) GetCustomerProfile(c *gin.Context) {
-	cifNo := c.Query("cif_number")
-	if cifNo == "" {
-		if val, exists := c.Get(middleware.CtxCIF); exists {
-			cifNo = val.(string)
-		}
-	}
-
-	if cifNo == "" {
-		response.BadRequest(c, "Nomor CIF tidak ditemukan", nil)
-		return
-	}
-
-	data, err := h.accountService.GetCustomerByCIF(c.Request.Context(), cifNo)
+	data, err := h.accountService.GetCustomerProfile(c.Request.Context(), caller(c))
 	if err != nil {
-		response.NotFound(c, err.Error())
+		respondErr(c, err, "Data profil nasabah tidak ditemukan", "Data profil belum dapat ditampilkan. Silakan coba kembali.")
 		return
 	}
-
 	response.Success(c, "Data profil nasabah Core Banking berhasil diambil", data)
 }
 
-// GetSavingsAccounts handles GET /api/v1/account/list (calls CBS POST /api/savings-accounts)
+// GetSavingsAccounts handles GET /api/v1/account/list (own accounts only)
 func (h *AccountHandler) GetSavingsAccounts(c *gin.Context) {
-	cifNo := c.Query("cif_number")
-	if cifNo == "" {
-		if val, exists := c.Get(middleware.CtxCIF); exists {
-			cifNo = val.(string)
-		}
-	}
-
-	if cifNo == "" {
-		response.BadRequest(c, "Nomor CIF tidak ditemukan", nil)
-		return
-	}
-
-	items, err := h.accountService.GetSavingsAccountsByCIF(c.Request.Context(), cifNo)
+	cl := caller(c)
+	items, err := h.accountService.GetSavingsAccounts(c.Request.Context(), cl)
 	if err != nil {
-		response.NotFound(c, err.Error())
+		respondErr(c, err, "Daftar rekening tidak ditemukan", "Daftar rekening belum dapat ditampilkan. Silakan coba kembali.")
 		return
 	}
-
 	response.Success(c, "Daftar rekening tabungan Core Banking berhasil diambil", gin.H{
-		"cif_number":     cifNo,
+		"cif_number":     cl.CIF,
 		"total_accounts": len(items),
 		"accounts":       items,
 	})
 }
 
-// GetLoans handles GET /api/v1/account/loans (calls /api/loan-accounts)
+// GetLoans handles GET /api/v1/account/loans
 func (h *AccountHandler) GetLoans(c *gin.Context) {
-	cifNo := c.Query("cif_number")
-	if cifNo == "" {
-		if val, exists := c.Get(middleware.CtxCIF); exists {
-			cifNo = val.(string)
-		}
-	}
-	if cifNo == "" {
-		cifNo = "001000309659"
-	}
-
-	loans, err := h.accountService.GetLoans(c.Request.Context(), cifNo)
+	cl := caller(c)
+	loans, err := h.accountService.GetLoans(c.Request.Context(), cl)
 	if err != nil {
-		response.NotFound(c, err.Error())
+		respondErr(c, err, "Data pinjaman tidak ditemukan", "Data pinjaman belum dapat ditampilkan. Silakan coba kembali.")
 		return
 	}
-
 	response.Success(c, "Daftar rekening pinjaman berhasil diambil", gin.H{
-		"cif_number":  cifNo,
+		"cif_number":  cl.CIF,
 		"total_loans": len(loans),
-		"loans":      loans,
+		"loans":       loans,
 	})
 }
 
-// GetLoanDetail handles GET /api/v1/account/loans/:account_no (calls /api/loan-account-detail)
-func (h *AccountHandler) GetLoanDetail(c *gin.Context) {
-	cifNo := c.Query("cif_number")
-	if cifNo == "" {
-		if val, exists := c.Get(middleware.CtxCIF); exists {
-			cifNo = val.(string)
-		}
+func accountParam(c *gin.Context) string {
+	if v := c.Param("account_no"); v != "" {
+		return v
 	}
-	if cifNo == "" {
-		cifNo = "001000309659"
-	}
-	accountNo := c.Param("account_no")
-	if accountNo == "" {
-		accountNo = c.Query("account_number")
-	}
+	return c.Query("account_number")
+}
 
-	detail, err := h.accountService.GetLoanDetail(c.Request.Context(), cifNo, accountNo)
+// GetLoanDetail handles GET /api/v1/account/loans/:account_no
+func (h *AccountHandler) GetLoanDetail(c *gin.Context) {
+	detail, err := h.accountService.GetLoanDetail(c.Request.Context(), caller(c), accountParam(c))
 	if err != nil {
-		response.NotFound(c, err.Error())
+		respondErr(c, err, "Rincian pinjaman tidak ditemukan", "Rincian pinjaman belum dapat ditampilkan. Silakan coba kembali.")
 		return
 	}
-
 	response.Success(c, "Rincian pinjaman berhasil diambil", detail)
 }
 
-// GetLoanMutations handles GET /api/v1/account/loans/:account_no/mutations (calls /api/loan-account-mutations)
+// GetLoanMutations handles GET /api/v1/account/loans/:account_no/mutations
 func (h *AccountHandler) GetLoanMutations(c *gin.Context) {
-	cifNo := c.Query("cif_number")
-	if cifNo == "" {
-		if val, exists := c.Get(middleware.CtxCIF); exists {
-			cifNo = val.(string)
-		}
-	}
-	if cifNo == "" {
-		cifNo = "001000309659"
-	}
-	accountNo := c.Param("account_no")
-	if accountNo == "" {
-		accountNo = c.Query("account_number")
-	}
-	startDate := c.Query("start_date")
-	endDate := c.Query("end_date")
-
-	muts, err := h.accountService.GetLoanMutations(c.Request.Context(), cifNo, accountNo, startDate, endDate, 20)
+	accountNo := accountParam(c)
+	muts, err := h.accountService.GetLoanMutations(c.Request.Context(), caller(c), accountNo, c.Query("start_date"), c.Query("end_date"), 20)
 	if err != nil {
-		response.NotFound(c, err.Error())
+		respondErr(c, err, "Riwayat angsuran tidak ditemukan", "Riwayat angsuran belum dapat ditampilkan. Silakan coba kembali.")
 		return
 	}
-
 	response.Success(c, "Riwayat angsuran pinjaman berhasil diambil", gin.H{
 		"account_number": accountNo,
 		"total_records":  len(muts),
@@ -249,77 +175,39 @@ func (h *AccountHandler) GetLoanMutations(c *gin.Context) {
 	})
 }
 
-// GetDeposits handles GET /api/v1/account/deposits (calls /api/deposit-accounts)
+// GetDeposits handles GET /api/v1/account/deposits
 func (h *AccountHandler) GetDeposits(c *gin.Context) {
-	cifNo := c.Query("cif_number")
-	if cifNo == "" {
-		if val, exists := c.Get(middleware.CtxCIF); exists {
-			cifNo = val.(string)
-		}
-	}
-	if cifNo == "" {
-		cifNo = "001000309659"
-	}
-
-	deposits, err := h.accountService.GetDeposits(c.Request.Context(), cifNo)
+	cl := caller(c)
+	deposits, err := h.accountService.GetDeposits(c.Request.Context(), cl)
 	if err != nil {
-		response.NotFound(c, err.Error())
+		respondErr(c, err, "Data deposito tidak ditemukan", "Data deposito belum dapat ditampilkan. Silakan coba kembali.")
 		return
 	}
-
 	response.Success(c, "Daftar bilyet deposito berhasil diambil", gin.H{
-		"cif_number":     cifNo,
+		"cif_number":     cl.CIF,
 		"total_deposits": len(deposits),
-		"deposits":      deposits,
+		"deposits":       deposits,
 	})
 }
 
-// GetDepositDetail handles GET /api/v1/account/deposits/:account_no (calls /api/deposit-account-detail)
+// GetDepositDetail handles GET /api/v1/account/deposits/:account_no
 func (h *AccountHandler) GetDepositDetail(c *gin.Context) {
-	cifNo := c.Query("cif_number")
-	if cifNo == "" {
-		if val, exists := c.Get(middleware.CtxCIF); exists {
-			cifNo = val.(string)
-		}
-	}
-	if cifNo == "" {
-		cifNo = "001000309659"
-	}
-	accountNo := c.Param("account_no")
-	if accountNo == "" {
-		accountNo = c.Query("account_number")
-	}
-
-	detail, err := h.accountService.GetDepositDetail(c.Request.Context(), cifNo, accountNo)
+	detail, err := h.accountService.GetDepositDetail(c.Request.Context(), caller(c), accountParam(c))
 	if err != nil {
-		response.NotFound(c, err.Error())
+		respondErr(c, err, "Rincian deposito tidak ditemukan", "Rincian deposito belum dapat ditampilkan. Silakan coba kembali.")
 		return
 	}
-
 	response.Success(c, "Rincian bilyet deposito berhasil diambil", detail)
 }
 
-// GetDepositMutations handles GET /api/v1/account/deposits/:account_no/mutations (calls /api/deposit-account-mutations)
+// GetDepositMutations handles GET /api/v1/account/deposits/:account_no/mutations
 func (h *AccountHandler) GetDepositMutations(c *gin.Context) {
-	cifNo := c.Query("cif_number")
-	if cifNo == "" {
-		if val, exists := c.Get(middleware.CtxCIF); exists {
-			cifNo = val.(string)
-		}
-	}
-	accountNo := c.Param("account_no")
-	if accountNo == "" {
-		accountNo = c.Query("account_number")
-	}
-	startDate := c.Query("start_date")
-	endDate := c.Query("end_date")
-
-	muts, err := h.accountService.GetDepositMutations(c.Request.Context(), cifNo, accountNo, startDate, endDate, 20)
+	accountNo := accountParam(c)
+	muts, err := h.accountService.GetDepositMutations(c.Request.Context(), caller(c), accountNo, c.Query("start_date"), c.Query("end_date"), 20)
 	if err != nil {
-		response.NotFound(c, err.Error())
+		respondErr(c, err, "Riwayat deposito tidak ditemukan", "Riwayat deposito belum dapat ditampilkan. Silakan coba kembali.")
 		return
 	}
-
 	response.Success(c, "Riwayat bagi hasil deposito berhasil diambil", gin.H{
 		"account_number": accountNo,
 		"total_records":  len(muts),
@@ -327,15 +215,13 @@ func (h *AccountHandler) GetDepositMutations(c *gin.Context) {
 	})
 }
 
-// GetProducts handles GET /api/v1/account/products (calls /api/products)
+// GetProducts handles GET /api/v1/account/products
 func (h *AccountHandler) GetProducts(c *gin.Context) {
 	catalog, err := h.accountService.GetProductsCatalog(c.Request.Context())
 	if err != nil {
-		response.InternalServerError(c, err.Error())
+		logger.GetLogger().Warn("Katalog produk tidak dapat diambil", map[string]interface{}{"error": err.Error()})
+		response.Error(c, http.StatusServiceUnavailable, "Katalog produk belum dapat ditampilkan. Silakan coba kembali.", "SERVICE_UNAVAILABLE", nil)
 		return
 	}
-
 	response.Success(c, "Katalog resmi produk perbankan DMB berhasil diambil", catalog)
 }
-
-

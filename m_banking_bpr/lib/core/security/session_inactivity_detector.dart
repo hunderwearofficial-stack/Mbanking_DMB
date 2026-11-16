@@ -6,13 +6,14 @@ import '../../main.dart';
 import '../../presentation/blocs/auth/auth_cubit.dart';
 import '../../presentation/blocs/auth/auth_state.dart';
 import '../../presentation/screens/auth/login_screen.dart';
+import '../../presentation/widgets/app_validation_feedback.dart';
 
 class SessionInactivityDetector extends StatefulWidget {
   final Widget child;
 
   const SessionInactivityDetector({super.key, required this.child});
 
-  /// Timeout in seconds (Default 180s = 3 minutes standard perbankan OJK)
+  /// Inactivity timeout in seconds (default 180 s). Set per bank policy.
   static int timeoutSeconds = 180;
   static bool isEnabled = true;
   static DateTime lastActive = DateTime.now();
@@ -77,8 +78,8 @@ class _SessionInactivityDetectorState extends State<SessionInactivityDetector> {
     if (ctx != null) {
       final authState = ctx.read<AuthCubit>().state;
       if (authState is AuthAuthenticated) {
-        // 1. Perform background logout
-        ctx.read<AuthCubit>().logout();
+        // 1. Lock the session (biometric unlock remains available)
+        ctx.read<AuthCubit>().lockSession();
 
         // 2. Redirect to Login Screen
         nav?.pushAndRemoveUntil(

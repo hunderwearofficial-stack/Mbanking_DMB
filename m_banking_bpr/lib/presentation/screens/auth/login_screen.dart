@@ -6,7 +6,13 @@ import '../../blocs/auth/auth_state.dart';
 import '../home/home_screen.dart';
 import 'activation_screen.dart';
 import 'forgot_password_screen.dart';
+import 'terms_conditions_screen.dart';
 import '../../../core/security/biometric_auth_service.dart';
+import '../../../core/constants/bank_contact.dart';
+import '../../../core/content/app_content.dart';
+import '../../../core/services/dynamic_config_service.dart';
+import '../../widgets/smart_security_capsule.dart';
+import '../../widgets/app_validation_feedback.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -107,37 +113,11 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showWarning(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 20),
-            const SizedBox(width: 10),
-            Expanded(child: Text(msg)),
-          ],
-        ),
-        backgroundColor: const Color(0xFFDC2626),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+    AppToast.showWarning(context, msg, title: 'Validasi Login');
   }
 
   void _showToast(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle_outline_rounded, color: Colors.white, size: 20),
-            const SizedBox(width: 10),
-            Expanded(child: Text(msg)),
-          ],
-        ),
-        backgroundColor: dmbGreen,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+    AppToast.showSuccess(context, msg);
   }
 
   // Refactored Executive Pusat Bantuan Sheet
@@ -196,9 +176,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                             const SizedBox(width: 5),
-                            const Text(
-                              'Layanan Resmi 24 Jam',
-                              style: TextStyle(
+                            Text(
+                              AppContent.text('login.help_badge'),
+                              style: const TextStyle(
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.w700,
                                 color: dmbGreen,
@@ -208,9 +188,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 6),
-                      const Text(
-                        'Pusat Bantuan Bank DMB',
-                        style: TextStyle(
+                      Text(
+                        AppContent.text('login.help_title'),
+                        style: const TextStyle(
                           fontSize: 19,
                           fontWeight: FontWeight.w800,
                           color: titleDark,
@@ -218,9 +198,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 2),
-                      const Text(
-                        'Butuh bantuan? Tim kami siap melayani Anda.',
-                        style: TextStyle(
+                      Text(
+                        AppContent.text('login.help_subtitle'),
+                        style: const TextStyle(
                           fontSize: 12.5,
                           color: textMuted,
                         ),
@@ -246,14 +226,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 icon: Icons.phone_in_talk_rounded,
                 iconColor: primaryNavy,
                 title: 'Call Center Bank DMB',
-                subtitle: '(0251) 832-1234 • Bebas Pulsa',
+                subtitle: BankContact.callCenterDisplay,
                 badgeText: 'Telepon →',
                 badgeColor: primaryNavy,
                 badgeBg: const Color(0xFFF1F5F9),
                 onTap: () {
-                  Clipboard.setData(const ClipboardData(text: '(0251) 832-1234'));
+                  Clipboard.setData(ClipboardData(text: BankContact.callCenterDial));
                   Navigator.pop(ctx);
-                  _showToast('Nomor Call Center disalin: (0251) 832-1234');
+                  _showToast('Nomor Call Center disalin: ${BankContact.callCenterDisplay}');
                 },
               ),
 
@@ -262,15 +242,15 @@ class _LoginScreenState extends State<LoginScreen> {
                 icon: Icons.chat_bubble_rounded,
                 iconColor: const Color(0xFF16984B),
                 title: 'WhatsApp Customer Care',
-                subtitle: '0811-9988-7766 • Terverifikasi',
+                subtitle: BankContact.whatsAppDisplay,
                 badgeText: 'Chat WA →',
                 badgeColor: const Color(0xFF16984B),
                 badgeBg: const Color(0xFFF0FDF4),
                 isVerified: true,
                 onTap: () {
-                  Clipboard.setData(const ClipboardData(text: '081199887766'));
+                  Clipboard.setData(ClipboardData(text: BankContact.whatsAppDial));
                   Navigator.pop(ctx);
-                  _showToast('Nomor WhatsApp disalin: 0811-9988-7766');
+                  _showToast('Nomor WhatsApp disalin: ${BankContact.whatsAppDisplay}');
                 },
               ),
 
@@ -279,14 +259,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 icon: Icons.mail_rounded,
                 iconColor: const Color(0xFF0D9488),
                 title: 'Email Layanan Nasabah',
-                subtitle: 'layanan@bprdanamandiri.co.id',
+                subtitle: BankContact.email,
                 badgeText: 'Kirim Email →',
                 badgeColor: const Color(0xFF0D9488),
                 badgeBg: const Color(0xFFF0FDFA),
                 onTap: () {
-                  Clipboard.setData(const ClipboardData(text: 'layanan@bprdanamandiri.co.id'));
+                  Clipboard.setData(ClipboardData(text: BankContact.email));
                   Navigator.pop(ctx);
-                  _showToast('Alamat email disalin: layanan@bprdanamandiri.co.id');
+                  _showToast('Alamat email disalin: ${BankContact.email}');
                 },
               ),
 
@@ -295,12 +275,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 icon: Icons.account_balance_rounded,
                 iconColor: const Color(0xFF475569),
                 title: 'Kantor Pusat Operasional',
-                subtitle: 'Jl. Pajajaran No. 88, Bogor • 08.00–15.00',
+                subtitle: BankContact.headOfficeShort,
                 badgeText: null,
                 badgeColor: Colors.transparent,
                 badgeBg: Colors.transparent,
                 onTap: () {
-                  Clipboard.setData(const ClipboardData(text: 'Jl. Pajajaran No. 88, Bogor'));
+                  Clipboard.setData(ClipboardData(text: BankContact.headOfficeShort));
                   Navigator.pop(ctx);
                   _showToast('Alamat kantor disalin');
                 },
@@ -316,18 +296,18 @@ class _LoginScreenState extends State<LoginScreen> {
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: const Color(0xFFFECACA)),
                 ),
-                child: const Row(
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.shield_outlined, color: Color(0xFFDC2626), size: 18),
+                    const Icon(Icons.shield_outlined, color: Color(0xFFDC2626), size: 18),
                     SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'PENTING: JAGA KERAHASIAAN ANDA',
-                            style: TextStyle(
+                            AppContent.text('login.security_title'),
+                            style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w800,
                               color: Color(0xFF991B1B),
@@ -336,8 +316,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           SizedBox(height: 2),
                           Text(
-                            'Petugas Bank DMB TIDAK PERNAH meminta Kata Sandi, PIN, atau Kode OTP Anda melalui kanal apa pun.',
-                            style: TextStyle(
+                            AppContent.text('login.security_text'),
+                            style: const TextStyle(
                               fontSize: 10.5,
                               color: Color(0xFFB91C1C),
                               height: 1.35,
@@ -488,36 +468,35 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             );
           } else if (state is AuthError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Row(
-                  children: [
-                    const Icon(Icons.error_outline_rounded, color: Colors.white, size: 20),
-                    const SizedBox(width: 10),
-                    Expanded(child: Text(state.message)),
-                  ],
+            if (state.requiresTermsConsent) {
+              // The backend requires consent to the Terms in force (new customer, new
+              // version in force, or expired device consent): show them again.
+              Navigator.of(context).pushReplacement(
+                PageRouteBuilder(
+                  pageBuilder: (_, __, ___) => const TermsConditionsScreen(),
+                  transitionsBuilder: (_, animation, __, child) => FadeTransition(opacity: animation, child: child),
+                  transitionDuration: const Duration(milliseconds: 350),
                 ),
-                backgroundColor: const Color(0xFFDC2626),
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            );
+              );
+            }
+            AppToast.showError(context, state.message, title: 'Gagal Masuk');
           }
         },
         builder: (context, state) {
           final isLoading = state is AuthLoading;
+          // Managed content (Backoffice → Konten Aplikasi → Login / Umum)
+          final welcomeTitle = AppContent.text('login.title');
+          final welcomeSubtitle = AppContent.text('login.subtitle');
+          final announcement = AppContent.text('app.announcement').trim();
 
           return Scaffold(
             backgroundColor: Colors.white,
             body: Stack(
               fit: StackFit.expand,
               children: [
-                // 1. Background Mount Salak & Tugu Kujang Artwork
+                // 1. Dynamic Background (Persistent Cache / Network with Local Fallback)
                 Positioned.fill(
-                  child: Image.asset(
-                    'assets/images/splash_artwork.jpg',
-                    fit: BoxFit.cover,
-                  ),
+                  child: const ContentImage('login.background', asset: 'assets/images/splash_artwork.jpg'),
                 ),
 
                 // 2. White Soft Wash Gradient to ensure form contrast & readability
@@ -548,49 +527,86 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Top Right Helpdesk Icon
-                        Align(
-                          alignment: Alignment.topRight,
-                          child: InkWell(
-                            onTap: _showHelpdeskModal,
-                            borderRadius: BorderRadius.circular(20),
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.85),
-                                shape: BoxShape.circle,
-                                border: Border.all(color: const Color(0xFFE2E8F0)),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.04),
-                                    blurRadius: 8,
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(
-                                Icons.headset_mic_outlined,
-                                color: primaryNavy,
-                                size: 18,
+                        // Top Bar: Smart Security Capsule (Left) + Helpdesk Icon (Right)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const SmartSecurityCapsule(),
+                            InkWell(
+                              onTap: _showHelpdeskModal,
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.85),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.04),
+                                      blurRadius: 8,
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(
+                                  Icons.headset_mic_outlined,
+                                  color: primaryNavy,
+                                  size: 18,
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                         ),
 
-                        // Center Official DMB Mobile Logo
+                        const SizedBox(height: 18),
+
+                        // Center Official DMB Mobile Logo (Dynamic Server-Driven / Cached)
                         Center(
-                          child: Image.asset(
-                            'assets/images/bank_logo.png',
-                            height: 64,
-                            fit: BoxFit.contain,
-                          ),
+                          child: const ContentImage('app.logo', asset: 'assets/images/bank_logo.png', height: 64, fit: BoxFit.contain),
                         ),
 
-                        const SizedBox(height: 24),
+                        if (announcement.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF0FDF4),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: const Color(0xFFBBF7D0)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF16984B).withOpacity(0.06),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.campaign_rounded, color: dmbGreen, size: 18),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    announcement,
+                                    style: const TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF0F172A),
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
 
-                        // Title: Selamat Datang
-                        const Text(
-                          'Selamat Datang',
-                          style: TextStyle(
+                        const SizedBox(height: 20),
+
+                        // Dynamic Welcome Title & Subtitle
+                        Text(
+                          welcomeTitle,
+                          style: const TextStyle(
                             fontSize: 26,
                             fontWeight: FontWeight.w800,
                             color: titleDark,
@@ -600,10 +616,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         const SizedBox(height: 6),
 
-                        // Subtitle: Login untuk melanjutkan ke layanan DMB Mobile
-                        const Text(
-                          'Login untuk melanjutkan\nke layanan DMB Mobile',
-                          style: TextStyle(
+                        Text(
+                          welcomeSubtitle,
+                          style: const TextStyle(
                             fontSize: 13.5,
                             fontWeight: FontWeight.w400,
                             color: textMuted,
@@ -931,12 +946,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         Center(
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
-                            children: const [
-                              Icon(Icons.shield_outlined, size: 16, color: primaryNavy),
-                              SizedBox(width: 6),
+                            children: [
+                              const Icon(Icons.shield_outlined, size: 16, color: primaryNavy),
+                              const SizedBox(width: 6),
                               Text(
-                                'Transaksi Anda aman bersama DMB',
-                                style: TextStyle(
+                                AppContent.text('login.footer'),
+                                style: const TextStyle(
                                   fontSize: 11.5,
                                   fontWeight: FontWeight.w600,
                                   color: Color(0xFF475569),

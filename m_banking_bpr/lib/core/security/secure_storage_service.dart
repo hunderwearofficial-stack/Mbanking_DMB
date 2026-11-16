@@ -28,7 +28,9 @@ class SecureStorageService {
       : _storage = storage ??
             const FlutterSecureStorage(
               aOptions: AndroidOptions(encryptedSharedPreferences: true),
-              iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+              // ThisDeviceOnly: Keychain items are not migrated to other devices via
+              // backup/restore (audit DMB-030).
+              iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock_this_device),
             );
 
   Future<void> _write(String key, String value) async {
@@ -70,6 +72,11 @@ class SecureStorageService {
     await _write(_keyCIF, cif);
     await _write(_keyFullName, fullName);
     await _write(_keyPrimaryAccount, primaryAccount);
+    // Refresh tokens are rotated by the server and an old one is treated as stolen.
+    // Keep the biometric copy in sync with the latest token (audit DMB-014).
+    if (await isBiometricEnabled() && refreshToken.isNotEmpty) {
+      await _write(_keyBiometricRefreshToken, refreshToken);
+    }
   }
 
   Future<String?> getAccessToken() async => await _read(_keyAccessToken);
@@ -134,6 +141,11 @@ class SecureStorageService {
   }
 
   Future<String?> getBiometricRefreshToken() async => await _read(_keyBiometricRefreshToken);
+
+  /// Removes the biometric session token after an explicit logout (the server-side
+  /// session is revoked, so the token is no longer usable). Biometric preference and
+  /// identity hints are kept; the next password login re-arms biometric login.
+  Future<void> clearBiometricRefreshToken() async => await _delete(_keyBiometricRefreshToken);
   Future<String?> getBiometricCif() async => await _read(_keyBiometricCif);
   Future<String?> getBiometricPhone() async => await _read(_keyBiometricPhone);
   Future<String?> getBiometricFullName() async => await _read(_keyBiometricFullName);

@@ -17,6 +17,7 @@ async function loadConfig() {
       document.getElementById('cfgWhatsApp').value = c.whatsapp_cs || '';
       document.getElementById('cfgEmail').value = c.email_cs || '';
       document.getElementById('cfgWebsite').value = c.website_url || '';
+      markContentManagedFields();
       document.getElementById('cfgEnforceDevice').checked = c.enforce_device_binding;
       document.getElementById('cfgMaintenance').checked = c.maintenance_mode;
       document.getElementById('cfgMaintenanceMsg').value = c.maintenance_message || '';
@@ -32,11 +33,21 @@ async function loadConfig() {
       if (document.getElementById('cfgOtpGatewayUrl')) {
         document.getElementById('cfgOtpGatewayUrl').value = c.otp_gateway_url || 'https://api.fonnte.com/send';
       }
+      // Secrets are write-only (audit DMB-006): the API never returns their values,
+      // only whether they are configured. Leave the field empty to keep the current value.
       if (document.getElementById('cfgOtpGatewayToken')) {
-        document.getElementById('cfgOtpGatewayToken').value = c.otp_gateway_token || '';
+        const el = document.getElementById('cfgOtpGatewayToken');
+        el.value = '';
+        el.placeholder = c.otp_gateway_token_set
+          ? 'Token tersimpan (kosongkan untuk tetap memakai token saat ini)'
+          : 'Masukkan Token Fonnte / Wablas';
       }
       if (document.getElementById('cfgFcmServerKey')) {
-        document.getElementById('cfgFcmServerKey').value = c.fcm_server_key || '';
+        const el = document.getElementById('cfgFcmServerKey');
+        el.value = '';
+        el.placeholder = c.fcm_server_key_set
+          ? 'Server key tersimpan (kosongkan untuk tetap memakai key saat ini)'
+          : 'Masukkan FCM Server Key untuk Push Notification';
       }
 
       // Live UI sync everywhere
@@ -102,7 +113,7 @@ async function handleLogoUpload(input) {
         tagline: document.getElementById('cfgTagline').value
       });
 
-      showToast('Logo Bank berhasil diunggah! Klik Simpan Pengaturan di bawah.', 'success');
+      showToast('Logo diunggah. Agar tampil di aplikasi, pasang logo di Konten Aplikasi → Umum, lalu ajukan dan setujui.', 'success');
       uploadText.innerHTML = `<span class="text-emerald-700 font-bold flex items-center justify-center gap-1.5"><i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600"></i> ${file.name} berhasil diunggah (${(file.size / 1024).toFixed(1)} KB)</span>`;
       lucide.createIcons();
     } else {
@@ -126,11 +137,7 @@ async function handleSaveConfig(e) {
   const payload = {
     bank_name: document.getElementById('cfgBankName').value.trim(),
     bank_short_name: document.getElementById('cfgBankShortName').value.trim(),
-    tagline: document.getElementById('cfgTagline').value.trim(),
-    logo_url: document.getElementById('cfgLogoUrl').value.trim(),
     head_office_address: document.getElementById('cfgAddress').value.trim(),
-    call_center: document.getElementById('cfgCallCenter').value.trim(),
-    whatsapp_cs: document.getElementById('cfgWhatsApp').value.trim(),
     email_cs: document.getElementById('cfgEmail').value.trim(),
     website_url: document.getElementById('cfgWebsite').value.trim(),
     enforce_device_binding: document.getElementById('cfgEnforceDevice').checked,
@@ -164,4 +171,24 @@ async function handleSaveConfig(e) {
     btn.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i><span>Simpan Seluruh Pengaturan & Logo</span>';
     lucide.createIcons();
   }
+}
+
+/**
+ * Tagline, logo, call center and WhatsApp are mobile content: they are changed only via
+ * CMS Tampilan Mobile (draft → publish, with history and rollback). Shown read-only here.
+ */
+function markContentManagedFields() {
+  ['cfgTagline', 'cfgLogoUrl', 'cfgCallCenter', 'cfgWhatsApp', 'cfgEmail', 'cfgAddress', 'cfgWebsite'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el || el.dataset.managed) return;
+    el.readOnly = true;
+    el.dataset.managed = '1';
+    el.classList.add('bg-slate-50', 'cursor-not-allowed');
+    const note = document.createElement('p');
+    note.className = 'text-[10.5px] text-slate-500 mt-1';
+    note.textContent = ['cfgEmail', 'cfgAddress', 'cfgWebsite'].includes(id)
+      ? 'Tidak dibaca aplikasi. Kontak yang tampil di aplikasi dikelola di Konten Aplikasi → Kontak Layanan.'
+      : 'Dikelola di Konten Aplikasi (simpan draf → ajukan → disetujui petugas lain).';
+    el.insertAdjacentElement('afterend', note);
+  });
 }

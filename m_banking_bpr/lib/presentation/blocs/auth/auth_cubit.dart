@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/repositories/auth_repository.dart';
+import '../../../core/network/api_exception.dart';
 import '../../../core/services/fcm_service.dart';
 import 'auth_state.dart';
 
@@ -72,6 +73,8 @@ class AuthCubit extends Cubit<AuthState> {
       );
       emit(AuthAuthenticated(authResponse.user));
       FCMService().syncStoredTokenIfLoggedIn(apiClient: authRepository.apiClient);
+    } on ApiException catch (e) {
+      emit(AuthError(e.message, code: e.responseCode));
     } catch (e) {
       emit(AuthError(e.toString()));
     }
@@ -83,13 +86,22 @@ class AuthCubit extends Cubit<AuthState> {
       final user = await authRepository.loginWithBiometric();
       emit(AuthAuthenticated(user));
       FCMService().syncStoredTokenIfLoggedIn(apiClient: authRepository.apiClient);
+    } on ApiException catch (e) {
+      emit(AuthError(e.message, code: e.responseCode));
     } catch (e) {
       emit(AuthError(e.toString().replaceAll('Exception: ', '')));
     }
   }
 
+  /// Explicit logout: revokes the server-side session (audit DMB-014).
   Future<void> logout() async {
     await authRepository.logout();
+    emit(AuthUnauthenticated());
+  }
+
+  /// Inactivity lock: ends the on-screen session but keeps the biometric unlock path.
+  Future<void> lockSession() async {
+    await authRepository.lockSession();
     emit(AuthUnauthenticated());
   }
 }

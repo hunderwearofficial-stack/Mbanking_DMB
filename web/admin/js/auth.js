@@ -24,7 +24,9 @@ function checkAuth() {
         const roleEl = document.getElementById('adminRole');
         const avatarEl = document.getElementById('adminAvatarInitial');
         if (nameEl) nameEl.innerText = admin.full_name || 'Administrator';
-        if (roleEl) roleEl.innerText = admin.role || 'SUPER_ADMIN';
+        if (roleEl) roleEl.innerText = admin.role || '-';
+        const headerRole = document.getElementById('headerRoleBadge');
+        if (headerRole) headerRole.textContent = `Masuk sebagai ${admin.username || '-'} · ${admin.role || '-'}`;
         if (avatarEl) {
           const initials = (admin.full_name || admin.username || 'AD').substring(0, 2).toUpperCase();
           avatarEl.innerText = initials;

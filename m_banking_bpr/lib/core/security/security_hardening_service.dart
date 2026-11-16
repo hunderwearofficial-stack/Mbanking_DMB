@@ -28,7 +28,9 @@ class SecurityHardeningService {
     try {
       if (Platform.isAndroid) {
         final success = await _channel.invokeMethod<bool>('setFlagSecure', {'enable': enable});
-        _flagSecureActive = enable;
+        if (success == true) {
+          _flagSecureActive = enable;
+        }
         return success ?? false;
       }
       _flagSecureActive = enable;
@@ -120,7 +122,7 @@ class SecurityHardeningService {
     return detected;
   }
 
-  /// Displays OJK Mandatory Advisory Warning if device is detected as Rooted/Jailbroken
+  /// Displays a security advisory if the device is detected as rooted/jailbroken.
   static void showRootWarningDialog(BuildContext context, RootInspectionResult result) {
     showDialog(
       context: context,
@@ -140,7 +142,7 @@ class SecurityHardeningService {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Peringatan Keamanan OJK',
+                'Peringatan Keamanan Perangkat',
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
@@ -160,7 +162,7 @@ class SecurityHardeningService {
             ),
             const SizedBox(height: 8),
             Text(
-              'Berdasarkan Surat Edaran OJK No. 35/SEOJK.03/2017 tentang Manajemen Risiko Teknologi Informasi Perbankan, akses pada perangkat yang di-root dibatasi demi melindungi kredensial rekening dan dana Anda dari ancaman malware/keylogger.',
+              'Perangkat yang dimodifikasi (root) memiliki risiko keamanan lebih tinggi terhadap malware/keylogger. Demi melindungi kredensial rekening dan dana Anda, gunakan perangkat dengan sistem operasi resmi.',
               style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF64748B), height: 1.4),
             ),
             if (result.reasons.isNotEmpty) ...[

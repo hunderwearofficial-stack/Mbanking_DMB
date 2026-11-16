@@ -24,43 +24,69 @@ function startLiveClock() {
 }
 
 function switchTab(tabId) {
-  currentTab = tabId;
-  const tabs = ['dashboard', 'customers', 'banners', 'transactions', 'admin-users', 'settings'];
+  // Old links of the removed CMS tab
+  if (tabId === 'cms-mobile' || tabId === 'cms' || tabId === 'banners') tabId = 'content';
 
+  currentTab = tabId;
+  const tabs = ['dashboard', 'customers', 'transactions', 'content', 'terms', 'admin-users', 'settings'];
+
+  let matched = false;
   tabs.forEach(t => {
     const el = document.getElementById(`tab-${t}`);
     const nav = document.getElementById(`nav-${t}`);
-    if (!el || !nav) return;
+    if (!el) return;
 
     if (t === tabId) {
+      matched = true;
       el.classList.remove('hidden');
-      nav.className = 'nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-[#00897B] bg-teal-50/90 border border-teal-200/80 shadow-xs transition';
+      if (nav) nav.className = 'nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-[#00897B] bg-teal-50/90 border border-teal-200/80 shadow-xs transition';
     } else {
       el.classList.add('hidden');
-      nav.className = 'nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 transition';
+      if (nav) nav.className = 'nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 transition';
     }
   });
 
+  // Fallback if unrecognized tab ID
+  if (!matched) {
+    const dashEl = document.getElementById('tab-dashboard');
+    const dashNav = document.getElementById('nav-dashboard');
+    if (dashEl) dashEl.classList.remove('hidden');
+    if (dashNav) dashNav.className = 'nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-[#00897B] bg-teal-50/90 border border-teal-200/80 shadow-xs transition';
+    tabId = 'dashboard';
+    currentTab = 'dashboard';
+  }
+
   const titleMap = {
     'dashboard': 'Dashboard',
-    'customers': 'Manajemen Nasabah & Device Binding',
-    'banners': 'CMS Banner Promosi Mobile Banking',
-    'transactions': 'Audit Transaksi M-Banking',
-    'admin-users': 'Manajemen Petugas & Hak Akses (RBAC)',
-    'settings': 'Pengaturan Logo & Identitas Bank'
+    'customers': 'Nasabah & Perangkat',
+    'transactions': 'Transaksi & Audit Trail',
+    'content': 'Konten Aplikasi',
+    'terms': 'Syarat & Ketentuan',
+    'admin-users': 'Petugas & Hak Akses',
+    'settings': 'Pengaturan Operasional'
   };
-  document.getElementById('pageTitle').innerText = titleMap[tabId] || 'Portal Admin';
+  const pageTitleEl = document.getElementById('pageTitle');
+  if (pageTitleEl) pageTitleEl.innerText = titleMap[tabId] || 'Portal Admin';
+
+  if (window.lucide && typeof lucide.createIcons === 'function') {
+    lucide.createIcons();
+  }
 
   refreshCurrentTab();
 }
 
 function refreshCurrentTab() {
-  if (currentTab === 'dashboard') loadDashboardStats();
-  if (currentTab === 'customers') loadCustomers();
-  if (currentTab === 'banners') loadBanners();
-  if (currentTab === 'transactions') loadTransactions();
-  if (currentTab === 'admin-users') loadAdminUsers();
-  if (currentTab === 'settings') loadConfig();
+  try {
+    if (currentTab === 'dashboard' && typeof loadDashboardStats === 'function') loadDashboardStats();
+    if (currentTab === 'customers' && typeof loadCustomers === 'function') loadCustomers();
+    if (currentTab === 'content' && typeof loadContent === 'function') loadContent();
+    if (currentTab === 'terms' && typeof loadTermsVersions === 'function') loadTermsVersions();
+    if (currentTab === 'transactions' && typeof loadTransactions === 'function') loadTransactions();
+    if (currentTab === 'admin-users' && typeof loadAdminUsers === 'function') loadAdminUsers();
+    if (currentTab === 'settings' && typeof loadConfig === 'function') loadConfig();
+  } catch (err) {
+    console.error('Error in refreshCurrentTab:', err);
+  }
 }
 
 /**

@@ -7,62 +7,75 @@ import (
 	"time"
 
 	"mbanking-bpr/pkg/logger"
+	"mbanking-bpr/pkg/reqctx"
 
 	"github.com/gin-gonic/gin"
 )
 
-// RequestLogger logs incoming HTTP requests with sensitive payload masking
+// noBodyLogPrefixes are paths whose request bodies are never logged (credentials, OTP, PIN).
+var noBodyLogPrefixes = []string{
+	"/api/v1/auth/",
+	"/api/v1/admin/login",
+	"/api/v1/admin/users",
+	"/api/v1/admin/config",
+	"/api/v1/transaction/",
+	"/api/v1/notifications/fcm-token",
+}
+
+func bodyLoggable(path string) bool {
+	for _, p := range noBodyLogPrefixes {
+		if strings.HasPrefix(path, p) {
+			return false
+		}
+	}
+	return true
+}
+
+// RequestLogger logs requests with masking (audit DMB-011): bodies of credential
+// endpoints are never logged; other JSON bodies are masked by key pattern; query
+// strings are masked.
 func RequestLogger() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		path := c.Request.URL.Path
-		rawQuery := c.Request.URL.RawQuery
 		method := c.Request.Method
-		clientIP := c.ClientIP()
 
 		var maskedBody string
-		// Read and mask request body for POST/PUT/PATCH
-		if method == "POST" || method == "PUT" || method == "PATCH" {
-			contentType := c.GetHeader("Content-Type")
-			if strings.Contains(contentType, "application/json") {
-				bodyBytes, err := io.ReadAll(c.Request.Body)
-				if err == nil {
-					// Restore request body for downstream handlers
-					c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-					maskedBody = logger.MaskJSONString(string(bodyBytes))
-				}
+		if (method == "POST" || method == "PUT" || method == "PATCH") &&
+			strings.Contains(c.GetHeader("Content-Type"), "application/json") && bodyLoggable(path) {
+			bodyBytes, err := io.ReadAll(io.LimitReader(c.Request.Body, 64*1024))
+			if err == nil {
+				c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+				maskedBody = logger.MaskJSONString(string(bodyBytes))
 			}
 		}
 
 		c.Next()
 
-		latency := time.Since(start)
 		statusCode := c.Writer.Status()
-
+		meta := reqctx.MetaFrom(c.Request.Context())
 		fields := map[string]interface{}{
 			"status":     statusCode,
-			"latency_ms": latency.Milliseconds(),
-			"client_ip":  clientIP,
+			"latency_ms": time.Since(start).Milliseconds(),
+			"client_ip":  c.ClientIP(),
 			"method":     method,
 			"path":       path,
+			"request_id": meta.RequestID,
 		}
-
-		if rawQuery != "" {
-			fields["query"] = rawQuery
+		if q := logger.MaskQuery(c.Request.URL.RawQuery); q != "" {
+			fields["query"] = q
 		}
-
 		if maskedBody != "" {
 			fields["payload"] = maskedBody
 		}
 
-		logMsg := "HTTP Request"
-		if statusCode >= 500 {
-			logger.GetLogger().Error(logMsg, fields)
-		} else if statusCode >= 400 {
-			logger.GetLogger().Warn(logMsg, fields)
-		} else {
-			logger.GetLogger().Info(logMsg, fields)
+		switch {
+		case statusCode >= 500:
+			logger.GetLogger().Error("HTTP Request", fields)
+		case statusCode >= 400:
+			logger.GetLogger().Warn("HTTP Request", fields)
+		default:
+			logger.GetLogger().Info("HTTP Request", fields)
 		}
 	}
 }
-

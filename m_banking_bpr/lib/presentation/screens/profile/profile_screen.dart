@@ -13,6 +13,7 @@ import '../helpdesk/helpdesk_screen.dart';
 import '../auth/terms_conditions_screen.dart';
 import '../auth/login_screen.dart';
 import 'security_settings_screen.dart';
+import '../../../core/money/money.dart';
 
 class ProfileScreen extends StatefulWidget {
   final bool isTab;
@@ -418,7 +419,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           String primaryAccountNo = '-';
           String rawAccountNo = '-';
-          double balance = 0.0;
+          // null until the balance has been obtained successfully (shown as "-").
+          Money? balance;
 
           if (accountState is AccountLoaded) {
             if (accountState.account.holderName.isNotEmpty && fullName.isEmpty) {

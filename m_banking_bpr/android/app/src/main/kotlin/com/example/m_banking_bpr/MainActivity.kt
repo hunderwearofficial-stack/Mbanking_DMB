@@ -44,6 +44,13 @@ class MainActivity : FlutterFragmentActivity() {
                 "setFlagSecure" -> {
                     try {
                         val enable = call.argument<Boolean>("enable") ?: true
+                        // SECURITY: screenshot/screen-recording protection cannot be disabled
+                        // in non-debuggable (release) builds.
+                        val debuggable = (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+                        if (!enable && !debuggable) {
+                            result.success(false)
+                            return@setMethodCallHandler
+                        }
                         runOnUiThread {
                             if (enable) {
                                 window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)

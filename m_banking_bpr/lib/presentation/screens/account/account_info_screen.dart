@@ -9,6 +9,7 @@ import '../../blocs/account/account_cubit.dart';
 import '../../blocs/account/account_state.dart';
 import '../../blocs/auth/auth_cubit.dart';
 import '../../blocs/auth/auth_state.dart';
+import '../../../core/money/money.dart';
 
 class AccountInfoScreen extends StatefulWidget {
   final bool isTab;
@@ -303,7 +304,7 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
           // 2. Nama Lengkap Resolution
           String nama = (profile['nama'] ?? profile['full_name'] ?? authUser?.fullName ?? activeAccount?.holderName ?? '').toString().trim();
           if (nama.isEmpty || nama == 'null') {
-            nama = 'Nasabah Bank DMB';
+            nama = '-';
           }
 
           // 3. NIK Resolution
@@ -325,7 +326,7 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
             alamat = '$alamat ($kodePos)';
           }
           if (alamat.isEmpty || alamat == '-' || alamat == 'null') {
-            alamat = 'Jl. Pajajaran No. 12, RT 01/RW 03, Baranangsiang, Kec. Bogor Timur, Kota Bogor, Jawa Barat';
+            alamat = '-';
           }
 
           // 6. Tempat & Tanggal Lahir (optional extra detail)
@@ -340,9 +341,9 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
           for (final item in accountsList) {
             if (item is Map) {
               final noRek = (item['nomor_rekening'] ?? item['no_rek'] ?? '').toString();
-              final prod = (item['produk_tabungan'] ?? item['kode_produk'] ?? item['jenis'] ?? 'Tabungan Mandiri DMB').toString();
-              final rawBal = item['saldo'] ?? item['saldo_akhir'] ?? 0;
-              final saldo = (rawBal is num) ? rawBal.toDouble() : double.tryParse(rawBal.toString()) ?? 0.0;
+              final prod = (item['produk_tabungan'] ?? item['kode_produk'] ?? item['jenis'] ?? '-').toString();
+              // null when CBS did not provide a balance -> displayed as "-"
+              final saldo = Money.tryParse(item['saldo'] ?? item['saldo_akhir']);
               if (noRek.isNotEmpty && noRek != '-') {
                 parsedAccounts.add({
                   'no_rek': noRek,
@@ -359,7 +360,7 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
               'no_rek': activeAccount.accountNumber,
               'jenis': activeAccount.accountType.isNotEmpty
                   ? activeAccount.accountType
-                  : 'Tabungan Mikro DMB (Kode 20)',
+                  : '-',
               'saldo': activeAccount.balance,
             });
           }
@@ -624,7 +625,7 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
                   else
                     ...parsedAccounts.map((map) {
                       final noRek = map['no_rek']?.toString() ?? '-';
-                      final saldo = (map['saldo'] is num) ? (map['saldo'] as num).toDouble() : 0.0;
+                      final saldo = map['saldo'] is Money ? map['saldo'] as Money : null;
                       final type = map['jenis']?.toString() ?? 'Tabungan DMB';
 
                       return Container(

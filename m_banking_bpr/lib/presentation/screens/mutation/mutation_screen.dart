@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -7,6 +6,7 @@ import '../../../core/utils/currency_formatter.dart';
 import '../../../data/models/mutation_model.dart';
 import '../../blocs/account/account_cubit.dart';
 import '../../blocs/account/account_state.dart';
+import '../../../core/money/money.dart';
 
 class MutationScreen extends StatefulWidget {
   final bool isTab;
@@ -724,8 +724,8 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
 
   // ==================== SUMMARY HEADER CARD ====================
   Widget _buildSummaryCard(List<MutationModel> list) {
-    double totalCredit = 0;
-    double totalDebit = 0;
+    var totalCredit = const Money.zero();
+    var totalDebit = const Money.zero();
     for (final m in list) {
       if (m.isCredit) {
         totalCredit += m.amount;

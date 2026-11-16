@@ -1,15 +1,19 @@
 import 'package:intl/intl.dart';
 
-class CurrencyFormatter {
-  static final NumberFormat _rupiahFormat = NumberFormat.currency(
-    locale: 'id_ID',
-    symbol: 'Rp ',
-    decimalDigits: 0,
-  );
+import '../money/money.dart';
 
-  static String formatRupiah(num? amount) {
-    if (amount == null) return 'Rp 0';
-    return _rupiahFormat.format(amount);
+class CurrencyFormatter {
+  static final NumberFormat _thousands = NumberFormat.decimalPattern('id_ID');
+
+  /// Formats an exact [Money] as "Rp 1.500.000" (or "Rp 15.000,50" with sen).
+  /// A missing amount is shown as "-" — never as a fabricated "Rp 0".
+  static String formatRupiah(Money? amount) {
+    if (amount == null) return '-';
+    final abs = amount.sen.abs();
+    var s = 'Rp ${_thousands.format(abs ~/ 100)}';
+    final frac = abs % 100;
+    if (frac != 0) s += ',${frac.toString().padLeft(2, '0')}';
+    return amount.isNegative ? '-$s' : s;
   }
 
   static String formatDate(dynamic date) {
@@ -27,7 +31,7 @@ class CurrencyFormatter {
       return date.toString();
     }
 
-    return DateFormat('dd MMM yyyy, HH:mm', 'id_ID').format(parsed) + ' WIB';
+    return '${DateFormat('dd MMM yyyy, HH:mm', 'id_ID').format(parsed)} WIB';
   }
 
   static String formatDateFull(dynamic date) {

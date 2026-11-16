@@ -13,7 +13,7 @@ import (
 )
 
 // InitPostgres attempts to connect to PostgreSQL.
-// Returns db instance or nil with error if unreachable.
+// Returns an error if unreachable; the caller must stop (no standalone/mock mode).
 func InitPostgres(cfg *config.Config) (*gorm.DB, error) {
 	dsn := fmt.Sprintf(
 		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=Asia/Jakarta",
@@ -24,9 +24,9 @@ func InitPostgres(cfg *config.Config) (*gorm.DB, error) {
 		Logger: gormlogger.Default.LogMode(gormlogger.Silent),
 	})
 	if err != nil {
-		logger.GetLogger().Warn("PostgreSQL tidak dapat terhubung, berjalan dalam mode Standalone/Mock CBS", map[string]interface{}{
-			"host": cfg.DBHost,
-			"port": cfg.DBPort,
+		logger.GetLogger().Error("PostgreSQL tidak dapat terhubung (backend akan berhenti: fail-closed)", map[string]interface{}{
+			"host":  cfg.DBHost,
+			"port":  cfg.DBPort,
 			"error": err.Error(),
 		})
 		return nil, err
@@ -38,15 +38,14 @@ func InitPostgres(cfg *config.Config) (*gorm.DB, error) {
 	}
 
 	// Connection Pool Settings
-	sqlDB.SetMaxIdleConns(10)
-	sqlDB.SetMaxOpenConns(50)
+	sqlDB.SetMaxIdleConns(cfg.DBMaxIdleConns)
+	sqlDB.SetMaxOpenConns(cfg.DBMaxOpenConns)
 	sqlDB.SetConnMaxLifetime(time.Hour)
 
 	logger.GetLogger().Info("PostgreSQL berhasil terhubung", map[string]interface{}{
-		"host": cfg.DBHost,
+		"host":     cfg.DBHost,
 		"database": cfg.DBName,
 	})
 
 	return db, nil
 }
-

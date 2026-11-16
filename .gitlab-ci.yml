@@ -1,63 +1,88 @@
 # ==============================================================================
 # GitLab CI/CD Pipeline - DMB Mobile (Bank DMB)
-# Otomatisasi Build APK Flutter & Deploy Backend ke Server VPS
+# Security gates first, then mobile build and backend deploy.
+#
+# Required CI/CD variables (masked + protected):
+#   SSH_PRIVATE_KEY, SSH_KNOWN_HOSTS, VPS_USER, VPS_HOST        (deploy)
+#   API_BASE_URL (https://...), API_CERT_PINS (optional)        (mobile build)
+#   ANDROID_KEYSTORE_BASE64, ANDROID_KEY_PROPERTIES             (release signing)
+# NOTE: the repository remote is currently on GitHub; this pipeline only runs on
+# GitLab. Port it to the CI platform actually used (audit DMB-036).
 # ==============================================================================
 
 stages:
+  - security
+  - test
   - build-mobile
   - deploy-backend
 
 # ------------------------------------------------------------------------------
-# 1. JOB BUILD APK FLUTTER (OTOMATIS DI CLOUD GITLAB)
+# 0. Secret scanning (fails the pipeline on any finding)
+# ------------------------------------------------------------------------------
+secret-scan:
+  stage: security
+  image:
+    name: zricethezav/gitleaks:v8.18.4
+    entrypoint: [""]
+  script:
+    - gitleaks detect --source . --redact --verbose
+
+# ------------------------------------------------------------------------------
+# 1. Backend: vet, unit tests, vulnerability scan
+# ------------------------------------------------------------------------------
+backend-test:
+  stage: test
+  image: golang:1.25.1
+  script:
+    - go vet ./...
+    - go test ./...
+    - go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+# ------------------------------------------------------------------------------
+# 2. Mobile release build (obfuscated, HTTPS endpoint injected at build time)
 # ------------------------------------------------------------------------------
 build-apk-release:
   stage: build-mobile
-  image: ghcr.io/cirruslabs/flutter:3.24.0
+  image: ghcr.io/cirruslabs/flutter:3.35.7
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
     - if: '$CI_COMMIT_TAG'
-    - when: manual # Bisa juga diklik tombol 'Run Job' secara manual di GitLab UI kapan saja
+    - when: manual
   before_script:
     - flutter --version
-  script:
+    - test -n "$API_BASE_URL" || (echo "API_BASE_URL wajib diisi" && exit 1)
     - cd m_banking_bpr
-    - flutter clean
+    - echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/release.jks
+    - printf '%s\n' "$ANDROID_KEY_PROPERTIES" > android/key.properties
+  script:
     - flutter pub get
-    - flutter build apk --release
+    - flutter analyze --no-fatal-infos
+    - flutter build apk --release --obfuscate --split-debug-info=build/symbols
+        --dart-define=API_BASE_URL="$API_BASE_URL"
+        --dart-define=API_CERT_PINS="$API_CERT_PINS"
     - cp build/app/outputs/flutter-apk/app-release.apk ../DMB-Mobile-Release-$CI_COMMIT_SHORT_SHA.apk
-    - cp build/app/outputs/flutter-apk/app-release.apk ../DMB-Mobile-Latest.apk
+  after_script:
+    - rm -f m_banking_bpr/android/app/release.jks m_banking_bpr/android/key.properties
   artifacts:
     name: "DMB-Mobile-$CI_COMMIT_REF_NAME-$CI_COMMIT_SHORT_SHA"
     paths:
       - DMB-Mobile-Release-*.apk
-      - DMB-Mobile-Latest.apk
-    expire_in: 30 days # File APK tersimpan 30 hari di GitLab dan bisa langsung didownload
+      - m_banking_bpr/build/symbols/
+    expire_in: 30 days
 
 # ------------------------------------------------------------------------------
-# 2. JOB DEPLOY BACKEND KE VPS (OTOMATIS RESTART DOCKER DI SERVER)
+# 3. Backend deploy (manual approval; host key verified)
 # ------------------------------------------------------------------------------
 deploy-backend-to-vps:
   stage: deploy-backend
-  image: alpine:latest
+  image: alpine:3.20
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
-      changes:
-        - cmd/**/*
-        - internal/**/*
-        - pkg/**/*
-        - web/**/*
-        - Dockerfile
-        - docker-compose.yml
-    - when: manual # Bisa dijalankan manual jika tidak ingin otomatis tiap push
+      when: manual
   before_script:
     - apk add --no-cache openssh-client
     - eval $(ssh-agent -s)
     - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
-    - mkdir -p ~/.ssh
-    - chmod 700 ~/.ssh
-    - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    - printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts && chmod 644 ~/.ssh/known_hosts
   script:
-    - echo "Deploying update to VPS $VPS_HOST..."
-    - ssh $VPS_USER@$VPS_HOST "cd ~/mbanking-bpr && git pull origin main && docker compose up -d --build app"
-    - echo "Deploy Backend Berhasil!"
-
+    - ssh -o StrictHostKeyChecking=yes $VPS_USER@$VPS_HOST "cd ~/mbanking-bpr && git fetch origin && git checkout --detach $CI_COMMIT_SHA && docker compose up -d --build app"

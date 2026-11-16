@@ -3,9 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../blocs/auth/auth_cubit.dart';
 import '../../blocs/auth/auth_state.dart';
-import '../auth/login_screen.dart';
 import '../home/home_screen.dart';
 import '../onboarding/onboarding_screen.dart';
+import '../../../core/content/app_content.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -119,11 +119,7 @@ class _SplashScreenState extends State<SplashScreen>
             fit: StackFit.expand,
             children: [
               // 1. Official High-DPI DMB Mobile Artwork (Tugu Kujang + Gunung Salak + Waves)
-              Image.asset(
-                'assets/images/splash_artwork.jpg',
-                fit: BoxFit.cover,
-                alignment: Alignment.center,
-              ),
+              const ContentImage('splash.background', asset: 'assets/images/splash_artwork.jpg'),
 
               // 2. Foreground Elements Layer
               SafeArea(
@@ -139,15 +135,11 @@ class _SplashScreenState extends State<SplashScreen>
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            // Official DMB Mobile Logo
-                            Image.asset(
-                              'assets/images/bank_logo.png',
-                              width: 220,
-                              fit: BoxFit.contain,
-                            ),
+                            // Official Bank Logo (Server-Driven / Cached with Asset Fallback)
+                            const ContentImage('app.logo', asset: 'assets/images/bank_logo.png', width: 220, fit: BoxFit.contain),
                             const SizedBox(height: 12),
 
-                            // Official Brand Slogan Pill
+                            // Official Brand Slogan Pill (Server-Driven Tagline with Fallback)
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                               decoration: BoxDecoration(
@@ -162,14 +154,18 @@ class _SplashScreenState extends State<SplashScreen>
                                   ),
                                 ],
                               ),
-                              child: const Text(
-                                'Sahabat Finansial Terpercaya Anda',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF0B356D),
-                                  letterSpacing: 0.3,
-                                ),
+                              child: Builder(
+                                builder: (context) {
+                                  return Text(
+                                    AppContent.text('splash.tagline'),
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF0B356D),
+                                      letterSpacing: 0.3,
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                           ],
@@ -202,7 +198,7 @@ class _SplashScreenState extends State<SplashScreen>
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Memuat layanan perbankan...',
+                            AppContent.text('splash.loading_text'),
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
@@ -229,7 +225,7 @@ class _SplashScreenState extends State<SplashScreen>
                       child: Column(
                         children: [
                           Text(
-                            'PT BPR Dana Mandiri Bogor berizin dan diawasi oleh Otoritas Jasa Keuangan (OJK) serta merupakan peserta penjaminan Lembaga Penjamin Simpanan (LPS).',
+                            AppContent.text('splash.disclaimer'),
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 9.5,

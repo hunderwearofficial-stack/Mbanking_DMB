@@ -1,0 +1,1654 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "CBS Open API",
+    "version": "1.0.0",
+    "description": "CBS Open API"
+  },
+  "paths": {
+    "/ping": {
+      "get": {
+        "summary": "Health Check",
+        "tags": ["System"],
+        "responses": {
+          "200": {
+            "description": "Server is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/oauth/access-token": {
+      "post": {
+        "summary": "Get Access Token",
+        "description": "Client sends clientId and clientSecret to obtain an access token (JWT) for subsequent requests.",
+        "tags": ["Authentication"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token successfully obtained",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid client credentials",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/nasabah": {
+      "post": {
+        "summary": "SP Get Nasabah Data",
+        "description": "Get customer data by CIF Number. Requires valid access token and HMAC-SHA512 signature.",
+        "tags": ["Services"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Client-ID",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Registered Client ID"
+          },
+          {
+            "name": "X-TIMESTAMP",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "ISO-8601 with an offset, for example 2026-11-10T10:00:00+07:00. Refused when more than 5 minutes old or more than 30 seconds ahead"
+          },
+          {
+            "name": "X-Signature",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Base64 HMAC-SHA512 with the client secret over METHOD:PATH:ACCESS_TOKEN:lowercase hex SHA-256 of the minified body:X-TIMESTAMP"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NasabahRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Customer data found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "OK" },
+                    "code": { "type": "integer", "example": 10000 },
+                    "ref_id": { "type": "string", "example": "abc123" },
+                    "timestamp": { "type": "string", "example": "2024-01-01T12:00:00.000Z" },
+                    "message": { "type": "string", "example": "Success" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "nik": { "type": "string", "example": "1234567890123456" },
+                        "cif": { "type": "string", "example": "123456789012" },
+                        "nama": { "type": "string", "example": "BUDI SANTOSO" },
+                        "nohp": { "type": "string", "example": "08123456789" },
+                        "email": { "type": "string", "example": "budi@email.com" },
+                        "alamat": { "type": "string", "example": "JL. MERDEKA NO. 1" },
+                        "kode_pos": { "type": "string", "example": "12345" },
+                        "jenis_kelamin": { "type": "string", "example": "LAKI-LAKI" },
+                        "agama": { "type": "string", "example": "ISLAM" },
+                        "tgl_lahir": { "type": "string", "example": "1990-01-01" },
+                        "tempat_lahir": { "type": "string", "example": "JAKARTA" },
+                        "nama_ibu_kandung": { "type": "string", "example": "SITI" },
+                        "diperbarui_pada": { "type": "string", "example": "2026-11-03T10:20:00", "description": "When the CBS last changed this customer: the latest of creation, edit and approval, in CBS server time (WIB), without an offset. Keep it and refresh the customer's data when a newer one arrives" },
+                        "menunggu_otorisasi": { "type": "boolean", "example": false, "description": "True while a CBS edit to this customer awaits a supervisor's approval. The CBS edits in place, so the data shown already includes that edit" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid token or signature",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer data not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/products": {
+      "post": {
+        "summary": "SP Get Products",
+        "description": "Get the savings, loan and deposit product codes with their names. Each approved product appears once; aktif is false for a product no longer sold, so existing accounts can still be labelled. Send an empty JSON object as the body and sign it like any other body. Requires valid access token and HMAC-SHA512 signature.",
+        "tags": ["Services"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Client-ID",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Registered Client ID"
+          },
+          {
+            "name": "X-TIMESTAMP",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "ISO-8601 with an offset, for example 2026-11-10T10:00:00+07:00. Refused when more than 5 minutes old or more than 30 seconds ahead"
+          },
+          {
+            "name": "X-Signature",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Base64 HMAC-SHA512 with the client secret over METHOD:PATH:ACCESS_TOKEN:lowercase hex SHA-256 of the minified body:X-TIMESTAMP"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": { "type": "object", "example": {} }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Product codes by type, sorted by code",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "OK" },
+                    "code": { "type": "integer", "example": 10000 },
+                    "ref_id": { "type": "string", "example": "abc123" },
+                    "timestamp": { "type": "string", "example": "2024-01-01T12:00:00.000Z" },
+                    "message": { "type": "string", "example": "Success" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "tabungan": { "type": "array", "items": { "$ref": "#/components/schemas/Product" } },
+                        "kredit": { "type": "array", "items": { "$ref": "#/components/schemas/Product" } },
+                        "deposito": { "type": "array", "items": { "$ref": "#/components/schemas/Product" } }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid token or signature",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/savings-accounts": {
+      "post": {
+        "summary": "SP Get Savings Accounts",
+        "description": "Get list of customer savings accounts by CIF Number, sorted by account number. Only accounts with status 1 (Aktif), 3 (Blokir) or 4 (Pasif) are shown. Requires valid access token and HMAC-SHA512 signature.",
+        "tags": ["Services"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Client-ID",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Registered Client ID"
+          },
+          {
+            "name": "X-TIMESTAMP",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "ISO-8601 with an offset, for example 2026-11-10T10:00:00+07:00. Refused when more than 5 minutes old or more than 30 seconds ahead"
+          },
+          {
+            "name": "X-Signature",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Base64 HMAC-SHA512 with the client secret over METHOD:PATH:ACCESS_TOKEN:lowercase hex SHA-256 of the minified body:X-TIMESTAMP"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavingsAccountsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Savings accounts found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "OK" },
+                    "code": { "type": "integer", "example": 10000 },
+                    "ref_id": { "type": "string", "example": "abc123" },
+                    "timestamp": { "type": "string", "example": "2024-01-01T12:00:00.000Z" },
+                    "message": { "type": "string", "example": "Success" },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "nomor_rekening": { "type": "string", "example": "1234567890123456" },
+                          "nama": { "type": "string", "example": "BUDI SANTOSO" },
+                          "kode_produk": { "type": "string", "example": "01" },
+                          "nama_produk": { "type": "string", "example": "TABUNGAN CONTOH" },
+                          "status_rekening": { "type": "integer", "example": 1, "description": "CBS account status code, Status_Rekening" },
+                          "status_rekening_keterangan": { "type": "string", "example": "Aktif", "description": "The CBS name for that status, from Ref_Sys_Status_Rekening_Tabungan, _Kredit or _Deposito. Empty when the CBS has no name for the code" },
+                          "saldo": { "type": "number", "example": 5000000.00 }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid token or signature",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/savings-account-balance": {
+      "post": {
+        "summary": "SP Get Savings Account Balance",
+        "description": "Get savings account balance by account number. Only accounts with status 1 (Aktif), 3 (Blokir) or 4 (Pasif) are shown; others answer 404. Requires valid access token and HMAC-SHA512 signature.",
+        "tags": ["Services"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Client-ID",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Registered Client ID"
+          },
+          {
+            "name": "X-TIMESTAMP",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "ISO-8601 with an offset, for example 2026-11-10T10:00:00+07:00. Refused when more than 5 minutes old or more than 30 seconds ahead"
+          },
+          {
+            "name": "X-Signature",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Base64 HMAC-SHA512 with the client secret over METHOD:PATH:ACCESS_TOKEN:lowercase hex SHA-256 of the minified body:X-TIMESTAMP"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavingsAccountBalanceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Savings account balance found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "OK" },
+                    "code": { "type": "integer", "example": 10000 },
+                    "ref_id": { "type": "string", "example": "abc123" },
+                    "timestamp": { "type": "string", "example": "2024-01-01T12:00:00.000Z" },
+                    "message": { "type": "string", "example": "Success" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "nomor_rekening": { "type": "string", "example": "1234567890123456" },
+                        "nama": { "type": "string", "example": "BUDI SANTOSO" },
+                        "kode_produk": { "type": "string", "example": "01" },
+                        "nama_produk": { "type": "string", "example": "TABUNGAN CONTOH" },
+                        "status_rekening": { "type": "integer", "example": 1, "description": "CBS account status code, Status_Rekening" },
+                        "status_rekening_keterangan": { "type": "string", "example": "Aktif", "description": "The CBS name for that status, from Ref_Sys_Status_Rekening_Tabungan, _Kredit or _Deposito. Empty when the CBS has no name for the code" },
+                        "saldo": { "type": "number", "example": 5000000.00 },
+                        "saldo_minimum": { "type": "number", "example": 0 },
+                        "saldo_tertahan": { "type": "number", "example": 0 },
+                        "saldo_efektif": { "type": "number", "example": 5000000.00 }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid token or signature",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Savings account not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/savings-account-mutations": {
+      "post": {
+        "summary": "SP Get Savings Account Mutations",
+        "description": "Get savings account mutations in a date range, newest first. Reversed transactions appear with their (REVERSE) line. Requires valid access token and HMAC-SHA512 signature.",
+        "tags": ["Services"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Client-ID",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Registered Client ID"
+          },
+          {
+            "name": "X-TIMESTAMP",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "ISO-8601 with an offset, for example 2026-11-10T10:00:00+07:00. Refused when more than 5 minutes old or more than 30 seconds ahead"
+          },
+          {
+            "name": "X-Signature",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Base64 HMAC-SHA512 with the client secret over METHOD:PATH:ACCESS_TOKEN:lowercase hex SHA-256 of the minified body:X-TIMESTAMP"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountMutationsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Savings account mutations found, or an empty list when nothing happened in the range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "OK" },
+                    "code": { "type": "integer", "example": 10000 },
+                    "ref_id": { "type": "string", "example": "abc123" },
+                    "timestamp": { "type": "string", "example": "2024-01-01T12:00:00.000Z" },
+                    "message": { "type": "string", "example": "Success" },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Mutation" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body: cif_number is required, cif_number must be 12 digits, account_number must be 16 digits, start_date must be a date in YYYY-MM-DD format, start_date must not be after end_date, the date range must not exceed 31 days",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid token or signature",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Data rekening tabungan tidak ditemukan: the account is not this customer's, or its status is not one mobile banking shows",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/loan-accounts": {
+      "post": {
+        "summary": "SP Get Loan Accounts",
+        "description": "Get list of the customer's loan accounts by CIF Number. Only accounts with status 1 (Aktif), 3 (Hapus buku), 5 (Channeling), 7, 8 or 9 (Restruktur) are shown. Requires valid access token and HMAC-SHA512 signature.",
+        "tags": ["Services"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Client-ID",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Registered Client ID"
+          },
+          {
+            "name": "X-TIMESTAMP",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "ISO-8601 with an offset, for example 2026-11-10T10:00:00+07:00. Refused when more than 5 minutes old or more than 30 seconds ahead"
+          },
+          {
+            "name": "X-Signature",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Base64 HMAC-SHA512 with the client secret over METHOD:PATH:ACCESS_TOKEN:lowercase hex SHA-256 of the minified body:X-TIMESTAMP"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountsByCIFRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Loan accounts found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "OK" },
+                    "code": { "type": "integer", "example": 10000 },
+                    "ref_id": { "type": "string", "example": "abc123" },
+                    "timestamp": { "type": "string", "example": "2024-01-01T12:00:00.000Z" },
+                    "message": { "type": "string", "example": "Success" },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "nomor_rekening": { "type": "string", "example": "1100105000000001" },
+                          "kode_produk": { "type": "string", "example": "11" },
+                          "nama_produk": { "type": "string", "example": "KREDIT MODAL KERJA CONTOH" },
+                          "status_rekening": { "type": "integer", "example": 1, "description": "CBS account status code, Status_Rekening" },
+                          "status_rekening_keterangan": { "type": "string", "example": "Aktif", "description": "The CBS name for that status, from Ref_Sys_Status_Rekening_Tabungan, _Kredit or _Deposito. Empty when the CBS has no name for the code" },
+                          "plafon": { "type": "integer", "format": "int64", "example": 12000000 },
+                          "baki_debet": { "type": "integer", "format": "int64", "example": 7500000, "description": "Outstanding principal" },
+                          "kolektibilitas": { "type": "integer", "minimum": 1, "maximum": 5, "example": 1 },
+                          "kolektibilitas_keterangan": { "type": "string", "enum": ["Lancar", "Dalam Perhatian Khusus", "Kurang Lancar", "Diragukan", "Macet"], "example": "Lancar" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body: cif_number is required, cif_number must be 12 digits",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid token or signature",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Data rekening kredit tidak ditemukan: the customer has no loan with a status mobile banking shows",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/loan-account-detail": {
+      "post": {
+        "summary": "SP Get Loan Account Detail",
+        "description": "Get loan account detail by CIF Number and account number. The account must belong to the CIF. Requires valid access token and HMAC-SHA512 signature.",
+        "tags": ["Services"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Client-ID",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Registered Client ID"
+          },
+          {
+            "name": "X-TIMESTAMP",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "ISO-8601 with an offset, for example 2026-11-10T10:00:00+07:00. Refused when more than 5 minutes old or more than 30 seconds ahead"
+          },
+          {
+            "name": "X-Signature",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Base64 HMAC-SHA512 with the client secret over METHOD:PATH:ACCESS_TOKEN:lowercase hex SHA-256 of the minified body:X-TIMESTAMP"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountDetailRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Loan account detail found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "OK" },
+                    "code": { "type": "integer", "example": 10000 },
+                    "ref_id": { "type": "string", "example": "abc123" },
+                    "timestamp": { "type": "string", "example": "2024-01-01T12:00:00.000Z" },
+                    "message": { "type": "string", "example": "Success" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "nomor_rekening": { "type": "string", "example": "1100105000000001" },
+                        "kode_produk": { "type": "string", "example": "11" },
+                        "nama_produk": { "type": "string", "example": "KREDIT MODAL KERJA CONTOH" },
+                        "status_rekening": { "type": "integer", "example": 1, "description": "CBS account status code, Status_Rekening" },
+                        "status_rekening_keterangan": { "type": "string", "example": "Aktif", "description": "The CBS name for that status, from Ref_Sys_Status_Rekening_Tabungan, _Kredit or _Deposito. Empty when the CBS has no name for the code" },
+                        "plafon": { "type": "integer", "format": "int64", "example": 12000000 },
+                        "baki_debet": { "type": "integer", "format": "int64", "example": 7500000, "description": "Outstanding principal" },
+                        "kolektibilitas": { "type": "integer", "minimum": 1, "maximum": 5, "example": 1 },
+                        "kolektibilitas_keterangan": { "type": "string", "enum": ["Lancar", "Dalam Perhatian Khusus", "Kurang Lancar", "Diragukan", "Macet"], "example": "Lancar" },
+                        "prk": { "type": "boolean", "example": false, "description": "True for overdraft-style loans, where plafon minus baki_debet is unused limit, not principal repaid" },
+                        "nomor_perjanjian": { "type": "string", "example": "AKAD-AKHIR-0001", "description": "Latest agreement number" },
+                        "angsuran": { "type": "integer", "format": "int64", "nullable": true, "example": 1138000, "description": "Amount of the next unpaid installment" },
+                        "jatuh_tempo_berikutnya": { "type": "string", "format": "date", "nullable": true, "example": "2026-05-15", "description": "Due date of the first unpaid installment; a past date means overdue" },
+                        "jangka_waktu": { "type": "integer", "example": 12, "description": "Number of installments" },
+                        "sisa_jangka_waktu": { "type": "integer", "example": 8, "description": "Installment due dates from the CBS business date up to and including the maturity date, in the loan's own time unit, capped at jangka_waktu. 0 when the loan is past maturity or the time unit is unknown. Missed installments do not add to it" },
+                        "satuan_waktu": { "type": "string", "enum": ["hari", "minggu", "bulan", "tahun"], "example": "bulan" },
+                        "angka_satuan": { "type": "integer", "example": 1, "description": "How many satuan_waktu one installment covers" },
+                        "tanggal_jatuh_tempo": { "type": "string", "format": "date", "example": "2026-12-15", "description": "Final maturity date" },
+                        "suku_bunga_tahunan": { "type": "number", "example": 13.8, "description": "Percent per year" },
+                        "metode_bunga": { "type": "string", "enum": ["flat", "anuitas_kkm", "rule_78", "flat_anuitas", "menurun", "floating", ""], "example": "flat", "description": "Empty when unknown" },
+                        "agunan": {
+                          "type": "array",
+                          "description": "Empty array when there is no collateral",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "jenis": { "type": "string", "example": "SERTIFIKAT HAK MILIK" },
+                              "bukti_kepemilikan": { "type": "string", "example": "SHM NO. 0001" }
+                            }
+                          }
+                        },
+                        "sandi_kantor": { "type": "string", "example": "001" },
+                        "nama_kantor": { "type": "string", "example": "KC CONTOH PUSAT" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body: cif_number is required, cif_number must be 12 digits, account_number must be 16 digits",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid token or signature",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Data rekening kredit tidak ditemukan: the account is not this customer's, or its status is not one mobile banking shows",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/loan-account-mutations": {
+      "post": {
+        "summary": "SP Get Loan Account Mutations",
+        "description": "Get loan account mutations in a date range, newest first. mutasi_debit is a disbursement and mutasi_kredit a payment. saldo_akhir is the principal left, not the total owed. Reversed transactions appear with their (REVERSE) line. Requires valid access token and HMAC-SHA512 signature.",
+        "tags": ["Services"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Client-ID",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Registered Client ID"
+          },
+          {
+            "name": "X-TIMESTAMP",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "ISO-8601 with an offset, for example 2026-11-10T10:00:00+07:00. Refused when more than 5 minutes old or more than 30 seconds ahead"
+          },
+          {
+            "name": "X-Signature",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Base64 HMAC-SHA512 with the client secret over METHOD:PATH:ACCESS_TOKEN:lowercase hex SHA-256 of the minified body:X-TIMESTAMP"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountMutationsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Loan account mutations found, or an empty list when nothing happened in the range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "OK" },
+                    "code": { "type": "integer", "example": 10000 },
+                    "ref_id": { "type": "string", "example": "abc123" },
+                    "timestamp": { "type": "string", "example": "2024-01-01T12:00:00.000Z" },
+                    "message": { "type": "string", "example": "Success" },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Mutation" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body: cif_number is required, cif_number must be 12 digits, account_number must be 16 digits, start_date must be a date in YYYY-MM-DD format, start_date must not be after end_date, the date range must not exceed 31 days",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid token or signature",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Data rekening kredit tidak ditemukan: the account is not this customer's, or its status is not one mobile banking shows",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/deposit-accounts": {
+      "post": {
+        "summary": "SP Get Deposit Accounts",
+        "description": "Get list of customer deposit accounts by CIF Number. Only accounts with status 1 (Aktif) or 3 (Blokir) are shown. Requires valid access token and HMAC-SHA512 signature.",
+        "tags": ["Services"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Client-ID",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Registered Client ID"
+          },
+          {
+            "name": "X-TIMESTAMP",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "ISO-8601 with an offset, for example 2026-11-10T10:00:00+07:00. Refused when more than 5 minutes old or more than 30 seconds ahead"
+          },
+          {
+            "name": "X-Signature",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Base64 HMAC-SHA512 with the client secret over METHOD:PATH:ACCESS_TOKEN:lowercase hex SHA-256 of the minified body:X-TIMESTAMP"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountsByCIFRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Deposit accounts found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "OK" },
+                    "code": { "type": "integer", "example": 10000 },
+                    "ref_id": { "type": "string", "example": "abc123" },
+                    "timestamp": { "type": "string", "example": "2024-01-01T12:00:00.000Z" },
+                    "message": { "type": "string", "example": "Success" },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "nomor_rekening": { "type": "string", "example": "2100104000000001" },
+                          "kode_produk": { "type": "string", "example": "21" },
+                          "nama_produk": { "type": "string", "example": "DEPOSITO CONTOH" },
+                          "status_rekening": { "type": "integer", "example": 1, "description": "CBS account status code, Status_Rekening" },
+                          "status_rekening_keterangan": { "type": "string", "example": "Aktif", "description": "The CBS name for that status, from Ref_Sys_Status_Rekening_Tabungan, _Kredit or _Deposito. Empty when the CBS has no name for the code" },
+                          "nominal": { "type": "integer", "format": "int64", "example": 50000000 },
+                          "suku_bunga_tahunan": { "type": "number", "example": 5.5, "description": "Percent per year" },
+                          "tanggal_jatuh_tempo": { "type": "string", "format": "date", "example": "2027-01-10" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body: cif_number is required, cif_number must be 12 digits",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid token or signature",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Data rekening deposito tidak ditemukan: the customer has no deposit account",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/deposit-account-detail": {
+      "post": {
+        "summary": "SP Get Deposit Account Detail",
+        "description": "Get deposit account detail by CIF Number and account number. The account must belong to the CIF. Requires valid access token and HMAC-SHA512 signature.",
+        "tags": ["Services"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Client-ID",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Registered Client ID"
+          },
+          {
+            "name": "X-TIMESTAMP",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "ISO-8601 with an offset, for example 2026-11-10T10:00:00+07:00. Refused when more than 5 minutes old or more than 30 seconds ahead"
+          },
+          {
+            "name": "X-Signature",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Base64 HMAC-SHA512 with the client secret over METHOD:PATH:ACCESS_TOKEN:lowercase hex SHA-256 of the minified body:X-TIMESTAMP"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountDetailRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Deposit account detail found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "OK" },
+                    "code": { "type": "integer", "example": 10000 },
+                    "ref_id": { "type": "string", "example": "abc123" },
+                    "timestamp": { "type": "string", "example": "2024-01-01T12:00:00.000Z" },
+                    "message": { "type": "string", "example": "Success" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "nomor_rekening": { "type": "string", "example": "2100104000000001" },
+                        "kode_produk": { "type": "string", "example": "21" },
+                        "nama_produk": { "type": "string", "example": "DEPOSITO CONTOH" },
+                        "status_rekening": { "type": "integer", "example": 1, "description": "CBS account status code, Status_Rekening" },
+                        "status_rekening_keterangan": { "type": "string", "example": "Aktif", "description": "The CBS name for that status, from Ref_Sys_Status_Rekening_Tabungan, _Kredit or _Deposito. Empty when the CBS has no name for the code" },
+                        "nominal": { "type": "integer", "format": "int64", "example": 50000000 },
+                        "suku_bunga_tahunan": { "type": "number", "example": 5.5, "description": "Percent per year" },
+                        "tanggal_jatuh_tempo": { "type": "string", "format": "date", "example": "2027-01-10" },
+                        "nomor_bilyet": { "type": "string", "example": "BLT-0001" },
+                        "jangka_waktu_bulan": { "type": "integer", "example": 12 },
+                        "tanggal_buka": { "type": "string", "format": "date", "example": "2026-01-10" },
+                        "tanggal_efektif": { "type": "string", "format": "date", "example": "2026-01-10" },
+                        "aro": { "type": "boolean", "example": true, "description": "Renews automatically at maturity" },
+                        "jenis_aro": { "type": "string", "enum": ["pokok", "pokok_bunga", ""], "example": "pokok_bunga", "description": "Empty string when aro is false" },
+                        "bunga_berjalan": { "type": "integer", "format": "int64", "example": 150000, "description": "Interest earned so far this period" },
+                        "saldo_tertahan": { "type": "integer", "format": "int64", "example": 0, "description": "Held amount" },
+                        "rekening_pencairan_bunga": { "type": "string", "example": "0100103000000001", "description": "Savings account the interest is paid into" },
+                        "sandi_kantor": { "type": "string", "example": "001" },
+                        "nama_kantor": { "type": "string", "example": "KC CONTOH PUSAT" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body: cif_number is required, cif_number must be 12 digits, account_number must be 16 digits",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid token or signature",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Data rekening deposito tidak ditemukan: the account is not this customer's, or its status is not one mobile banking shows",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/deposit-account-mutations": {
+      "post": {
+        "summary": "SP Get Deposit Account Mutations",
+        "description": "Get deposit account mutations in a date range, newest first. saldo_akhir is the deposit principal: interest, tax and payout debits leave it unchanged, and interest added to the principal (ARO pokok + bunga) is a credit. Reversed transactions appear with their (REVERSE) line. Requires valid access token and HMAC-SHA512 signature.",
+        "tags": ["Services"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Client-ID",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Registered Client ID"
+          },
+          {
+            "name": "X-TIMESTAMP",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "ISO-8601 with an offset, for example 2026-11-10T10:00:00+07:00. Refused when more than 5 minutes old or more than 30 seconds ahead"
+          },
+          {
+            "name": "X-Signature",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Base64 HMAC-SHA512 with the client secret over METHOD:PATH:ACCESS_TOKEN:lowercase hex SHA-256 of the minified body:X-TIMESTAMP"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountMutationsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Deposit account mutations found, or an empty list when nothing happened in the range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "OK" },
+                    "code": { "type": "integer", "example": 10000 },
+                    "ref_id": { "type": "string", "example": "abc123" },
+                    "timestamp": { "type": "string", "example": "2024-01-01T12:00:00.000Z" },
+                    "message": { "type": "string", "example": "Success" },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Mutation" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body: cif_number is required, cif_number must be 12 digits, account_number must be 16 digits, start_date must be a date in YYYY-MM-DD format, start_date must not be after end_date, the date range must not exceed 31 days",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid token or signature",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Data rekening deposito tidak ditemukan: the account is not this customer's, or its status is not one mobile banking shows",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/overbooking": {
+      "post": {
+        "summary": "SP Overbooking Transfer",
+        "description": "Execute overbooking transfer between two savings accounts. Requires valid access token and HMAC-SHA512 signature.",
+        "tags": ["Services"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Client-ID",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Registered Client ID"
+          },
+          {
+            "name": "X-TIMESTAMP",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string", "format": "date-time" },
+            "description": "ISO-8601 with an offset, for example 2026-11-10T10:00:00+07:00. Refused when more than 5 minutes old or more than 30 seconds ahead"
+          },
+          {
+            "name": "X-Signature",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Base64 HMAC-SHA512 with the client secret over METHOD:PATH:ACCESS_TOKEN:lowercase hex SHA-256 of the minified body:X-TIMESTAMP"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OverbookingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Overbooking transfer successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "OK" },
+                    "code": { "type": "integer", "example": 10000 },
+                    "ref_id": { "type": "string", "example": "abc123" },
+                    "timestamp": { "type": "string", "example": "2024-01-01T12:00:00.000Z" },
+                    "message": { "type": "string", "example": "Success" },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id_transaksi": { "type": "string", "example": "0000000000000000000000001" },
+                          "noref": { "type": "integer", "example": 126 },
+                          "nomor_rekening": { "type": "string", "example": "1234567890123456" },
+                          "nominal": { "type": "number", "example": 7.00 },
+                          "tgl_transaksi": { "type": "string", "example": "2026-05-20" },
+                          "saldo_awal": { "type": "number", "example": 100000.00 },
+                          "saldo_akhir": { "type": "number", "example": 99993.00 },
+                          "deskripsi": { "type": "string", "example": "Transfer Overbooking Ke NAMA PENERIMA" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid token or signature",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Transaction data not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/oauth/refresh-token": {
+      "post": {
+        "summary": "Refresh Access Token",
+        "description": "Obtain a new access token using a refresh token. Refresh tokens have a longer lifespan and are rotated on each use.",
+        "tags": ["Authentication"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["refreshToken"],
+                "properties": {
+                  "refreshToken": {
+                    "type": "string",
+                    "example": "a1b2c3d4e5f6..."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tokens refreshed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or expired refresh token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Access token from /api/oauth/access-token endpoint"
+      }
+    },
+    "schemas": {
+      "TokenRequest": {
+        "type": "object",
+        "required": ["clientId", "clientSecret"],
+        "properties": {
+          "clientId": {
+            "type": "string",
+            "example": "<client id>",
+            "description": "Registered Client ID"
+          },
+          "clientSecret": {
+            "type": "string",
+            "example": "<client secret>",
+            "description": "Client secret"
+          }
+        }
+      },
+      "TokenResponse": {
+        "type": "object",
+        "properties": {
+          "accessToken": { "type": "string", "example": "eyJhbGciOiJIUzI1NiIs..." },
+          "refreshToken": { "type": "string", "example": "a1b2c3d4e5f6..." },
+          "tokenType": { "type": "string", "example": "Bearer" },
+          "expiresIn": { "type": "integer", "example": 900 }
+        }
+      },
+      "SuccessResponse": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "example": "OK" },
+          "code": { "type": "integer", "example": 10000 },
+          "ref_id": { "type": "string", "example": "abc123" },
+          "timestamp": { "type": "string", "example": "2024-01-01T12:00:00.000Z" },
+          "message": { "type": "string", "example": "Success" },
+          "data": { "type": "object" }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "example": "FAIL" },
+          "code": { "type": "integer", "example": 10004 },
+          "ref_id": { "type": "string", "example": "abc124" },
+          "timestamp": { "type": "string", "example": "2024-01-01T12:00:01.000Z" },
+          "message": { "type": "string", "example": "Signature not valid" },
+          "data": { "type": "string", "example": "" }
+        }
+      },
+      "NasabahRequest": {
+        "type": "object",
+        "required": ["cif_number"],
+        "properties": {
+          "cif_number": {
+            "type": "string",
+            "example": "123456789012",
+            "description": "Customer CIF number"
+          }
+        }
+      },
+      "SavingsAccountsRequest": {
+        "type": "object",
+        "required": ["cif_number"],
+        "properties": {
+          "cif_number": {
+            "type": "string",
+            "example": "123456789012",
+            "description": "Customer CIF number"
+          }
+        }
+      },
+      "SavingsAccountBalanceRequest": {
+        "type": "object",
+        "required": ["account_number"],
+        "properties": {
+          "account_number": {
+            "type": "string",
+            "example": "1234567890123456",
+            "description": "Savings account number"
+          }
+        }
+      },
+      "AccountsByCIFRequest": {
+        "type": "object",
+        "required": ["cif_number"],
+        "properties": {
+          "cif_number": {
+            "type": "string",
+            "pattern": "^[0-9]{12}$",
+            "example": "100000000001",
+            "description": "Customer CIF number, 12 digits"
+          }
+        }
+      },
+      "AccountDetailRequest": {
+        "type": "object",
+        "required": ["cif_number", "account_number"],
+        "description": "The account must belong to the given CIF, otherwise the response is 404",
+        "properties": {
+          "cif_number": {
+            "type": "string",
+            "pattern": "^[0-9]{12}$",
+            "example": "100000000001",
+            "description": "Customer CIF number, 12 digits"
+          },
+          "account_number": {
+            "type": "string",
+            "pattern": "^[0-9]{16}$",
+            "example": "1100105000000001",
+            "description": "Account number, 16 digits"
+          }
+        }
+      },
+      "AccountMutationsRequest": {
+        "type": "object",
+        "required": ["cif_number", "account_number", "start_date", "end_date"],
+        "description": "The account must belong to the given CIF, otherwise the response is 404. Both dates are included, start_date must not be after end_date, and the range is at most 31 days",
+        "properties": {
+          "cif_number": {
+            "type": "string",
+            "pattern": "^[0-9]{12}$",
+            "example": "100000000001",
+            "description": "Customer CIF number, 12 digits"
+          },
+          "account_number": {
+            "type": "string",
+            "pattern": "^[0-9]{16}$",
+            "example": "1100105000000001",
+            "description": "Account number, 16 digits"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-11-01",
+            "description": "First day of the range, YYYY-MM-DD, included"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-11-30",
+            "description": "Last day of the range, YYYY-MM-DD, included"
+          }
+        }
+      },
+      "Product": {
+        "type": "object",
+        "properties": {
+          "kode_produk": { "type": "string", "example": "01" },
+          "nama_produk": { "type": "string", "example": "TABUNGAN CONTOH" },
+          "aktif": { "type": "boolean", "example": true, "description": "False when the CBS no longer sells the product. Accounts on it still exist and still use this name" }
+        }
+      },
+      "Mutation": {
+        "type": "object",
+        "properties": {
+          "tanggal": { "type": "string", "format": "date", "example": "2026-11-01" },
+          "waktu": { "type": "string", "example": "08:15:00", "description": "HH:MM:SS, empty string when the CBS has no time" },
+          "keterangan": { "type": "string", "example": "SETORAN TUNAI", "description": "Account numbers inside are masked to the last four digits" },
+          "mutasi_debit": { "type": "integer", "format": "int64", "example": 0 },
+          "mutasi_kredit": { "type": "integer", "format": "int64", "example": 200000 },
+          "saldo_akhir": { "type": "integer", "format": "int64", "example": 1500000 }
+        }
+      },
+      "OverbookingRequest": {
+        "type": "object",
+        "required": ["debit_account", "credit_account", "nominal"],
+        "properties": {
+          "debit_account": {
+            "type": "string",
+            "example": "1234567890123456",
+            "description": "Debit account number (sender)"
+          },
+          "credit_account": {
+            "type": "string",
+            "example": "6543210987654321",
+            "description": "Credit account number (receiver)"
+          },
+          "nominal": {
+            "type": "number",
+            "example": 7.00,
+            "description": "Transfer amount"
+          }
+        }
+      },
+      "BusinessCode": {
+        "type": "object",
+        "description": "Business code reference",
+        "properties": {
+          "10000": { "type": "string", "description": "Success" },
+          "10001": { "type": "string", "description": "Failed" },
+          "10002": { "type": "string", "description": "Server Error" },
+          "10003": { "type": "string", "description": "Data Not Found" },
+          "10004": { "type": "string", "description": "Unauthorized" },
+          "10005": { "type": "string", "description": "Forbidden" },
+          "10006": { "type": "string", "description": "Validation Error" },
+          "10007": { "type": "string", "description": "Rate Limit" },
+          "10008": { "type": "string", "description": "Duplicate" }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "System",
+      "description": "System endpoints"
+    },
+    {
+      "name": "Authentication",
+      "description": "Client authentication endpoints"
+    },
+    {
+      "name": "Services",
+      "description": "Endpoints requiring token and signature"
+    }
+  ]
+}

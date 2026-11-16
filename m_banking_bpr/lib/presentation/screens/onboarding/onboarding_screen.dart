@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../core/content/app_content.dart';
 import '../auth/terms_conditions_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -15,21 +16,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   int _currentPage = 0;
   Timer? _autoSlideTimer;
 
-  // 2 Creative Onboarding Slides with DMB Corporate Copywriting
-  final List<Map<String, String>> _slides = [
-    {
-      'title': 'Jadi bestie di dunia finansial anak dengan DMB Mobile',
-      'desc':
-          'Dari uang jajan sampai target impian anak, semua bisa didampingi bersama orang tua secara transparan dan mudah.',
-      'image': 'assets/images/onboarding_slide_1.png',
-    },
-    {
-      'title': 'Wujudkan masa depan keluarga dengan tabungan cerdas',
-      'desc':
-          'Bebas biaya transfer, bunga deposito menguntungkan, dan proteksi transaksi berlapis dalam genggaman Anda.',
-      'image': 'assets/images/onboarding_slide_2.png',
-    },
-  ];
+  // 2 onboarding slides; texts and images are managed content (Backoffice → Tampilan Awal)
+  List<Map<String, String>> get _slides => [
+        {
+          'title': AppContent.text('onboarding.slide1_title'),
+          'desc': AppContent.text('onboarding.slide1_desc'),
+          'image': 'assets/images/onboarding_slide_1.png',
+          'imageKey': 'onboarding.slide1_image',
+        },
+        {
+          'title': AppContent.text('onboarding.slide2_title'),
+          'desc': AppContent.text('onboarding.slide2_desc'),
+          'image': 'assets/images/onboarding_slide_2.png',
+          'imageKey': 'onboarding.slide2_image',
+        },
+      ];
 
   @override
   void initState() {
@@ -116,12 +117,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Top Bar: Clean DMB Mobile Official Logo
-                    Image.asset(
-                      'assets/images/bank_logo.png',
-                      height: 38,
-                      fit: BoxFit.contain,
-                      alignment: Alignment.centerLeft,
-                    ),
+                    const ContentImage('app.logo', asset: 'assets/images/bank_logo.png', height: 38, fit: BoxFit.contain, alignment: Alignment.centerLeft),
 
                     const SizedBox(height: 16),
 
@@ -216,17 +212,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                       borderRadius: BorderRadius.circular(22),
                                       child: AspectRatio(
                                         aspectRatio: 16 / 10,
-                                        child: Image.asset(
-                                          slide['image']!,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (_, __, ___) => Container(
-                                            color: const Color(0xFFF1F5F9),
-                                            child: const Center(
-                                              child: Icon(Icons.image_outlined,
-                                                  color: Color(0xFF94A3B8), size: 40),
-                                            ),
-                                          ),
-                                        ),
+                                        child: ContentImage(slide['imageKey']!, asset: slide['image']!),
                                       ),
                                     ),
                                   ),
@@ -255,12 +241,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           ),
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              'Mulai Sekarang',
-                              style: TextStyle(
+                              AppContent.text('onboarding.button_text'),
+                              style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 0.2,

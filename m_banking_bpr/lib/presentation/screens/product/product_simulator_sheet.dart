@@ -5,6 +5,9 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../blocs/account/account_cubit.dart';
+import '../../../core/constants/product_rates.dart';
+import '../../../core/money/money.dart';
+import '../../widgets/app_validation_feedback.dart';
 
 class ProductSimulatorSheet extends StatefulWidget {
   final String initialType; // 'DEPOSITO' or 'PINJAMAN'
@@ -27,13 +30,14 @@ class ProductSimulatorSheet extends StatefulWidget {
 class _ProductSimulatorSheetState extends State<ProductSimulatorSheet> {
   static const Color primaryNavy = Color(0xFF0B356D);
   static const Color royalBlue = Color(0xFF0062E3);
-  static const Color dmbGreen = Color(0xFF16984B);
   static const Color titleDark = Color(0xFF0B2546);
   static const Color textMuted = Color(0xFF64748B);
   static const Color borderLight = Color(0xFFE2E8F0);
 
   late String _selectedType;
-  double _amount = 25000000;
+  // Nominal in whole rupiah (integer). The slider uses a double only for its UI position.
+  int _amountRupiah = 25000000;
+  Money get _amount => Money.rupiah(_amountRupiah);
   int _tenorMonths = 6;
   final TextEditingController _purposeController = TextEditingController();
   bool _submitting = false;
@@ -51,19 +55,23 @@ class _ProductSimulatorSheetState extends State<ProductSimulatorSheet> {
     super.dispose();
   }
 
-  double get _annualRate => _selectedType == 'DEPOSITO' ? 0.0625 : 0.15; // 6.25% p.a Deposito, 15% p.a (1.25%/bln) Kredit
+  // Illustrative rates only (see ProductRates); results are estimates, not offers.
+  int get _annualRateBps => _selectedType == 'DEPOSITO' ? ProductRates.depositoAnnualBps : ProductRates.kreditAnnualBps;
 
-  double get _estimatedCalculation {
+  /// Integer division rounded half up (amounts are non-negative).
+  static int _divRound(int numerator, int denominator) => (numerator + denominator ~/ 2) ~/ denominator;
+
+  /// Estimate in exact integer sen: deposit = net interest for the tenor (after 20% tax);
+  /// loan = monthly installment (principal + flat interest).
+  Money get _estimatedCalculation {
+    final sen = _amount.sen;
     if (_selectedType == 'DEPOSITO') {
-      // Gross interest for tenor, minus 20% PPh tax
-      final gross = _amount * (_annualRate / 12) * _tenorMonths;
-      return gross * 0.80;
-    } else {
-      // Monthly installment (principal + flat interest)
-      final principalPerMonth = _amount / _tenorMonths;
-      final interestPerMonth = _amount * (_annualRate / 12);
-      return principalPerMonth + interestPerMonth;
+      final gross = _divRound(sen * _annualRateBps * _tenorMonths, 12 * 10000);
+      return Money.sen(_divRound(gross * 80, 100));
     }
+    final principalPerMonth = _divRound(sen, _tenorMonths);
+    final interestPerMonth = _divRound(sen * _annualRateBps, 12 * 10000);
+    return Money.sen(principalPerMonth + interestPerMonth);
   }
 
   Future<void> _submitApplication() async {
@@ -76,47 +84,27 @@ class _ProductSimulatorSheetState extends State<ProductSimulatorSheet> {
         productName: isDeposito ? 'Deposito Berjangka DMB' : 'Kredit Modal Kerja / Multiguna DMB',
         amount: _amount,
         tenorMonths: _tenorMonths,
-        interestRate: isDeposito ? '6.25% p.a.' : '1.25% flat/bln',
+        interestRate: isDeposito ? ProductRates.depositoLabel : ProductRates.kreditLabel,
         estimatedReturn: _estimatedCalculation,
-        purposeOrSource: _purposeController.text.trim().isEmpty
-            ? (isDeposito ? 'Dana Tabungan Mandiri DMB' : 'Modal Usaha Produktif')
-            : _purposeController.text.trim(),
+        purposeOrSource: _purposeController.text.trim(),
       );
       if (!mounted) return;
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            isDeposito
-                ? 'Pengajuan Deposito Berjangka berhasil dikirim! Petugas Bank DMB akan segera memproses.'
-                : 'Pengajuan Fasilitas Pinjaman berhasil dikirim! Tim Kredit Bank DMB akan segera menghubungi Anda.',
-            style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, fontSize: 12.5),
-          ),
-          backgroundColor: primaryNavy,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
+      AppToast.showSuccess(
+        context,
+        isDeposito
+            ? 'Pengajuan Deposito Berjangka berhasil dikirim! Petugas Bank DMB akan segera memproses.'
+            : 'Pengajuan Fasilitas Pinjaman berhasil dikirim! Tim Kredit Bank DMB akan segera menghubungi Anda.',
+        title: 'Pengajuan Terkirim',
       );
     } on ApiException catch (e) {
       setState(() => _submitting = false);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.message, style: GoogleFonts.plusJakartaSans(fontSize: 12.5)),
-          backgroundColor: AppColors.danger,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppToast.showError(context, e.message, title: 'Validasi Pengajuan');
     } catch (e) {
       setState(() => _submitting = false);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal mengirim pengajuan: $e', style: GoogleFonts.plusJakartaSans(fontSize: 12.5)),
-          backgroundColor: AppColors.danger,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppToast.showError(context, 'Gagal mengirim pengajuan: $e', title: 'Gagal Memproses');
     }
   }
 
@@ -286,11 +274,12 @@ class _ProductSimulatorSheetState extends State<ProductSimulatorSheet> {
                   trackHeight: 4,
                 ),
                 child: Slider(
-                  value: _amount,
+                  value: _amountRupiah.toDouble(),
                   min: 5000000,
                   max: 250000000,
                   divisions: 49,
-                  onChanged: (val) => setState(() => _amount = val),
+                  // Slider positions are multiples of Rp 5.000.000; store as integer rupiah.
+                  onChanged: (val) => setState(() => _amountRupiah = (val / 5000000).round() * 5000000),
                 ),
               ),
               const SizedBox(height: 8),
@@ -385,7 +374,7 @@ class _ProductSimulatorSheetState extends State<ProductSimulatorSheet> {
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            isDeposito ? '6.25% p.a. • Dijamin LPS' : '1.25% Flat / Bln',
+                            isDeposito ? ProductRates.depositoLabel : ProductRates.kreditLabel,
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 10,
                               fontWeight: FontWeight.w800,

@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/network/api_exception.dart';
 import '../../blocs/auth/auth_cubit.dart';
 import 'reset_password_screen.dart';
+import '../../widgets/app_validation_feedback.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
   final String phoneNumber;
@@ -97,26 +98,14 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         _otp = '';
         _isVerifying = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.message),
-          backgroundColor: const Color(0xFFDC2626),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppToast.showError(context, e.message, title: 'Kode OTP Tidak Valid');
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _otp = '';
         _isVerifying = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Verifikasi OTP gagal: $e'),
-          backgroundColor: const Color(0xFFDC2626),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppToast.showError(context, 'Verifikasi OTP gagal. Silakan coba kembali.', title: 'Gagal Verifikasi');
     }
   }
 

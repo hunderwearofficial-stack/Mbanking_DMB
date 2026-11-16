@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../core/content/app_content.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../core/constants/bank_contact.dart';
 
 class HelpdeskScreen extends StatelessWidget {
   final bool isTab;
@@ -126,7 +128,7 @@ class HelpdeskScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Butuh Bantuan?',
+                          AppContent.text('helpdesk.intro_title'),
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 19,
                             fontWeight: FontWeight.w900,
@@ -135,7 +137,7 @@ class HelpdeskScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Tim Customer Care Bank DMB siap melayani Anda melalui kanal komunikasi resmi.',
+                          AppContent.text('helpdesk.intro_text'),
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 11.5,
                             color: Colors.white.withOpacity(0.88),
@@ -181,12 +183,12 @@ class HelpdeskScreen extends StatelessWidget {
               iconBg: const Color(0xFFEFF6FF),
               iconColor: royalBlue,
               title: 'Call Center 24 Jam',
-              subtitle: '(0251) 832-1234',
-              description: 'Layanan bebas pulsa untuk nasabah aktif',
+              subtitle: BankContact.callCenterDisplay,
+              description: AppContent.text('helpdesk.call_center_desc'),
               buttonLabel: 'Salin Nomor',
               onAction: () {
-                Clipboard.setData(const ClipboardData(text: '02518321234'));
-                _showToast(context, 'Nomor Call Center disalin: (0251) 832-1234');
+                Clipboard.setData(ClipboardData(text: BankContact.callCenterDial));
+                _showToast(context, 'Nomor Call Center disalin: ${BankContact.callCenterDisplay}');
               },
             ),
             const SizedBox(height: 10),
@@ -197,12 +199,12 @@ class HelpdeskScreen extends StatelessWidget {
               iconBg: const Color(0xFFF0FDF4),
               iconColor: dmbGreen,
               title: 'WhatsApp Customer Care',
-              subtitle: '0811-9988-7766',
-              description: 'Akun bisnis resmi terverifikasi dengan centang hijau',
+              subtitle: BankContact.whatsAppDisplay,
+              description: AppContent.text('helpdesk.whatsapp_desc'),
               buttonLabel: 'Chat WhatsApp',
               onAction: () {
-                Clipboard.setData(const ClipboardData(text: '081199887766'));
-                _showToast(context, 'Nomor WhatsApp disalin: 0811-9988-7766');
+                Clipboard.setData(ClipboardData(text: BankContact.whatsAppDial));
+                _showToast(context, 'Nomor WhatsApp disalin: ${BankContact.whatsAppDisplay}');
               },
             ),
             const SizedBox(height: 10),
@@ -213,11 +215,11 @@ class HelpdeskScreen extends StatelessWidget {
               iconBg: const Color(0xFFF8FAFC),
               iconColor: primaryNavy,
               title: 'Email Layanan Nasabah',
-              subtitle: 'layanan@bprdanamandiri.co.id',
-              description: 'Dukungan surat elektronik resmi Bank DMB',
+              subtitle: BankContact.email,
+              description: AppContent.text('helpdesk.email_desc'),
               buttonLabel: 'Salin Email',
               onAction: () {
-                Clipboard.setData(const ClipboardData(text: 'layanan@bprdanamandiri.co.id'));
+                Clipboard.setData(ClipboardData(text: BankContact.email));
                 _showToast(context, 'Alamat email disalin');
               },
             ),
@@ -278,7 +280,7 @@ class HelpdeskScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'Jl. Pajajaran No. 88, Kota Bogor, Jawa Barat 16128',
+                              BankContact.headOfficeAddress,
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 12,
                                 color: textMuted,
@@ -303,7 +305,7 @@ class HelpdeskScreen extends StatelessWidget {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Jam Layanan Kantor: Senin - Jumat (08.00 - 15.30 WIB)',
+                          'Jam Layanan Kantor: ${BankContact.officeHours}',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 11.5,
                             color: textMuted,

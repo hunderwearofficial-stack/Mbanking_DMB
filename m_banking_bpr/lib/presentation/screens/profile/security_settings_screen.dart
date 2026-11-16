@@ -5,10 +5,10 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../blocs/auth/auth_cubit.dart';
 import '../../../core/security/biometric_auth_service.dart';
 import '../../../core/security/security_hardening_service.dart';
-import '../../../core/security/ssl_pinning_service.dart';
 import '../../../core/security/session_inactivity_detector.dart';
 import 'change_password_screen.dart';
 import 'change_pin_screen.dart';
+import '../../widgets/app_validation_feedback.dart';
 
 class SecuritySettingsScreen extends StatefulWidget {
   const SecuritySettingsScreen({super.key});
@@ -89,28 +89,18 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
 
         if (mounted) {
           setState(() => _biometricEnabled = true);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Fitur Masuk Biometrik Berhasil Diaktifkan! Anda kini dapat masuk praktis dengan sensor perangkat.',
-                style: GoogleFonts.plusJakartaSans(fontSize: 12.5),
-              ),
-              backgroundColor: primaryNavy,
-              behavior: SnackBarBehavior.floating,
-            ),
+          AppToast.showSuccess(
+            context,
+            'Fitur Masuk Biometrik Berhasil Diaktifkan! Anda kini dapat masuk praktis dengan sensor perangkat.',
+            title: 'Biometrik Aktif',
           );
         }
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                res.errorMessage ?? 'Verifikasi biometrik dibatalkan.',
-                style: GoogleFonts.plusJakartaSans(fontSize: 12.5),
-              ),
-              backgroundColor: const Color(0xFFE11D48),
-              behavior: SnackBarBehavior.floating,
-            ),
+          AppToast.showError(
+            context,
+            res.errorMessage ?? 'Verifikasi biometrik dibatalkan.',
+            title: 'Validasi Biometrik',
           );
         }
       }
@@ -118,15 +108,10 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
       await storage.clearBiometricCredentials();
       if (mounted) {
         setState(() => _biometricEnabled = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Fitur Masuk Biometrik Dinonaktifkan.',
-              style: GoogleFonts.plusJakartaSans(fontSize: 12.5),
-            ),
-            backgroundColor: const Color(0xFF64748B),
-            behavior: SnackBarBehavior.floating,
-          ),
+        AppToast.showInfo(
+          context,
+          'Fitur Masuk Biometrik Dinonaktifkan.',
+          title: 'Pengaturan Biometrik',
         );
       }
     }
@@ -137,38 +122,43 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
       reason: 'Pindai sidik jari atau wajah Anda untuk konfirmasi',
     );
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            res.success
-                ? 'Sensor Berfungsi Normal! Perangkat Anda siap digunakan untuk masuk akun.'
-                : (res.errorMessage ?? 'Pemeriksaan sensor dibatalkan.'),
-            style: GoogleFonts.plusJakartaSans(fontSize: 12.5),
-          ),
-          backgroundColor: res.success ? dmbGreen : const Color(0xFFE11D48),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      if (res.success) {
+        AppToast.showSuccess(
+          context,
+          'Sensor Berfungsi Normal! Perangkat Anda siap digunakan untuk masuk akun.',
+          title: 'Pemeriksaan Sensor',
+        );
+      } else {
+        AppToast.showError(
+          context,
+          res.errorMessage ?? 'Pemeriksaan sensor dibatalkan.',
+          title: 'Pemeriksaan Sensor',
+        );
+      }
     }
   }
 
   Future<void> _toggleFlagSecure(bool value) async {
     final success = await SecurityHardeningService.setFlagSecure(value);
+    // Release builds refuse to disable screen protection; reflect the real state.
+    final effective = success ? value : true;
     if (mounted) {
-      setState(() => _flagSecureEnabled = value);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            value
-                ? 'Perlindungan Layar Aktif: Tangkapan layar dinonaktifkan demi menjaga privasi data saldo Anda.'
-                : 'Perlindungan Layar Nonaktif: Tangkapan layar diizinkan sementara.',
-            style: GoogleFonts.plusJakartaSans(fontSize: 12.5),
-          ),
-          backgroundColor: value ? primaryNavy : const Color(0xFFE11D48),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 3),
-        ),
-      );
+      setState(() => _flagSecureEnabled = effective);
+      if (effective) {
+        AppToast.showInfo(
+          context,
+          value
+              ? 'Perlindungan Layar Aktif: Tangkapan layar dinonaktifkan demi menjaga privasi data saldo Anda.'
+              : 'Perlindungan Layar wajib aktif pada aplikasi perbankan dan tidak dapat dinonaktifkan.',
+          title: 'Perlindungan Layar',
+        );
+      } else {
+        AppToast.showWarning(
+          context,
+          'Perlindungan Layar Nonaktif: Tangkapan layar diizinkan sementara.',
+          title: 'Perlindungan Layar',
+        );
+      }
     }
   }
 

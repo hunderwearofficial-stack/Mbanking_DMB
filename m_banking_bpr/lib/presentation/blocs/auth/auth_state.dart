@@ -24,9 +24,16 @@ class AuthUnauthenticated extends AuthState {}
 
 class AuthError extends AuthState {
   final String message;
-  const AuthError(this.message);
+
+  /// Backend response code, e.g. '10' = Terms and Conditions in force not yet accepted,
+  /// '11' = no Terms published yet.
+  final String? code;
+  const AuthError(this.message, {this.code});
+
+  /// The customer must read and accept the Terms in force before continuing.
+  bool get requiresTermsConsent => code == '10';
 
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => [message, code];
 }
 
