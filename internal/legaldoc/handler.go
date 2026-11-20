@@ -3,6 +3,7 @@ package legaldoc
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -259,6 +260,39 @@ func (h *Handler) GeneratePDF(c *gin.Context) {
 		return
 	}
 	response.Success(c, "PDF draf dibuat", v)
+}
+
+func (h *Handler) UploadPDF(c *gin.Context) {
+	a, ok := actor(c)
+	if !ok {
+		return
+	}
+	fh, err := c.FormFile("file")
+	if err != nil {
+		response.BadRequest(c, "File PDF wajib dipilih", nil)
+		return
+	}
+	if fh.Size > maxUploadedPDFBytes {
+		response.ErrorWithCode(c, http.StatusUnprocessableEntity, response.CodeBadRequest, "Ukuran file PDF maksimal 10 MB", nil)
+		return
+	}
+	f, err := fh.Open()
+	if err != nil {
+		response.BadRequest(c, "File PDF tidak dapat dibaca", nil)
+		return
+	}
+	defer f.Close()
+	data, err := io.ReadAll(io.LimitReader(f, maxUploadedPDFBytes+1))
+	if err != nil {
+		response.BadRequest(c, "Gagal membaca file PDF", nil)
+		return
+	}
+	v, err := h.svc.UploadDraftPDF(c.Request.Context(), a, c.Param("id"), data)
+	if err != nil {
+		WriteError(c, err)
+		return
+	}
+	response.Success(c, "PDF draf diunggah", v)
 }
 
 func (h *Handler) AdminPDF(c *gin.Context) {

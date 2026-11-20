@@ -99,7 +99,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
     final phone = _phoneController.text.trim();
 
     if (accountNo.isEmpty) {
-      _showError('Nomor Rekening Tabungan atau Nomor CIF wajib diisi');
+      _showError('Nomor Rekening Tabungan wajib diisi');
       return;
     }
     if (phone.isEmpty) {
@@ -613,7 +613,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
         ),
         const SizedBox(height: 6),
         const Text(
-          'Masukkan Nomor Rekening Tabungan (atau Nomor CIF) dan nomor handphone yang terdaftar di Bank DMB untuk memulai aktivasi.',
+          'Masukkan Nomor Rekening Tabungan dan nomor handphone yang terdaftar di Bank DMB untuk memulai aktivasi.',
           style: TextStyle(
             fontSize: 13.5,
             color: textMuted,
@@ -623,7 +623,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
         const SizedBox(height: 24),
 
         const Text(
-          'Nomor Rekening Tabungan / Nomor CIF',
+          'Nomor Rekening Tabungan',
           style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: titleDark),
         ),
         const SizedBox(height: 8),
@@ -653,7 +653,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
               color: AppColors.textPrimary,
             ),
             decoration: const InputDecoration(
-              hintText: 'Masukkan Nomor Rekening atau CIF Anda',
+              hintText: 'Masukkan Nomor Rekening Tabungan Anda',
               hintStyle: TextStyle(
                 color: Color(0xFF94A3B8),
                 fontSize: 14,

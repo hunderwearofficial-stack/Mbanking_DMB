@@ -32,6 +32,43 @@ func (p *DatabaseCBSProvider) RefreshToken(ctx context.Context) error {
 	return nil
 }
 
+func (p *DatabaseCBSProvider) RegistrationCheck(ctx context.Context, accountNumber string) (*domain.CBSRegistrationCheckData, error) {
+	if p.db == nil {
+		return nil, ErrAccountNotFound
+	}
+	var acc model.Account
+	if err := p.db.WithContext(ctx).Where("account_number = ?", accountNumber).First(&acc).Error; err != nil {
+		return nil, ErrAccountNotFound
+	}
+	var user model.User
+	if err := p.db.WithContext(ctx).Where("id = ?", acc.UserID).First(&user).Error; err != nil {
+		return nil, ErrAccountNotFound
+	}
+	return &domain.CBSRegistrationCheckData{
+		CIF:       user.CIF,
+		NoHP:      user.PhoneNumber,
+		Terdaftar: user.PasswordHash != "",
+	}, nil
+}
+
+func (p *DatabaseCBSProvider) RegistrationComplete(ctx context.Context, accountNumber string) (*domain.CBSRegistrationCompleteData, error) {
+	if p.db == nil {
+		return nil, ErrAccountNotFound
+	}
+	var acc model.Account
+	if err := p.db.WithContext(ctx).Where("account_number = ?", accountNumber).First(&acc).Error; err != nil {
+		return nil, ErrAccountNotFound
+	}
+	var user model.User
+	if err := p.db.WithContext(ctx).Where("id = ?", acc.UserID).First(&user).Error; err != nil {
+		return nil, ErrAccountNotFound
+	}
+	return &domain.CBSRegistrationCompleteData{
+		CIF:       user.CIF,
+		Terdaftar: true,
+	}, nil
+}
+
 func (p *DatabaseCBSProvider) GetCustomerByCIF(ctx context.Context, cifNumber string) (*domain.CBSNasabahData, error) {
 	if p.db == nil {
 		return nil, ErrAccountNotFound

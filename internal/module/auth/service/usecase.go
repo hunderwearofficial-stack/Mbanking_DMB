@@ -459,33 +459,38 @@ func (s *authService) VerifyActivation(ctx context.Context, req domain.ActivateV
 	targetAccountNo := ""
 
 	if s.cfg.UseLiveCBS() {
-		nas, nasErr := s.cbsProv.GetCustomerByCIF(ctx, identifier)
-		if (nasErr != nil || nas == nil || strings.TrimSpace(nas.CIF) == "") {
-			if accUser, _, accErr := s.repo.FindAccountWithUser(ctx, identifier); accErr == nil && accUser != nil {
-				targetAccountNo = accUser.AccountNumber
-			}
+		regCheck, regErr := s.cbsProv.RegistrationCheck(ctx, identifier)
+		if regErr != nil || regCheck == nil || strings.TrimSpace(regCheck.CIF) == "" {
+			return nil, errors.New("data rekening tidak ditemukan. Pastikan nomor rekening Anda sudah benar atau hubungi CS Bank DMB")
 		}
-		if nasErr != nil || nas == nil || strings.TrimSpace(nas.CIF) == "" {
-			return nil, errors.New("data rekening atau CIF tidak ditemukan. Pastikan nomor rekening Anda sudah benar atau hubungi CS Bank DMB")
+		if regCheck.Terdaftar {
+			return nil, errors.New("rekening ini sudah terdaftar di layanan Mobile Banking. Silakan login atau gunakan menu Lupa Password")
 		}
-		cbsPhone := normalizePhone(nas.NoHP)
+		cbsPhone := normalizePhone(regCheck.NoHP)
 		if cbsPhone == "" || cbsPhone == "0" {
-			audit.Record(ctx, s.repo.DB(), "NASABAH", identifier, nas.Nama, "ACTIVATION_NO_PHONE_ON_FILE", maskPhoneNumber(normInputPhone), "WARNING", deviceID, "Aktivasi ditolak: nomor HP tidak tercatat di CBS")
+			audit.Record(ctx, s.repo.DB(), "NASABAH", regCheck.CIF, "", "ACTIVATION_NO_PHONE_ON_FILE", maskPhoneNumber(normInputPhone), "WARNING", deviceID, "Aktivasi ditolak: nomor HP tidak tercatat di CBS")
 			return nil, errors.New("nomor handphone Anda belum tercatat di data nasabah Bank DMB. Silakan perbarui data di kantor cabang terdekat")
 		}
 		if cbsPhone != normInputPhone {
-			audit.Record(ctx, s.repo.DB(), "NASABAH", identifier, nas.Nama, "ACTIVATION_PHONE_MISMATCH", maskPhoneNumber(normInputPhone), "WARNING", deviceID, "Nomor HP input tidak cocok dengan nomor HP rekening")
+			audit.Record(ctx, s.repo.DB(), "NASABAH", regCheck.CIF, "", "ACTIVATION_PHONE_MISMATCH", maskPhoneNumber(normInputPhone), "WARNING", deviceID, "Nomor HP input tidak cocok dengan nomor HP rekening")
 			return nil, errors.New("nomor handphone tidak sesuai dengan data rekening terdaftar di Bank DMB")
 		}
 
-		var bal *domain.BalanceResponse
-		if accList, listErr := s.cbsProv.GetSavingsAccountsByCIF(ctx, nas.CIF); listErr == nil && len(accList) > 0 {
-			primary := accList[0]
-			targetAccountNo = primary.NomorRekening
-			bal, _ = s.cbsProv.GetBalance(ctx, primary.NomorRekening)
-			if bal == nil {
-				bal = &domain.BalanceResponse{AccountNumber: primary.NomorRekening, HolderName: primary.Nama,
-					ProductCode: primary.ProdukTabungan, Balance: primary.Saldo}
+		nas, _ := s.cbsProv.GetCustomerByCIF(ctx, regCheck.CIF)
+		if nas == nil {
+			nas = &domain.CBSNasabahData{
+				CIF:  regCheck.CIF,
+				NoHP: regCheck.NoHP,
+				Nama: "Nasabah Bank DMB",
+			}
+		}
+
+		targetAccountNo = identifier
+		bal, _ := s.cbsProv.GetBalance(ctx, identifier)
+		if bal == nil {
+			bal = &domain.BalanceResponse{
+				AccountNumber: identifier,
+				HolderName:    nas.Nama,
 			}
 		}
 		u, acc, upErr := s.repo.UpsertCBSUserAndAccount(ctx, nas, bal)
@@ -631,6 +636,13 @@ func (s *authService) CompleteActivation(ctx context.Context, req domain.Activat
 		legaldoc.ClientMeta{IP: client.IP, UserAgent: client.UserAgent}); err != nil {
 		logger.GetLogger().Warn("Aktivasi selesai tanpa sesi: persetujuan SK gagal dicatat", map[string]interface{}{"error": err.Error()})
 		return nil, err
+	}
+
+	if s.cfg.UseLiveCBS() && s.cbsProv != nil && primary != "" {
+		if _, regErr := s.cbsProv.RegistrationComplete(ctx, primary); regErr != nil {
+			logger.GetLogger().Error("Gagal mencatat registrasi selesai ke CBS", map[string]interface{}{"error": regErr.Error(), "account": primary})
+			return nil, ErrServiceUnavailable
+		}
 	}
 
 	resp, err := s.issueSession(ctx, user, primary, deviceID, client.IP, true, session.ReasonActivation)

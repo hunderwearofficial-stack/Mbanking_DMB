@@ -9,6 +9,8 @@ import (
 type CBSProvider interface {
 	Ping(ctx context.Context) (*domain.CBSHealthStatus, error)
 	RefreshToken(ctx context.Context) error
+	RegistrationCheck(ctx context.Context, accountNumber string) (*domain.CBSRegistrationCheckData, error)
+	RegistrationComplete(ctx context.Context, accountNumber string) (*domain.CBSRegistrationCompleteData, error)
 	GetCustomerByCIF(ctx context.Context, cifNumber string) (*domain.CBSNasabahData, error)
 	GetSavingsAccountsByCIF(ctx context.Context, cifNumber string) ([]domain.CBSSavingsAccountItem, error)
 	GetBalance(ctx context.Context, accountNo string) (*domain.BalanceResponse, error)

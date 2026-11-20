@@ -446,6 +446,62 @@ func truncateCBSStr(s string, max int) string {
 	return s
 }
 
+func (p *OpenAPICBSProvider) RegistrationCheck(ctx context.Context, accountNumber string) (*domain.CBSRegistrationCheckData, error) {
+	accClean := strings.TrimSpace(accountNumber)
+	if accClean == "" {
+		return nil, errors.New("account_number tidak boleh kosong")
+	}
+
+	payload := map[string]string{
+		"account_number": accClean,
+	}
+
+	env, statusCode, err := p.doSignedPost(ctx, "/api/registration-check", payload)
+	if err != nil {
+		return nil, err
+	}
+	if statusCode == http.StatusNotFound || env.Code == 10003 {
+		return nil, ErrAccountNotFound
+	}
+	if statusCode != http.StatusOK || env.Code != 10000 {
+		return nil, fmt.Errorf("%s (code: %d)", env.Message, env.Code)
+	}
+
+	var data domain.CBSRegistrationCheckData
+	if err := json.Unmarshal(env.Data, &data); err != nil {
+		return nil, err
+	}
+	return &data, nil
+}
+
+func (p *OpenAPICBSProvider) RegistrationComplete(ctx context.Context, accountNumber string) (*domain.CBSRegistrationCompleteData, error) {
+	accClean := strings.TrimSpace(accountNumber)
+	if accClean == "" {
+		return nil, errors.New("account_number tidak boleh kosong")
+	}
+
+	payload := map[string]string{
+		"account_number": accClean,
+	}
+
+	env, statusCode, err := p.doSignedPost(ctx, "/api/registration-complete", payload)
+	if err != nil {
+		return nil, err
+	}
+	if statusCode == http.StatusNotFound || env.Code == 10003 {
+		return nil, ErrAccountNotFound
+	}
+	if statusCode != http.StatusOK || env.Code != 10000 {
+		return nil, fmt.Errorf("%s (code: %d)", env.Message, env.Code)
+	}
+
+	var data domain.CBSRegistrationCompleteData
+	if err := json.Unmarshal(env.Data, &data); err != nil {
+		return nil, err
+	}
+	return &data, nil
+}
+
 func (p *OpenAPICBSProvider) GetCustomerByCIF(ctx context.Context, cifNumber string) (*domain.CBSNasabahData, error) {
 	cifClean := strings.TrimSpace(cifNumber)
 	if cifClean == "" {

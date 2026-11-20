@@ -34,6 +34,8 @@ func IsValidAdminRole(role string) bool {
 type User struct {
 	ID                  string                 `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
 	CIF                 string                 `json:"cif" gorm:"type:varchar(20);uniqueIndex;not null;column:cif"`
+	CIFEncrypted           crypto.EncryptedString `json:"-" gorm:"type:text;column:cif_encrypted"`
+	AccountNumberEncrypted crypto.EncryptedString `json:"-" gorm:"type:text;column:account_number_encrypted"`
 	FullName            string                 `json:"full_name" gorm:"type:varchar(100);not null;column:full_name"`
 	Username            string                 `json:"username" gorm:"type:varchar(50);column:username"`
 	PhoneNumber         string                 `json:"phone_number" gorm:"type:varchar(20);uniqueIndex;not null;column:phone_number"`

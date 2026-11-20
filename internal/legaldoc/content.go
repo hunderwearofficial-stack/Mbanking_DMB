@@ -19,6 +19,7 @@ type Content struct {
 	ConsentHeading     string    `json:"consent_heading"`
 	ConsentInstruction string    `json:"consent_instruction,omitempty"`
 	ConsentStatements  []string  `json:"consent_statements"`
+	UploadedPDF        bool      `json:"uploaded_pdf,omitempty"`
 }
 
 type Section struct {

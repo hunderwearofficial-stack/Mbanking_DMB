@@ -172,8 +172,6 @@ func (s *accountService) GetCustomerProfile(ctx context.Context, caller Caller) 
 	sanitized.NamaIbuKandung = "" // knowledge-based verification secret: never sent to clients (audit DMB-022)
 	// SECURITY (audit D-09): identity data is masked by the server; the full values are only
 	// returned by POST /account/profile/reveal after a server-side PIN check.
-	sanitized.NIK = maskTail(sanitized.NIK, 4)
-	sanitized.Alamat = maskWords(sanitized.Alamat)
 	if sanitized.TglLahir != "" {
 		sanitized.TglLahir = "**-**-****"
 	}

@@ -194,6 +194,7 @@ func NewRouter(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, cbsPr
 				a.POST("/terms/versions", roles(SA, CO), termsHandler.CreateDraft)
 				a.PUT("/terms/versions/:id", roles(SA, CO), termsHandler.UpdateDraft)
 				a.POST("/terms/versions/:id/pdf", roles(SA, CO), termsHandler.GeneratePDF)
+				a.POST("/terms/versions/:id/pdf/upload", roles(SA, CO), termsHandler.UploadPDF)
 				a.POST("/terms/versions/:id/submit", roles(SA, CO), termsHandler.Submit)
 				a.POST("/terms/versions/:id/approve", roles(SA, CO), termsHandler.Approve)
 				a.POST("/terms/versions/:id/reject", roles(SA, CO), termsHandler.Reject)

@@ -85,8 +85,9 @@ async function loadTermsVersions() {
     const actions = [];
     if (v.status === 'DRAFT') {
       if (canMutate) {
-        actions.push(`<button type="button" onclick="openTermsEditor(${id})" class="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 font-bold hover:bg-slate-50">Ubah Isi Draf</button>`);
-        actions.push(`<button type="button" onclick="generateTermsPdf(${id})" class="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 font-bold hover:bg-slate-50">Buat PDF Draf</button>`);
+        actions.push(`<label class="px-2.5 py-1 rounded-lg bg-[#0A2A66] text-white font-bold hover:bg-[#0D3882] cursor-pointer inline-flex items-center gap-1">Unggah PDF Draf<input type="file" accept="application/pdf,.pdf" class="hidden" onchange="uploadTermsPdf(${id}, this)"></label>`);
+        actions.push(`<button type="button" onclick="openTermsEditor(${id})" class="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 font-bold hover:bg-slate-50">Ubah Persetujuan / Isi</button>`);
+        actions.push(`<button type="button" onclick="generateTermsPdf(${id})" class="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 font-bold hover:bg-slate-50">Buat PDF Otomatis</button>`);
       }
       if (v.draft_pdf_sha256) {
         actions.push(`<button type="button" onclick="openTermsPdf(${id}, 'draft')" class="px-2.5 py-1 rounded-lg bg-teal-50 border border-teal-200 text-[#00897B] font-bold hover:bg-teal-100">Unduh PDF Draf</button>`);
@@ -608,6 +609,39 @@ async function saveTermsDraft() {
 function generateTermsPdf(id) {
   if (!canMutateTerms()) return;
   termsAction(`/admin/terms/versions/${encodeURIComponent(id)}/pdf`, null, 'PDF draf berhasil dibuat. Unduh dan periksa sebelum diajukan.');
+}
+
+async function uploadTermsPdf(id, input) {
+  const file = input.files && input.files[0];
+  if (!file || !canMutateTerms()) return;
+  if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+    showToast('File harus berformat PDF.', 'error');
+    input.value = '';
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    showToast('Ukuran file PDF maksimal 10 MB.', 'error');
+    input.value = '';
+    return;
+  }
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res = await fetch(`${API_BASE}/admin/terms/versions/${encodeURIComponent(id)}/pdf/upload`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: getAuthHeaders(false),
+      body: fd
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) throw new Error(json.message || 'Gagal mengunggah PDF');
+    showToast('PDF draf berhasil diunggah. Unduh & periksa sebelum diajukan.', 'success');
+    await loadTermsVersions();
+  } catch (err) {
+    showToast(err.message || 'Gagal mengunggah PDF', 'error');
+  } finally {
+    input.value = '';
+  }
 }
 
 /**

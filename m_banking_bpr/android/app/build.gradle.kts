@@ -98,9 +98,11 @@ android {
             manifestPlaceholders["usesCleartextTraffic"] = testingFlavor.toString()
             manifestPlaceholders["networkSecurityConfig"] =
                 if (testingFlavor) "network_security_config_cleartext" else "network_security_config"
-            // Never the debug key (DB-H8): an unsigned release is refused below.
+            // Production/staging wajib release keystore; local/development boleh fallback ke debug key untuk testing.
             if (hasReleaseKeystore) {
                 signingConfig = signingConfigs.getByName("release")
+            } else if (testingFlavor) {
+                signingConfig = signingConfigs.getByName("debug")
             }
         }
     }
@@ -117,7 +119,7 @@ gradle.taskGraph.whenReady {
     if (releaseTask && (flavor == "production" || flavor == "staging") && !apiUrl.startsWith("https://")) {
         throw GradleException("Build release " + flavor + " ditolak: API_BASE_URL wajib https:// (NEEDS BANK INPUT bila belum tersedia).")
     }
-    if (releaseTask && !hasReleaseKeystore) {
+    if (releaseTask && (flavor != "local" && flavor != "development") && !hasReleaseKeystore) {
         throw GradleException("Build release ditolak: " + releaseSigningProblem + ". Release wajib ditandatangani keystore resmi bank (lihat docs/DEPLOYMENT_AND_CICD.md).")
     }
 }

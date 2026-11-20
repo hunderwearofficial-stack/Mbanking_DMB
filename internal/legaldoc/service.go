@@ -533,6 +533,7 @@ func (s *Service) GenerateDraftPDF(ctx context.Context, actor Actor, id string) 
 		if err := c.Validate(); err != nil {
 			return err
 		}
+		c.UploadedPDF = false
 		raw, _ := c.CanonicalJSON()
 		sha, _ := c.SHA256()
 		dn := ""
@@ -553,6 +554,44 @@ func (s *Service) GenerateDraftPDF(ctx context.Context, actor Actor, id string) 
 			return err
 		}
 		s.auditAdmin(ctx, tx, "TERMS_DRAFT_PDF_GENERATED", v, fmt.Sprintf("PDF draf SK versi %d dibuat (PDF %s…, isi %s…)", v.VersionNumber, fileSHA[:12], sha[:12]))
+		out, err = s.version(ctx, tx, v.ID)
+		return err
+	})
+	return out, err
+}
+
+const maxUploadedPDFBytes = 10 * 1024 * 1024
+
+func (s *Service) UploadDraftPDF(ctx context.Context, actor Actor, id string, pdf []byte) (*Version, error) {
+	if len(pdf) < 5 || len(pdf) > maxUploadedPDFBytes || string(pdf[:5]) != "%PDF-" {
+		return nil, fmt.Errorf("%w: file harus berupa dokumen PDF valid dengan ukuran maksimal 10 MB", ErrInvalidFile)
+	}
+	var out *Version
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		v, err := s.lockVersion(ctx, tx, id)
+		if err != nil {
+			return err
+		}
+		if v.Status != StatusDraft {
+			return fmt.Errorf("%w: PDF draf hanya dapat diunggah untuk versi berstatus DRAFT", ErrInvalidState)
+		}
+		c, err := v.ParsedContent()
+		if err != nil {
+			return err
+		}
+		c.UploadedPDF = true
+		raw, _ := c.CanonicalJSON()
+		sha, _ := c.SHA256()
+		fileSHA, err := s.files.Put(ctx, tx, "application/pdf", pdf)
+		if err != nil {
+			return err
+		}
+		if err := tx.Model(&Version{}).Where("id = ?", v.ID).Updates(map[string]interface{}{
+			"content": string(raw), "content_sha256": sha, "draft_pdf_sha256": fileSHA, "updated_at": s.now(),
+		}).Error; err != nil {
+			return err
+		}
+		s.auditAdmin(ctx, tx, "TERMS_DRAFT_PDF_UPLOADED", v, fmt.Sprintf("PDF draf SK versi %d diunggah (%s…, %d byte)", v.VersionNumber, fileSHA[:12], len(pdf)))
 		out, err = s.version(ctx, tx, v.ID)
 		return err
 	})
@@ -675,13 +714,18 @@ func (s *Service) Approve(ctx context.Context, actor Actor, id string) (*Version
 		if v.DocumentNumber != nil {
 			dn = *v.DocumentNumber
 		}
-		pdf, err := s.render(c, RenderMeta{VersionNumber: v.VersionNumber, DocumentNumber: dn, PublishedAt: &now, EffectiveFrom: &effective, GeneratedAt: now})
-		if err != nil {
-			return err
-		}
-		fileSHA, err := s.files.Put(ctx, tx, "application/pdf", pdf)
-		if err != nil {
-			return err
+		var fileSHA string
+		if c.UploadedPDF && v.DraftPDFSHA256 != nil && strings.TrimSpace(*v.DraftPDFSHA256) != "" {
+			fileSHA = *v.DraftPDFSHA256
+		} else {
+			pdf, err := s.render(c, RenderMeta{VersionNumber: v.VersionNumber, DocumentNumber: dn, PublishedAt: &now, EffectiveFrom: &effective, GeneratedAt: now})
+			if err != nil {
+				return err
+			}
+			fileSHA, err = s.files.Put(ctx, tx, "application/pdf", pdf)
+			if err != nil {
+				return err
+			}
 		}
 		name := trimTo(actor.Name, 100)
 		if err := tx.Model(&Version{}).Where("id = ?", v.ID).Updates(map[string]interface{}{

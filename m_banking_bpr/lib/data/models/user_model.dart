@@ -2,13 +2,11 @@ import 'device_binding_model.dart';
 
 class UserModel {
   final String id;
-  final String nik;
   final String cif;
   final String fullName;
   final String username;
   final String phoneNumber;
   final String email;
-  final String alamat;
   final String kodePos;
   final String jenisKelamin;
   final String agama;
@@ -21,13 +19,11 @@ class UserModel {
 
   UserModel({
     required this.id,
-    this.nik = '',
     required this.cif,
     required this.fullName,
     this.username = '',
     required this.phoneNumber,
     required this.email,
-    this.alamat = '',
     this.kodePos = '',
     this.jenisKelamin = '',
     this.agama = '',
@@ -42,13 +38,11 @@ class UserModel {
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
       id: json['id'] ?? '',
-      nik: json['nik'] ?? '',
       cif: json['cif'] ?? '',
       fullName: json['full_name'] ?? json['nama'] ?? '',
       username: json['username'] ?? '',
       phoneNumber: json['phone_number'] ?? json['nohp'] ?? '',
       email: json['email'] ?? '',
-      alamat: json['alamat'] ?? '',
       kodePos: json['kode_pos'] ?? '',
       jenisKelamin: json['jenis_kelamin'] ?? '',
       agama: json['agama'] ?? '',
@@ -63,13 +57,11 @@ class UserModel {
 
   Map<String, dynamic> toJson() => {
         'id': id,
-        'nik': nik,
         'cif': cif,
         'full_name': fullName,
         'username': username,
         'phone_number': phoneNumber,
         'email': email,
-        'alamat': alamat,
         'kode_pos': kodePos,
         'jenis_kelamin': jenisKelamin,
         'agama': agama,

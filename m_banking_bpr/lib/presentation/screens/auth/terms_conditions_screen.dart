@@ -46,14 +46,12 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
   late final TermsRepository _repo;
   TermsDocument? _doc;
   Uint8List? _pdfBytes;
+  List<Uint8List> _renderedPages = const [];
   bool _loading = true;
   String? _error;
   bool _pdfReady = false;
-  int _pageCount = 0;
-  int _currentPage = 1;
   List<bool> _checks = const [];
   bool _submitting = false;
-  PdfController? _pdfController;
 
   bool get _isAllAgreed => _checks.isNotEmpty && _checks.every((c) => c);
   bool get _canProceed => _doc != null && _pdfReady && _isAllAgreed && !_submitting;
@@ -71,18 +69,41 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
       _loading = true;
       _error = null;
       _pdfReady = false;
-      _pageCount = 0;
-      _currentPage = 1;
+      _renderedPages = const [];
     });
     try {
       final doc = await _repo.fetchActive();
       final bytes = await _repo.fetchPdf(doc);
+      final pages = <Uint8List>[];
+      if (widget.pdfViewBuilder == null) {
+        final pdfDoc = await PdfDocument.openData(bytes);
+        try {
+          for (var i = 1; i <= pdfDoc.pagesCount; i++) {
+            final page = await pdfDoc.getPage(i);
+            try {
+              final img = await page.render(
+                width: page.width * 2,
+                height: page.height * 2,
+                format: PdfPageImageFormat.png,
+                backgroundColor: '#FFFFFF',
+              );
+              if (img != null) {
+                pages.add(img.bytes);
+              }
+            } finally {
+              await page.close();
+            }
+          }
+        } finally {
+          await pdfDoc.close();
+        }
+      }
       if (!mounted) return;
-      _pdfController?.dispose();
-      _pdfController = widget.pdfViewBuilder == null ? PdfController(document: PdfDocument.openData(bytes)) : null;
       setState(() {
         _doc = doc;
         _pdfBytes = bytes;
+        _renderedPages = pages;
+        _pdfReady = widget.pdfViewBuilder == null ? pages.isNotEmpty : false;
         _checks = List<bool>.filled(doc.consentStatements.length, false);
         _loading = false;
       });
@@ -92,6 +113,7 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
         _loading = false;
         _doc = null;
         _pdfBytes = null;
+        _renderedPages = const [];
         _error = e is ApiException || e is TermsIntegrityException
             ? e.toString()
             : 'Syarat dan Ketentuan belum dapat dimuat. Periksa koneksi internet Anda lalu coba kembali.';
@@ -166,7 +188,6 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
   void dispose() {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
-    _pdfController?.dispose();
     super.dispose();
   }
 
@@ -199,226 +220,222 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
       ),
       child: Scaffold(
         backgroundColor: Colors.white,
-        appBar: AppBar(
-          backgroundColor: Colors.white,
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary, size: 24),
-            onPressed: () => Navigator.of(context).maybePop(),
-          ),
-        ),
-        body: Stack(
-          children: [
-            SingleChildScrollView(
-              controller: _scrollController,
-              physics: const BouncingScrollPhysics(),
-              padding: EdgeInsets.only(
-                left: 22,
-                right: 22,
-                top: 4,
-                bottom: MediaQuery.of(context).padding.bottom + 36,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    AppContent.text('terms.headline'),
-                    style: const TextStyle(
-                      fontSize: 21,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.titleDark,
-                      height: 1.28,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  Text(
-                    _versionLine(),
-                    key: const Key('termsVersionLine'),
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w400,
-                      color: AppColors.textMuted,
-                    ),
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  Text(
-                    AppContent.text('terms.instruction'),
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w400,
-                      color: AppColors.textSecondary,
-                      height: 1.45,
-                    ),
-                  ),
-
-                  const SizedBox(height: 18),
-
-                  _buildPdfArea(context),
-
-                  const SizedBox(height: 28),
-
-                  if (!widget.readOnly) ...[
-                    Container(
-                      height: 1.5,
-                      color: AppColors.borderLight,
-                      margin: const EdgeInsets.only(bottom: 24),
-                    ),
-
-                    if (doc != null) ...[
-                      Text(
-                        doc.consentHeading.isNotEmpty ? doc.consentHeading : 'Persetujuan Layanan Nasabah',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.titleDark,
-                        ),
-                      ),
-                      if (doc.consentInstruction.isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          doc.consentInstruction,
-                          style: const TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w400,
-                            color: AppColors.textMuted,
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 18),
-                      for (var i = 0; i < doc.consentStatements.length; i++) ...[
-                        _buildCheckboxItem(
-                          key: Key('termsConsent$i'),
-                          value: _checks[i],
-                          enabled: _pdfReady && !_submitting,
-                          onChanged: (val) => setState(() => _checks[i] = val ?? false),
-                          text: doc.consentStatements[i],
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-                      if (!_pdfReady)
-                        const Padding(
-                          padding: EdgeInsets.only(bottom: 6),
-                          child: Text(
-                            'Persetujuan dapat diberikan setelah dokumen PDF berhasil ditampilkan.',
-                            style: TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8)),
-                          ),
-                        ),
-                      const SizedBox(height: 16),
-                    ],
-                  ],
-
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      key: const Key('termsProceedButton'),
-                      onPressed: widget.readOnly
-                          ? () => Navigator.of(context).maybePop()
-                          : (_canProceed ? _onProceed : null),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: widget.readOnly ? AppColors.primaryNavy : AppColors.dmbGreen,
-                        disabledBackgroundColor: AppColors.borderLight,
-                        foregroundColor: Colors.white,
-                        disabledForegroundColor: const Color(0xFF94A3B8),
-                        elevation: (widget.readOnly || _canProceed) ? 2 : 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(26),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+        appBar: Navigator.canPop(context)
+            ? AppBar(
+                backgroundColor: Colors.white,
+                elevation: 0,
+                scrolledUnderElevation: 0,
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary, size: 24),
+                  onPressed: () => Navigator.of(context).maybePop(),
+                ),
+              )
+            : null,
+        body: SafeArea(
+          top: !Navigator.canPop(context),
+          bottom: false,
+          child: Stack(
+            children: [
+              SingleChildScrollView(
+                controller: _scrollController,
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.only(bottom: 28),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (_submitting)
-                            const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                            )
-                          else
-                            Icon(
-                              widget.readOnly
-                                  ? Icons.check_rounded
-                                  : (_canProceed ? Icons.check_circle_rounded : Icons.lock_outline_rounded),
-                              size: 18,
-                            ),
-                          const SizedBox(width: 8),
                           Text(
-                            widget.readOnly ? 'Tutup Dokumen' : 'Setuju & Lanjutkan',
+                            AppContent.text('terms.headline'),
                             style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.2,
+                              fontSize: 21,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.titleDark,
+                              height: 1.28,
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            _versionLine(),
+                            key: const Key('termsVersionLine'),
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w400,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            AppContent.text('terms.instruction'),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
+                              color: AppColors.textSecondary,
+                              height: 1.45,
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-
-            if (_showScrollToBottom && !widget.readOnly)
-              Positioned(
-                right: 20,
-                bottom: 24,
-                child: GestureDetector(
-                  onTap: _scrollToBottom,
-                  child: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryNavy,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.28),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
+                    const SizedBox(height: 12),
+                    _buildPdfArea(context),
+                    if (!widget.readOnly && doc != null)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              height: 1,
+                              color: AppColors.borderLight,
+                              margin: const EdgeInsets.only(bottom: 20),
+                            ),
+                            Text(
+                              doc.consentHeading.isNotEmpty ? doc.consentHeading : 'Persetujuan Layanan Nasabah',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.titleDark,
+                              ),
+                            ),
+                            if (doc.consentInstruction.isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                doc.consentInstruction,
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w400,
+                                  color: AppColors.textMuted,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 14),
+                            for (var i = 0; i < doc.consentStatements.length; i++) ...[
+                              _buildCheckboxItem(
+                                key: Key('termsConsent$i'),
+                                value: _checks[i],
+                                enabled: _pdfReady && !_submitting,
+                                onChanged: (val) => setState(() => _checks[i] = val ?? false),
+                                text: doc.consentStatements[i],
+                              ),
+                              const SizedBox(height: 10),
+                            ],
+                          ],
                         ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.arrow_downward_rounded,
-                      color: Colors.white,
-                      size: 22,
+                      ),
+                  ],
+                ),
+              ),
+              if (_showScrollToBottom && !widget.readOnly)
+                Positioned(
+                  right: 18,
+                  bottom: 18,
+                  child: GestureDetector(
+                    onTap: _scrollToBottom,
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E293B),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.24),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.arrow_downward_rounded,
+                        color: Colors.white,
+                        size: 22,
+                      ),
                     ),
                   ),
                 ),
+            ],
+          ),
+        ),
+        bottomNavigationBar: SafeArea(
+          top: false,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              border: Border(top: BorderSide(color: Color(0xFFF1F5F9))),
+            ),
+            child: SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                key: const Key('termsProceedButton'),
+                onPressed: widget.readOnly
+                    ? () => Navigator.of(context).maybePop()
+                    : (_canProceed ? _onProceed : null),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: widget.readOnly ? AppColors.primaryNavy : const Color(0xFF0A2A66),
+                  disabledBackgroundColor: const Color(0xFFE2E8F0),
+                  foregroundColor: Colors.white,
+                  disabledForegroundColor: const Color(0xFF94A3B8),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(26),
+                  ),
+                ),
+                child: _submitting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : Text(
+                        widget.readOnly ? 'Tutup Dokumen' : 'Saya Setuju',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
               ),
-          ],
+            ),
+          ),
         ),
       ),
     );
   }
 
   Widget _buildPdfArea(BuildContext context) {
-    final height = (MediaQuery.of(context).size.height * 0.56).clamp(320.0, 520.0);
-    Widget body;
     if (_loading) {
-      body = const Center(
+      return const Padding(
         key: Key('termsLoading'),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(color: AppColors.primaryNavy),
-            SizedBox(height: 12),
-            Text('Memuat dokumen Syarat dan Ketentuan...', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
-          ],
+        padding: EdgeInsets.symmetric(vertical: 64),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(color: AppColors.primaryNavy),
+              SizedBox(height: 12),
+              Text(
+                'Memuat dokumen Syarat dan Ketentuan...',
+                style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+              ),
+            ],
+          ),
         ),
       );
-    } else if (_error != null || _pdfBytes == null) {
-      body = Center(
+    }
+
+    if (_error != null || _pdfBytes == null) {
+      return Padding(
         key: const Key('termsError'),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 48),
+        child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -439,108 +456,42 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
           ),
         ),
       );
-    } else {
-      void onLoaded(int pages) {
-        if (!mounted) return;
-        setState(() {
-          _pdfReady = pages > 0;
-          _pageCount = pages;
-        });
-      }
-
-      void onError(Object e) {
-        if (!mounted) return;
-        setState(() {
-          _pdfReady = false;
-          _error = 'Dokumen PDF tidak dapat ditampilkan. Silakan muat ulang.';
-        });
-      }
-
-      void onPage(int page) {
-        if (mounted) setState(() => _currentPage = page);
-      }
-
-      body = widget.pdfViewBuilder != null
-          ? widget.pdfViewBuilder!(_pdfBytes!, onLoaded, onError, onPage)
-          : PdfView(
-              controller: _pdfController!,
-              scrollDirection: Axis.horizontal,
-              pageSnapping: true,
-              physics: const BouncingScrollPhysics(),
-              onDocumentLoaded: (d) => onLoaded(d.pagesCount),
-              onDocumentError: onError,
-              onPageChanged: onPage,
-              backgroundDecoration: const BoxDecoration(color: Color(0xFFF1F5F9)),
-            );
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.bgCanvas,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderLight, width: 1.5),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(7),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFEE2E2),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.picture_as_pdf_rounded, color: AppColors.danger, size: 20),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    _doc != null ? 'Syarat dan Ketentuan • Versi ${_doc!.versionNumber}' : 'Syarat dan Ketentuan',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.titleDark),
-                  ),
-                ),
-                if (_pdfReady)
-                  Text(
-                    'Halaman $_currentPage dari $_pageCount',
-                    key: const Key('termsPageIndicator'),
-                    style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
-                  ),
-                if (_pdfReady && _pdfController != null) ...[
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    icon: const Icon(Icons.chevron_left_rounded),
-                    onPressed: _currentPage > 1
-                        ? () => _pdfController!.previousPage(duration: const Duration(milliseconds: 250), curve: Curves.easeOut)
-                        : null,
-                  ),
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    icon: const Icon(Icons.chevron_right_rounded),
-                    onPressed: _currentPage < _pageCount
-                        ? () => _pdfController!.nextPage(duration: const Duration(milliseconds: 250), curve: Curves.easeOut)
-                        : null,
-                  ),
-                ],
-              ],
+    if (widget.pdfViewBuilder != null) {
+      final height = (MediaQuery.of(context).size.height * 0.56).clamp(320.0, 520.0);
+      return SizedBox(
+        height: height,
+        child: widget.pdfViewBuilder!(
+          _pdfBytes!,
+          (pages) {
+            if (!mounted) return;
+            setState(() => _pdfReady = pages > 0);
+          },
+          (e) {
+            if (!mounted) return;
+            setState(() {
+              _pdfReady = false;
+              _error = 'Dokumen PDF tidak dapat ditampilkan. Silakan muat ulang.';
+            });
+          },
+          (_) {},
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: _renderedPages
+          .map(
+            (pageBytes) => Image.memory(
+              pageBytes,
+              width: double.infinity,
+              fit: BoxFit.fitWidth,
+              gaplessPlayback: true,
             ),
-          ),
-          const Divider(height: 1),
-          SizedBox(height: height, child: body),
-          if (_pdfReady)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: Text(
-                'Geser ke kiri/kanan untuk berpindah halaman • cubit untuk memperbesar',
-                style: TextStyle(fontSize: 10.5, color: Color(0xFF94A3B8)),
-              ),
-            ),
-        ],
-      ),
+          )
+          .toList(),
     );
   }
 

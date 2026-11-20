@@ -409,9 +409,11 @@ func (r *authRepository) UpsertCBSUserAndAccount(ctx context.Context, nasabah *d
 	switch {
 	case errors.Is(err, gorm.ErrRecordNotFound):
 		user = model.User{
-			ID:           uuid.NewString(),
-			CIF:          cif,
-			FullName:     fullName,
+			ID:                     uuid.NewString(),
+			CIF:                    cif,
+			CIFEncrypted:           crypto.EncryptedString(cif),
+			AccountNumberEncrypted: crypto.EncryptedString(accountNo),
+			FullName:               fullName,
 			PhoneNumber:  pendingPhonePlaceholder(cif),
 			Email:        crypto.EncryptedString(nasabah.Email),
 			KodePos:      kodePos,
@@ -437,7 +439,8 @@ func (r *authRepository) UpsertCBSUserAndAccount(ctx context.Context, nasabah *d
 		}
 		for col, v := range map[string]string{
 			"email": nasabah.Email, "tgl_lahir": nasabah.TglLahir,
-			"tempat_lahir": nasabah.TempatLahir,
+			"tempat_lahir": nasabah.TempatLahir, "cif_encrypted": cif,
+			"account_number_encrypted": accountNo,
 		} {
 			if v == "" {
 				continue

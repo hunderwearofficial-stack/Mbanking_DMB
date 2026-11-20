@@ -43,12 +43,10 @@ type DMBHealthStatus struct {
 type CBSHealthStatus = DMBHealthStatus
 
 type DMBNasabahData struct {
-	NIK            string `json:"nik"`
 	CIF            string `json:"cif"`
 	Nama           string `json:"nama"`
 	NoHP           string `json:"nohp"`
 	Email          string `json:"email"`
-	Alamat         string `json:"alamat"`
 	KodePos        string `json:"kode_pos"`
 	JenisKelamin   string `json:"jenis_kelamin"`
 	Agama          string `json:"agama"`
@@ -149,4 +147,15 @@ type DMBProductItem struct {
 	KodeProduk string `json:"kode_produk"`
 	NamaProduk string `json:"nama_produk"`
 	Aktif      bool   `json:"aktif"`
+}
+
+type CBSRegistrationCheckData struct {
+	CIF       string `json:"cif"`
+	NoHP      string `json:"nohp"`
+	Terdaftar bool   `json:"terdaftar"`
+}
+
+type CBSRegistrationCompleteData struct {
+	CIF       string `json:"cif"`
+	Terdaftar bool   `json:"terdaftar"`
 }
