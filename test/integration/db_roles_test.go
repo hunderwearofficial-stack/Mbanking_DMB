@@ -69,6 +69,10 @@ func TestIntegration_ApplicationRoleCannotTamperWithAuditTrail(t *testing.T) {
 		"ALTER TABLE audit_logs DISABLE TRIGGER USER",
 		"DROP TRIGGER trg_audit_logs_append_only ON audit_logs",
 		"CREATE TABLE should_not_exist (id int)",
+		// Device keys and challenges are revoked/consumed by status, never deleted.
+		"DELETE FROM device_keys",
+		"DELETE FROM device_challenges",
+		"TRUNCATE device_keys",
 	} {
 		err := appDB.Exec(stmt).Error
 		if err == nil {

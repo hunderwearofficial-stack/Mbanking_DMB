@@ -1,5 +1,3 @@
-// Package legaldoc manages versioned legal documents (the mobile banking Terms and
-// Conditions), their PDF renditions and the customers' recorded consent.
 package legaldoc
 
 import (
@@ -13,9 +11,6 @@ import (
 	"unicode/utf8"
 )
 
-// Content is the structured text of one document version. Numbering ("1.", "a.") is
-// part of the text itself so that migrated wording is preserved exactly; the PDF
-// template only adds layout, never words.
 type Content struct {
 	Title              string    `json:"title"`
 	DateNote           string    `json:"date_note,omitempty"`
@@ -26,26 +21,22 @@ type Content struct {
 	ConsentStatements  []string  `json:"consent_statements"`
 }
 
-// Section is a chapter ("I. Fitur Utama") with label/value rows and/or text blocks.
 type Section struct {
 	Heading string  `json:"heading"`
 	Fields  []Field `json:"fields,omitempty"`
 	Blocks  []Block `json:"blocks,omitempty"`
 }
 
-// Field is a label/value row (e.g. "Nama Penerbit : PT BPR …").
 type Field struct {
 	Label string `json:"label"`
 	Value string `json:"value"`
 }
 
-// Block is a paragraph (clause) with optional sub-items (ayat / butir).
 type Block struct {
 	Text  string   `json:"text"`
 	Items []string `json:"items,omitempty"`
 }
 
-// ErrInvalidContent is returned when document content fails validation.
 var ErrInvalidContent = errors.New("isi dokumen tidak valid")
 
 const (
@@ -60,7 +51,6 @@ const (
 	maxDocumentNumber = 100
 )
 
-// ParseContent decodes and validates JSON content (unknown fields are rejected).
 func ParseContent(raw []byte) (*Content, error) {
 	if len(raw) == 0 || len(raw) > maxContentBytes {
 		return nil, fmt.Errorf("%w: ukuran isi dokumen tidak valid", ErrInvalidContent)
@@ -69,7 +59,7 @@ func ParseContent(raw []byte) (*Content, error) {
 	dec.DisallowUnknownFields()
 	var c Content
 	if err := dec.Decode(&c); err != nil {
-		return nil, fmt.Errorf("%w: format JSON tidak sesuai (%v)", ErrInvalidContent, err)
+		return nil, fmt.Errorf("%w: struktur data dokumen tidak sesuai", ErrInvalidContent)
 	}
 	c.normalize()
 	if err := c.Validate(); err != nil {
@@ -103,8 +93,6 @@ func (c *Content) normalize() {
 	}
 }
 
-// Validate checks structure, lengths and characters (only printable text that the
-// embedded PDF font can render; no markup is interpreted anywhere).
 func (c *Content) Validate() error {
 	bad := func(format string, a ...interface{}) error {
 		return fmt.Errorf("%w: %s", ErrInvalidContent, fmt.Sprintf(format, a...))
@@ -193,8 +181,6 @@ func checkText(name, s string, max int, required bool) error {
 	return nil
 }
 
-// SupportedRune reports whether r is printable text covered by the embedded Noto Sans
-// font (Latin, Latin-1, Latin Extended, general punctuation, currency signs).
 func SupportedRune(r rune) bool {
 	switch {
 	case r == '\n':
@@ -211,12 +197,10 @@ func SupportedRune(r rune) bool {
 	return false
 }
 
-// CanonicalJSON is the deterministic serialisation used for storage and hashing.
 func (c *Content) CanonicalJSON() ([]byte, error) {
 	return json.Marshal(c)
 }
 
-// SHA256 returns the hex SHA-256 of the canonical JSON.
 func (c *Content) SHA256() (string, error) {
 	b, err := c.CanonicalJSON()
 	if err != nil {
@@ -226,8 +210,6 @@ func (c *Content) SHA256() (string, error) {
 	return hex.EncodeToString(sum[:]), nil
 }
 
-// PlainTextSegments returns every text unit of the document in reading order. It is
-// used to verify that a PDF rendition contains all of the content (no lost clause).
 func (c *Content) PlainTextSegments() []string {
 	out := []string{c.Title}
 	if c.DateNote != "" {
@@ -254,7 +236,6 @@ func (c *Content) PlainTextSegments() []string {
 	return out
 }
 
-// ValidDocumentNumber checks an optional official document number.
 func ValidDocumentNumber(s string) error {
 	return checkText("nomor dokumen", strings.TrimSpace(s), maxDocumentNumber, false)
 }

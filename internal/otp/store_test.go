@@ -39,7 +39,6 @@ func TestCorrectCodeVerifiesAndConsumesOnce(t *testing.T) {
 	}
 }
 
-// DMB-002 regression: no static/master code may verify a session.
 func TestNoMasterCode(t *testing.T) {
 	s := newTestStore()
 	id := create(t, s, "482913")
@@ -50,7 +49,6 @@ func TestNoMasterCode(t *testing.T) {
 	}
 }
 
-// DMB-012 regression: attempts are limited and the session is destroyed.
 func TestAttemptLimit(t *testing.T) {
 	s := newTestStore()
 	ctx := context.Background()

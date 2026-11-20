@@ -1,6 +1,3 @@
-/// Metadata of the Terms and Conditions version in force, as published by the bank
-/// through the back office (GET /api/v1/terms/active). The PDF itself is downloaded
-/// separately and checked against [pdfSha256].
 class TermsDocument {
   final String versionId;
   final int versionNumber;
@@ -29,7 +26,6 @@ class TermsDocument {
   static final RegExp _sha = RegExp(r'^[0-9a-f]{64}$');
   static final RegExp _uuid = RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
 
-  /// Strict parsing: an incomplete or malformed answer is an error, never a default.
   factory TermsDocument.fromJson(Map<String, dynamic> json) {
     final id = json['version_id'];
     final number = json['version_number'];

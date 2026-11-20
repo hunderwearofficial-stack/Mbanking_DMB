@@ -1,6 +1,3 @@
-// Package service berisi business logic fitur layanan nasabah yang tidak menyentuh
-// dana: inbox notifikasi, registrasi token push, rekening favorit, dan pengajuan
-// produk. Identitas nasabah selalu berasal dari token (middleware), bukan dari klien.
 package service
 
 import (
@@ -8,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"mbanking-bpr/pkg/money"
-	"regexp"
 	"strings"
 
 	"mbanking-bpr/internal/audit"
@@ -22,18 +18,6 @@ var (
 	ErrCustomerNotFound = errors.New("data nasabah tidak ditemukan")
 )
 
-var accountNumberPattern = regexp.MustCompile(`^[0-9]{6,30}$`)
-
-// BeneficiaryInput is the customer-editable beneficiary data (no mass assignment of id/user_id).
-type BeneficiaryInput struct {
-	BankCode      string `json:"bank_code"`
-	BankName      string `json:"bank_name"`
-	AccountNumber string `json:"account_number"`
-	AccountName   string `json:"account_name"`
-	Nickname      string `json:"nickname"`
-}
-
-// ProductApplicationInput is the customer-editable application data (audit DMB-017).
 type ProductApplicationInput struct {
 	ProductType     string       `json:"product_type"`
 	ProductName     string       `json:"product_name"`
@@ -47,10 +31,6 @@ type ProductApplicationInput struct {
 type CustomerService interface {
 	ListNotifications(ctx context.Context, userID string, limit int) ([]model.Notification, error)
 	MarkNotificationsRead(ctx context.Context, userID string) error
-
-	ListBeneficiaries(ctx context.Context, userID string) ([]model.SavedBeneficiary, error)
-	SaveBeneficiary(ctx context.Context, userID string, in BeneficiaryInput) (*model.SavedBeneficiary, error)
-	DeleteBeneficiary(ctx context.Context, id, userID string) error
 
 	CreateProductApplication(ctx context.Context, userID string, in ProductApplicationInput) (*model.ProductApplication, error)
 	ListProductApplications(ctx context.Context, userID string) ([]model.ProductApplication, error)
@@ -80,44 +60,22 @@ func (s *customerService) MarkNotificationsRead(ctx context.Context, userID stri
 	return s.repo.MarkNotificationsRead(ctx, userID)
 }
 
-func (s *customerService) ListBeneficiaries(ctx context.Context, userID string) ([]model.SavedBeneficiary, error) {
-	return s.repo.ListBeneficiaries(ctx, userID)
-}
-
-func (s *customerService) SaveBeneficiary(ctx context.Context, userID string, in BeneficiaryInput) (*model.SavedBeneficiary, error) {
-	b := &model.SavedBeneficiary{
-		UserID: userID, BankCode: limitLen(strings.ToUpper(in.BankCode), 20), BankName: limitLen(in.BankName, 100),
-		AccountNumber: strings.TrimSpace(in.AccountNumber), AccountName: limitLen(in.AccountName, 100), Nickname: limitLen(in.Nickname, 60),
-	}
-	if !accountNumberPattern.MatchString(b.AccountNumber) || b.AccountName == "" {
-		return nil, fmt.Errorf("%w: nomor rekening (angka) dan nama penerima wajib diisi", ErrValidation)
-	}
-	if b.BankCode == "" {
-		b.BankCode = "BPR"
-	}
-	if b.BankName == "" {
-		b.BankName = "Bank DMB"
-	}
-	if err := s.repo.SaveBeneficiary(ctx, b); err != nil {
-		return nil, err
-	}
-	return b, nil
-}
-
-func (s *customerService) DeleteBeneficiary(ctx context.Context, id, userID string) error {
-	return s.repo.DeleteBeneficiary(ctx, id, userID)
-}
-
 func (s *customerService) CreateProductApplication(ctx context.Context, userID string, in ProductApplicationInput) (*model.ProductApplication, error) {
 	user, err := s.repo.GetUserByID(ctx, userID)
 	if err != nil || user == nil {
 		return nil, ErrCustomerNotFound
 	}
 	ptype := strings.ToUpper(strings.TrimSpace(in.ProductType))
+	if ptype == "DEPOSIT" {
+		ptype = "DEPOSITO"
+	}
+	if ptype == "LOAN" || ptype == "KREDIT" {
+		ptype = "PINJAMAN"
+	}
 	if ptype != "DEPOSITO" && ptype != "PINJAMAN" {
 		return nil, fmt.Errorf("%w: jenis produk harus DEPOSITO atau PINJAMAN", ErrValidation)
 	}
-	if in.Amount <= 0 || in.Amount > 100_000_000_000 || in.TenorMonths <= 0 || in.TenorMonths > 360 {
+	if in.Amount <= 0 || in.Amount > money.Rupiah(100_000_000_000) || in.TenorMonths <= 0 || in.TenorMonths > 360 {
 		return nil, fmt.Errorf("%w: nominal/tenor tidak valid", ErrValidation)
 	}
 	name := limitLen(in.ProductName, 100)

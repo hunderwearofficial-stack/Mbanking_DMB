@@ -2,14 +2,17 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
+	"math/big"
 	"strings"
 	"time"
 
 	"mbanking-bpr/config"
 	"mbanking-bpr/internal/audit"
 	"mbanking-bpr/internal/cbsprovider"
+	"mbanking-bpr/internal/devicebind"
 	"mbanking-bpr/internal/domain"
 	"mbanking-bpr/internal/legaldoc"
 	"mbanking-bpr/internal/model"
@@ -18,33 +21,33 @@ import (
 	"mbanking-bpr/internal/otp"
 	"mbanking-bpr/internal/session"
 	"mbanking-bpr/pkg/logger"
+	"mbanking-bpr/pkg/middleware"
 	"mbanking-bpr/pkg/security"
 
 	"github.com/google/uuid"
 )
 
-const maxFailedAttempts = 3
 
 var (
-	ErrDeviceBindingMismatch = errors.New("perangkat tidak cocok dengan perangkat terdaftar untuk akun ini (Device Binding Error)")
+	ErrDeviceBindingMismatch = errors.New("perangkat tidak sesuai dengan perangkat terdaftar untuk akun ini")
 	ErrUserInactive          = errors.New("akun nasabah tidak aktif atau diblokir")
 	ErrInvalidCredentials    = errors.New("nomor handphone atau password salah")
-	ErrDeviceIDRequired      = errors.New("identitas perangkat (device_id) wajib disertakan")
+	ErrDeviceIDRequired      = errors.New("identitas perangkat tidak ditemukan. Silakan muat ulang aplikasi")
 	ErrAccountNotMatch       = errors.New("data nasabah tidak dapat diverifikasi")
 	ErrSessionNotFound       = otp.ErrSessionNotFound
 	ErrOTPInvalid            = otp.ErrInvalidCode
 	ErrOTPNotVerified        = otp.ErrNotVerified
 	ErrPasswordTooShort      = security.ErrWeakPassword
 	ErrPINInvalidLength      = errors.New("PIN transaksi harus tepat 6 digit angka")
-	// ErrNewDeviceVerification is returned when a password login comes from a device
-	// other than the bound one: binding a new device requires OTP (audit DMB-013).
-	ErrNewDeviceVerification = errors.New("perangkat baru terdeteksi. Demi keamanan, verifikasi perangkat ini melalui menu Lupa Password (kode OTP dikirim ke nomor handphone terdaftar)")
+	// SR-7: one generic answer for every login outcome from an unbound device (and for
+	// unknown accounts): it neither confirms the account nor the password, and it does not
+	// wrongly claim a "new device" to a customer who mistyped the number.
+	ErrNewDeviceVerification = errors.New("login tidak dapat diproses. Periksa kembali nomor handphone dan password Anda. Bila Anda memakai perangkat baru atau baru memasang ulang aplikasi, verifikasi perangkat melalui menu Lupa Password (kode OTP dikirim ke nomor handphone terdaftar)")
 	ErrDefaultCredential     = errors.New("password Anda adalah password bawaan yang tidak aman dan telah dinonaktifkan. Silakan atur ulang melalui menu Lupa Password")
 	ErrSessionBusy           = session.ErrConcurrentRefresh
 	ErrServiceUnavailable    = errors.New("layanan sedang tidak tersedia, silakan coba beberapa saat lagi")
 )
 
-// ClientInfo describes the calling device/session (from verified headers & token).
 type ClientInfo struct {
 	DeviceID  string
 	IP        string
@@ -57,17 +60,22 @@ type AuthService interface {
 	RefreshToken(ctx context.Context, req domain.RefreshTokenRequest, client ClientInfo) (*domain.LoginResponse, error)
 	Logout(ctx context.Context, userID string, client ClientInfo) error
 	VerifyActivation(ctx context.Context, req domain.ActivateVerifyRequest, client ClientInfo) (*domain.ActivateVerifyResponse, error)
-	VerifyActivationOTP(ctx context.Context, req domain.ActivateOTPRequest, client ClientInfo) error
+	VerifyActivationOTP(ctx context.Context, req domain.ActivateOTPRequest, client ClientInfo) (*domain.ActivateVerifyResponse, error)
 	CompleteActivation(ctx context.Context, req domain.ActivateSetupRequest, client ClientInfo) (*domain.LoginResponse, error)
 	RequestForgotPassword(ctx context.Context, req domain.ForgotPasswordRequest, client ClientInfo) (*domain.ActivateVerifyResponse, error)
 	VerifyForgotPasswordOTP(ctx context.Context, req domain.ForgotPasswordVerifyOTPRequest, client ClientInfo) error
 	ResetForgotPassword(ctx context.Context, req domain.ForgotPasswordResetRequest, client ClientInfo) error
 	ChangePassword(ctx context.Context, userID string, req domain.ChangePasswordRequest, client ClientInfo) error
 	ChangePIN(ctx context.Context, userID string, req domain.ChangePINRequest, client ClientInfo) error
+	RevealProfile(ctx context.Context, userID, pin string, client ClientInfo) (*domain.CBSNasabahData, error)
+
+	DeviceChallenge(ctx context.Context, req domain.DeviceChallengeRequest, client ClientInfo) (*domain.DeviceChallengeResponse, error)
+	SessionDeviceChallenge(ctx context.Context, userID string, req domain.DeviceChallengeRequest, client ClientInfo) (*domain.DeviceChallengeResponse, error)
+	EnrollDevice(ctx context.Context, userID string, req domain.EnrollDeviceRequest, client ClientInfo) (*domain.LoginResponse, error)
+	RotateDeviceKey(ctx context.Context, userID string, req domain.RotateDeviceKeyRequest, client ClientInfo) (*domain.LoginResponse, error)
+	DeviceStatus(ctx context.Context, userID string, client ClientInfo) domain.DeviceBindingStatus
 }
 
-// ConsentGate decides whether the customer has accepted the Terms and Conditions in
-// force (internal/legaldoc). The backend, not the app, is the source of truth.
 type ConsentGate interface {
 	EnsureUserConsent(ctx context.Context, userID, deviceID, acceptanceID, channel string, meta legaldoc.ClientMeta) error
 	ValidatePreLogin(ctx context.Context, deviceID, acceptanceID string) error
@@ -81,12 +89,13 @@ type authService struct {
 	cbsProv   cbsprovider.CBSProvider
 	otpStore  *otp.Store
 	sessions  *session.Manager
+	binder    *devicebind.Service
 	dummyHash string // equalizes timing for unknown identifiers
 }
 
-func NewAuthService(cfg *config.Config, repo repository.AuthRepository, cbsProv cbsprovider.CBSProvider, otpStore *otp.Store, sessions *session.Manager, consent ConsentGate) AuthService {
+func NewAuthService(cfg *config.Config, repo repository.AuthRepository, cbsProv cbsprovider.CBSProvider, otpStore *otp.Store, sessions *session.Manager, consent ConsentGate, binder *devicebind.Service) AuthService {
 	dummy, _ := security.HashPassword(uuid.NewString())
-	return &authService{cfg: cfg, consent: consent, repo: repo, cbsProv: cbsProv, otpStore: otpStore, sessions: sessions, dummyHash: dummy}
+	return &authService{cfg: cfg, consent: consent, repo: repo, cbsProv: cbsProv, otpStore: otpStore, sessions: sessions, binder: binder, dummyHash: dummy}
 }
 
 func maskPhoneNumber(phone string) string {
@@ -94,15 +103,6 @@ func maskPhoneNumber(phone string) string {
 		return "****"
 	}
 	return fmt.Sprintf("%s****%s", phone[:4], phone[len(phone)-4:])
-}
-
-// MaskNIK keeps only the last 4 digits of the national ID (data minimisation).
-func MaskNIK(nik string) string {
-	n := strings.TrimSpace(nik)
-	if len(n) <= 4 {
-		return n
-	}
-	return strings.Repeat("*", len(n)-4) + n[len(n)-4:]
 }
 
 func normalizePhone(p string) string {
@@ -120,7 +120,7 @@ func normalizePhone(p string) string {
 
 func validDevice(id string) (string, error) {
 	id = strings.TrimSpace(id)
-	if len(id) < 6 || len(id) > 100 {
+	if len(id) < 6 || len(id) > 128 {
 		return "", ErrDeviceIDRequired
 	}
 	for _, r := range id {
@@ -139,17 +139,14 @@ func (s *authService) refreshTTL() time.Duration {
 	return time.Duration(s.cfg.RefreshTokenDays) * 24 * time.Hour
 }
 
-// profile builds the minimised customer profile returned to the app (audit DMB-022):
-// the mother's maiden name is never returned and the NIK is masked.
 func profile(user *model.User, primaryAccount, deviceID string) domain.UserProfile {
 	return domain.UserProfile{
 		ID:             user.ID,
-		NIK:            MaskNIK(string(user.NIK)),
 		CIF:            user.CIF,
 		FullName:       user.FullName,
+		Username:       user.Username,
 		PhoneNumber:    user.PhoneNumber,
 		Email:          string(user.Email),
-		Alamat:         string(user.Alamat),
 		KodePos:        user.KodePos,
 		JenisKelamin:   user.JenisKelamin,
 		Agama:          user.Agama,
@@ -162,13 +159,18 @@ func profile(user *model.User, primaryAccount, deviceID string) domain.UserProfi
 	}
 }
 
-// issueSession creates a new server-side session and token pair. When exclusive is
-// true, every other session of the user is revoked (single active device).
 func (s *authService) issueSession(ctx context.Context, user *model.User, primaryAccount, deviceID, ip string, exclusive bool, reason string) (*domain.LoginResponse, error) {
 	sid := uuid.NewString()
+	keyID, err := s.activeKeyID(ctx, user.ID)
+	if errors.Is(err, devicebind.ErrAttestationRequired) {
+		return nil, err
+	}
+	if err != nil {
+		return nil, ErrServiceUnavailable
+	}
 	tokens, err := security.GenerateTokenPair(security.CustomerTokenInput{
 		UserID: user.ID, CIF: user.CIF, PhoneNumber: user.PhoneNumber, AccountNo: primaryAccount,
-		DeviceID: deviceID, SessionID: sid,
+		DeviceID: deviceID, DeviceKeyID: keyID, SessionID: sid,
 	}, s.cfg.JWTSecret, s.accessTTL(), s.refreshTTL())
 	if err != nil {
 		return nil, err
@@ -183,12 +185,35 @@ func (s *authService) issueSession(ctx context.Context, user *model.User, primar
 		}
 	}
 	return &domain.LoginResponse{
-		AccessToken:  tokens.AccessToken,
-		RefreshToken: tokens.RefreshToken,
-		TokenType:    "Bearer",
-		ExpiresIn:    int(s.accessTTL().Seconds()),
-		User:         profile(user, primaryAccount, deviceID),
+		AccessToken:   tokens.AccessToken,
+		RefreshToken:  tokens.RefreshToken,
+		TokenType:     "Bearer",
+		ExpiresIn:     int(s.accessTTL().Seconds()),
+		User:          profile(user, primaryAccount, deviceID),
+		DeviceBinding: s.bindingStatus(ctx, user.ID, deviceID),
 	}, nil
+}
+
+func (s *authService) activeKeyID(ctx context.Context, userID string) (string, error) {
+	if s.binder == nil {
+		return "", nil
+	}
+	id, applies, err := s.binder.ActiveKeyID(ctx, userID)
+	if !applies {
+		return "", err
+	}
+	if errors.Is(err, middleware.ErrDeviceKeyNotAccepted) {
+		return "", devicebind.ErrAttestationRequired // SR-2: no session for a non-attested key under enforce
+	}
+	return id, err
+}
+
+func (s *authService) bindingStatus(ctx context.Context, userID, deviceID string) *domain.DeviceBindingStatus {
+	if s.binder == nil {
+		return nil
+	}
+	st := s.binder.Status(ctx, userID, deviceID)
+	return &st
 }
 
 func (s *authService) resolvePrimaryAccount(ctx context.Context, user *model.User) string {
@@ -207,12 +232,12 @@ func (s *authService) resolvePrimaryAccount(ctx context.Context, user *model.Use
 }
 
 func (s *authService) Login(ctx context.Context, req domain.LoginRequest, client ClientInfo) (*domain.LoginResponse, error) {
-	identifier := strings.TrimSpace(req.PhoneNumber)
+	identifier := strings.TrimSpace(req.Username)
 	if identifier == "" {
-		identifier = strings.TrimSpace(req.CIF)
+		identifier = strings.TrimSpace(req.PhoneNumber)
 	}
 	if identifier == "" {
-		identifier = strings.TrimSpace(req.Username)
+		identifier = strings.TrimSpace(req.CIF)
 	}
 	if identifier == "" || req.Password == "" {
 		return nil, ErrInvalidCredentials
@@ -222,58 +247,89 @@ func (s *authService) Login(ctx context.Context, req domain.LoginRequest, client
 		return nil, err
 	}
 
-	user, err := s.repo.FindByIdentifier(ctx, normalizePhone(identifier))
+	user, err := s.repo.FindByIdentifier(ctx, identifier)
 	if err != nil || user == nil {
-		user, err = s.repo.FindByIdentifier(ctx, identifier)
+		user, err = s.repo.FindByIdentifier(ctx, normalizePhone(identifier))
 	}
 	if err != nil || user == nil || user.PasswordHash == "" {
-		// Unknown or not-yet-activated account: same response and similar timing as a wrong password.
 		security.CheckPassword(s.dummyHash, req.Password)
-		return nil, ErrInvalidCredentials
+		return nil, ErrNewDeviceVerification
+	}
+
+	boundDevice := ""
+	if user.DeviceID != "" && user.DeviceID == deviceID {
+		boundDevice = deviceID
+	}
+	unbound := boundDevice == ""
+	unboundNote := ""
+	if unbound {
+		unboundNote = " (dari perangkat yang belum terikat)"
 	}
 
 	if !security.CheckPassword(user.PasswordHash, req.Password) {
 		if !user.IsActive {
+			if unbound {
+				return nil, ErrNewDeviceVerification
+			}
 			return nil, ErrInvalidCredentials
 		}
+		if unbound {
+			// SECURITY (audit D-01): a wrong password from a device that is not bound to the
+			// account never counts toward the automatic block, otherwise anyone who knows a
+			// phone number could lock the customer out. The device can only proceed through
+			// OTP anyway; the attempt is audited.
+			audit.Record(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "LOGIN_FAILED_UNBOUND_DEVICE", user.CIF, "WARNING", deviceID, "Password login salah dari perangkat yang belum terikat (tidak menambah hitungan blokir)")
+			return nil, ErrNewDeviceVerification
+		}
+		maxFailedAttempts := s.repo.MaxLoginAttempts(ctx)
 		attempts, blocked, incErr := s.repo.IncrementFailedLogin(ctx, user.ID, maxFailedAttempts)
 		if incErr != nil {
 			return nil, ErrServiceUnavailable
 		}
 		if blocked {
 			_ = s.sessions.RevokeAllForUser(ctx, user.ID, session.ReasonAccountBlocked, "")
-			audit.Record(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "AUTO_BLOCK_PASSWORD", user.CIF, "DANGER", deviceID, "Akun diblokir otomatis karena 3x salah memasukkan password login")
-			notification.CreateAndPush(ctx, s.repo.DB(), user.ID, "Peringatan Keamanan: Akun Terkunci", "Akun Mobile DMB Anda telah dikunci otomatis karena 3x salah memasukkan password. Silakan gunakan Lupa Password atau hubungi CS Bank DMB.", "SECURITY")
-			return nil, errors.New("akun Anda telah diblokir otomatis karena 3x salah memasukkan password. Silakan gunakan menu Lupa Password atau hubungi CS Bank DMB")
+			audit.Record(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "AUTO_BLOCK_PASSWORD", user.CIF, "DANGER", deviceID, fmt.Sprintf("Akun diblokir otomatis karena %dx salah memasukkan password login", maxFailedAttempts))
+			notification.CreateAndPush(ctx, s.repo.DB(), user.ID, "Peringatan Keamanan: Akun Terkunci", fmt.Sprintf("Akun Mobile DMB Anda telah dikunci otomatis karena %dx salah memasukkan password. Silakan gunakan Lupa Password atau hubungi CS Bank DMB.", maxFailedAttempts), "SECURITY")
+			return nil, fmt.Errorf("akun Anda telah diblokir otomatis karena %dx salah memasukkan password. Silakan gunakan menu Lupa Password atau hubungi CS Bank DMB", maxFailedAttempts)
 		}
 		audit.Record(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "LOGIN_FAILED", user.CIF, "WARNING", deviceID, fmt.Sprintf("Password login salah (Percobaan %d/%d)", attempts, maxFailedAttempts))
 		return nil, fmt.Errorf("nomor handphone atau password salah (Percobaan %d/%d)", attempts, maxFailedAttempts)
 	}
 
 	if !user.IsActive {
-		audit.Record(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "LOGIN_BLOCKED_ATTEMPT", user.CIF, "DANGER", deviceID, "Percobaan login pada akun yang sedang diblokir")
+		audit.Record(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "LOGIN_BLOCKED_ATTEMPT", user.CIF, "DANGER", deviceID, "Percobaan login pada akun yang sedang diblokir"+unboundNote)
+		if unbound {
+			return nil, ErrNewDeviceVerification
+		}
 		return nil, errors.New("akun nasabah sedang diblokir/tidak aktif. Silakan gunakan menu Lupa Password atau hubungi Customer Service Bank DMB")
 	}
 
-	// Credentials that were published as hardcoded defaults are refused (audit DMB-003).
 	if security.IsCompromisedCredential(req.Password) {
-		audit.Record(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "LOGIN_DEFAULT_CREDENTIAL_REFUSED", user.CIF, "DANGER", deviceID, "Login dengan password bawaan yang terpublikasi ditolak")
+		audit.Record(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "LOGIN_DEFAULT_CREDENTIAL_REFUSED", user.CIF, "DANGER", deviceID, "Login dengan password bawaan yang terpublikasi ditolak"+unboundNote)
+		if unbound {
+			return nil, ErrNewDeviceVerification
+		}
 		return nil, ErrDefaultCredential
 	}
 
-	// Device binding: a new device can only be bound through an OTP flow (audit DMB-013).
-	if user.DeviceID == "" || user.DeviceID != deviceID {
+	if unbound {
 		audit.Record(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "LOGIN_NEW_DEVICE_REQUIRES_OTP", user.CIF, "WARNING", deviceID, "Login dari perangkat yang belum terverifikasi ditolak; diperlukan verifikasi OTP")
 		return nil, ErrNewDeviceVerification
+	}
+
+	if err := s.binder.Require(ctx, devicebind.PurposeLogin, user.ID, boundDevice,
+		devicebind.Proof{ChallengeID: req.DeviceChallengeID, Signature: req.DeviceSignature}, ""); err != nil {
+		if devicebind.FailureReason(err) != "" {
+			notification.CreateAndPush(ctx, s.repo.DB(), user.ID, "Peringatan Keamanan: Login Ditolak",
+				"Login Mobile DMB dengan password Anda ditolak karena verifikasi kunci perangkat gagal. Jika ini bukan Anda, segera ganti password atau hubungi CS Bank DMB.", "SECURITY")
+		}
+		return nil, err
 	}
 
 	if err := s.repo.ResetFailedLogin(ctx, user.ID); err != nil {
 		return nil, ErrServiceUnavailable
 	}
 
-	// Terms and Conditions: the customer must have accepted the version in force (the
-	// device consent given before login is linked here). Checked after authentication
-	// so that it reveals nothing about unknown accounts, and before any session exists.
 	if err := s.consent.EnsureUserConsent(ctx, user.ID, deviceID, strings.TrimSpace(req.TermsAcceptanceID), legaldoc.ChannelLogin,
 		legaldoc.ClientMeta{IP: client.IP, UserAgent: client.UserAgent}); err != nil {
 		if errors.Is(err, legaldoc.ErrConsentRequired) || errors.Is(err, legaldoc.ErrInvalidAcceptance) {
@@ -282,7 +338,6 @@ func (s *authService) Login(ctx context.Context, req domain.LoginRequest, client
 		return nil, err
 	}
 
-	// Refresh display data from CBS (best effort; the OpenAPI provider syncs encrypted PII).
 	if s.cbsProv != nil && user.CIF != "" {
 		if nas, nasErr := s.cbsProv.GetCustomerByCIF(ctx, user.CIF); nasErr == nil && nas != nil && nas.Nama != "" {
 			user.FullName = nas.Nama
@@ -290,18 +345,18 @@ func (s *authService) Login(ctx context.Context, req domain.LoginRequest, client
 	}
 	primary := s.resolvePrimaryAccount(ctx, user)
 
-	resp, err := s.issueSession(ctx, user, primary, deviceID, client.IP, true, session.ReasonNewLogin)
+	resp, err := s.issueSession(ctx, user, primary, boundDevice, client.IP, true, session.ReasonNewLogin)
 	if err != nil {
 		return nil, err
 	}
-	audit.Record(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "LOGIN_SUCCESS", user.CIF, "SUCCESS", deviceID, "Login Mobile DMB berhasil")
+	audit.Record(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "LOGIN_SUCCESS", user.CIF, "SUCCESS", boundDevice, "Login Mobile DMB berhasil")
 	return resp, nil
 }
 
 func (s *authService) RefreshToken(ctx context.Context, req domain.RefreshTokenRequest, client ClientInfo) (*domain.LoginResponse, error) {
 	claims, err := security.ValidateRefreshToken(strings.TrimSpace(req.RefreshToken), s.cfg.JWTSecret)
 	if err != nil {
-		return nil, errors.New("sesi refresh token telah berakhir, silakan login kembali")
+		return nil, errors.New("sesi Anda telah berakhir, silakan login kembali")
 	}
 	deviceID, err := validDevice(firstNonEmpty(client.DeviceID, req.DeviceID))
 	if err != nil {
@@ -321,8 +376,20 @@ func (s *authService) RefreshToken(ctx context.Context, req domain.RefreshTokenR
 	if user.DeviceID == "" || user.DeviceID != deviceID {
 		return nil, ErrDeviceBindingMismatch
 	}
-	// A new Terms version that has come into force must be accepted before the session
-	// is extended (also covers biometric unlock, which uses this endpoint).
+	if err := s.binder.Require(ctx, devicebind.PurposeRefresh, user.ID, deviceID,
+		devicebind.Proof{ChallengeID: req.DeviceChallengeID, Signature: req.DeviceSignature}, ""); err != nil {
+		return nil, err
+	}
+	keyID, err := s.activeKeyID(ctx, user.ID)
+	if errors.Is(err, devicebind.ErrAttestationRequired) {
+		return nil, err
+	}
+	if err != nil {
+		return nil, ErrServiceUnavailable
+	}
+	if s.binder.Active() && keyID != claims.DeviceKeyID {
+		return nil, ErrRefreshExpired
+	}
 	if err := s.consent.RequireUserConsent(ctx, user.ID); err != nil {
 		return nil, err
 	}
@@ -330,7 +397,7 @@ func (s *authService) RefreshToken(ctx context.Context, req domain.RefreshTokenR
 	primary := s.resolvePrimaryAccount(ctx, user)
 	tokens, err := security.GenerateTokenPair(security.CustomerTokenInput{
 		UserID: user.ID, CIF: user.CIF, PhoneNumber: user.PhoneNumber, AccountNo: primary,
-		DeviceID: deviceID, SessionID: claims.SessionID,
+		DeviceID: deviceID, DeviceKeyID: keyID, SessionID: claims.SessionID,
 	}, s.cfg.JWTSecret, s.accessTTL(), s.refreshTTL())
 	if err != nil {
 		return nil, err
@@ -342,11 +409,12 @@ func (s *authService) RefreshToken(ctx context.Context, req domain.RefreshTokenR
 		return nil, err
 	}
 	return &domain.LoginResponse{
-		AccessToken:  tokens.AccessToken,
-		RefreshToken: tokens.RefreshToken,
-		TokenType:    "Bearer",
-		ExpiresIn:    int(s.accessTTL().Seconds()),
-		User:         profile(user, primary, deviceID),
+		AccessToken:   tokens.AccessToken,
+		RefreshToken:  tokens.RefreshToken,
+		TokenType:     "Bearer",
+		ExpiresIn:     int(s.accessTTL().Seconds()),
+		User:          profile(user, primary, deviceID),
+		DeviceBinding: s.bindingStatus(ctx, user.ID, deviceID),
 	}, nil
 }
 
@@ -370,17 +438,18 @@ func firstNonEmpty(vals ...string) string {
 	return ""
 }
 
-// VerifyActivation validates CIF + phone against CBS and sends an OTP to the phone
-// registered in CBS. The account is not usable until CompleteActivation (audit DMB-003).
 func (s *authService) VerifyActivation(ctx context.Context, req domain.ActivateVerifyRequest, client ClientInfo) (*domain.ActivateVerifyResponse, error) {
 	deviceID, err := validDevice(firstNonEmpty(client.DeviceID, req.DeviceID))
 	if err != nil {
 		return nil, err
 	}
 	normInputPhone := normalizePhone(req.PhoneNumber)
-	cifNo := strings.TrimSpace(req.CIFNumber)
-	if cifNo == "" {
-		return nil, errors.New("nomor CIF wajib diisi (aktivasi menggunakan nomor rekening tidak lagi didukung)")
+	identifier := strings.TrimSpace(req.AccountNumber)
+	if identifier == "" {
+		identifier = strings.TrimSpace(req.CIFNumber)
+	}
+	if identifier == "" {
+		return nil, errors.New("nomor rekening atau CIF wajib diisi")
 	}
 	if len(normInputPhone) < 9 {
 		return nil, errors.New("nomor handphone tidak valid")
@@ -390,22 +459,27 @@ func (s *authService) VerifyActivation(ctx context.Context, req domain.ActivateV
 	targetAccountNo := ""
 
 	if s.cfg.UseLiveCBS() {
-		nas, nasErr := s.cbsProv.GetCustomerByCIF(ctx, cifNo)
+		nas, nasErr := s.cbsProv.GetCustomerByCIF(ctx, identifier)
+		if (nasErr != nil || nas == nil || strings.TrimSpace(nas.CIF) == "") {
+			if accUser, _, accErr := s.repo.FindAccountWithUser(ctx, identifier); accErr == nil && accUser != nil {
+				targetAccountNo = accUser.AccountNumber
+			}
+		}
 		if nasErr != nil || nas == nil || strings.TrimSpace(nas.CIF) == "" {
-			return nil, errors.New("nomor CIF tidak ditemukan. Pastikan nomor CIF Anda sudah benar atau hubungi CS Bank DMB")
+			return nil, errors.New("data rekening atau CIF tidak ditemukan. Pastikan nomor rekening Anda sudah benar atau hubungi CS Bank DMB")
 		}
 		cbsPhone := normalizePhone(nas.NoHP)
 		if cbsPhone == "" || cbsPhone == "0" {
-			audit.Record(ctx, s.repo.DB(), "NASABAH", cifNo, nas.Nama, "ACTIVATION_NO_PHONE_ON_FILE", maskPhoneNumber(normInputPhone), "WARNING", deviceID, "Aktivasi ditolak: nomor HP tidak tercatat di CBS")
+			audit.Record(ctx, s.repo.DB(), "NASABAH", identifier, nas.Nama, "ACTIVATION_NO_PHONE_ON_FILE", maskPhoneNumber(normInputPhone), "WARNING", deviceID, "Aktivasi ditolak: nomor HP tidak tercatat di CBS")
 			return nil, errors.New("nomor handphone Anda belum tercatat di data nasabah Bank DMB. Silakan perbarui data di kantor cabang terdekat")
 		}
 		if cbsPhone != normInputPhone {
-			audit.Record(ctx, s.repo.DB(), "NASABAH", cifNo, nas.Nama, "ACTIVATION_PHONE_MISMATCH", maskPhoneNumber(normInputPhone), "WARNING", deviceID, "Nomor HP input tidak cocok dengan nomor HP CIF")
-			return nil, errors.New("nomor handphone tidak sesuai dengan data CIF terdaftar di Bank DMB")
+			audit.Record(ctx, s.repo.DB(), "NASABAH", identifier, nas.Nama, "ACTIVATION_PHONE_MISMATCH", maskPhoneNumber(normInputPhone), "WARNING", deviceID, "Nomor HP input tidak cocok dengan nomor HP rekening")
+			return nil, errors.New("nomor handphone tidak sesuai dengan data rekening terdaftar di Bank DMB")
 		}
 
 		var bal *domain.BalanceResponse
-		if accList, listErr := s.cbsProv.GetSavingsAccountsByCIF(ctx, cifNo); listErr == nil && len(accList) > 0 {
+		if accList, listErr := s.cbsProv.GetSavingsAccountsByCIF(ctx, nas.CIF); listErr == nil && len(accList) > 0 {
 			primary := accList[0]
 			targetAccountNo = primary.NomorRekening
 			bal, _ = s.cbsProv.GetBalance(ctx, primary.NomorRekening)
@@ -424,18 +498,28 @@ func (s *authService) VerifyActivation(ctx context.Context, req domain.ActivateV
 			targetAccountNo = acc.AccountNumber
 		}
 	} else {
-		// Mock / local-database mode (non-production only, enforced by config.Validate).
-		u, findErr := s.repo.FindByCIF(ctx, cifNo)
+		u, findErr := s.repo.FindByCIF(ctx, identifier)
 		if findErr != nil || u == nil {
-			return nil, errors.New("nomor CIF tidak ditemukan. Pastikan nomor CIF Anda sudah benar atau hubungi CS Bank DMB")
+			acc, accUser, accErr := s.repo.FindAccountWithUser(ctx, identifier)
+			if accErr == nil && accUser != nil {
+				u = accUser
+				if acc != nil {
+					targetAccountNo = acc.AccountNumber
+				}
+			}
+		}
+		if u == nil {
+			return nil, errors.New("nomor rekening atau CIF tidak ditemukan. Pastikan data yang Anda masukkan sudah benar atau hubungi CS Bank DMB")
 		}
 		dbPhone := normalizePhone(u.PhoneNumber)
 		if repository.IsPendingPhone(u.PhoneNumber) || dbPhone == "" || dbPhone != normInputPhone {
-			return nil, errors.New("nomor handphone tidak sesuai dengan nomor CIF terdaftar")
+			return nil, errors.New("nomor handphone tidak sesuai dengan nomor rekening terdaftar")
 		}
 		targetUser = u
-		if acc, accErr := s.repo.FindPrimaryAccount(ctx, u.ID); accErr == nil && acc != nil {
-			targetAccountNo = acc.AccountNumber
+		if targetAccountNo == "" {
+			if acc, accErr := s.repo.FindPrimaryAccount(ctx, u.ID); accErr == nil && acc != nil {
+				targetAccountNo = acc.AccountNumber
+			}
 		}
 	}
 
@@ -459,18 +543,25 @@ func (s *authService) VerifyActivation(ctx context.Context, req domain.ActivateV
 	}
 
 	audit.Record(ctx, s.repo.DB(), "NASABAH", targetUser.ID, targetUser.FullName, "ACTIVATION_OTP_SENT", maskPhoneNumber(normInputPhone), "SUCCESS", deviceID, "Kode OTP aktivasi dikirim")
+	// SECURITY (audit E-04): customer data is only returned after the OTP is verified
+	// (VerifyActivationOTP); knowing a CIF/account and a phone number reveals nothing.
 	return &domain.ActivateVerifyResponse{
 		SessionID:   sessionID,
 		MaskedPhone: maskPhoneNumber(normInputPhone),
-		FullName:    targetUser.FullName,
-		CIFNumber:   targetUser.CIF,
-		AccountNo:   targetAccountNo,
 	}, nil
 }
 
-func (s *authService) VerifyActivationOTP(ctx context.Context, req domain.ActivateOTPRequest, client ClientInfo) error {
-	_, err := s.otpStore.Verify(ctx, req.SessionID, otp.PurposeActivation, client.DeviceID, req.OTPCode)
-	return err
+func (s *authService) VerifyActivationOTP(ctx context.Context, req domain.ActivateOTPRequest, client ClientInfo) (*domain.ActivateVerifyResponse, error) {
+	sess, err := s.otpStore.Verify(ctx, req.SessionID, otp.PurposeActivation, client.DeviceID, req.OTPCode)
+	if err != nil {
+		return nil, err
+	}
+	res := &domain.ActivateVerifyResponse{SessionID: sess.ID, MaskedPhone: maskPhoneNumber(sess.PhoneNumber), FullName: sess.FullName, AccountNo: sess.AccountNo}
+	if user, uErr := s.repo.FindByID(ctx, sess.UserID); uErr == nil && user != nil {
+		res.CIFNumber = user.CIF
+		res.SuggestedUsername = s.generateSuggestedUsername(ctx, user.FullName)
+	}
+	return res, nil
 }
 
 func (s *authService) CompleteActivation(ctx context.Context, req domain.ActivateSetupRequest, client ClientInfo) (*domain.LoginResponse, error) {
@@ -485,7 +576,6 @@ func (s *authService) CompleteActivation(ctx context.Context, req domain.Activat
 	if err := security.ValidateNewPIN(pin); err != nil {
 		return nil, err
 	}
-	// Consent must be valid before the one-time activation session is consumed.
 	acceptanceID := strings.TrimSpace(req.TermsAcceptanceID)
 	if err := s.consent.ValidatePreLogin(ctx, deviceID, acceptanceID); err != nil {
 		return nil, err
@@ -499,6 +589,23 @@ func (s *authService) CompleteActivation(ctx context.Context, req domain.Activat
 		return nil, errors.New("nomor handphone sudah terdaftar pada akun lain. Silakan hubungi CS Bank DMB")
 	}
 
+	username := strings.ToLower(strings.TrimSpace(req.Username))
+	if username != "" {
+		if err := validateUsername(username); err != nil {
+			return nil, err
+		}
+		if taken, err := s.repo.IsUsernameTaken(ctx, username, sess.UserID); err != nil {
+			return nil, ErrServiceUnavailable
+		} else if taken {
+			return nil, errors.New("username sudah digunakan nasabah lain. Silakan pilih username yang berbeda")
+		}
+	} else {
+		targetUser, _ := s.repo.FindByID(ctx, sess.UserID)
+		if targetUser != nil {
+			username = s.generateSuggestedUsername(ctx, targetUser.FullName)
+		}
+	}
+
 	pwHash, err := security.HashPassword(req.Password)
 	if err != nil {
 		return nil, err
@@ -507,7 +614,7 @@ func (s *authService) CompleteActivation(ctx context.Context, req domain.Activat
 	if err != nil {
 		return nil, err
 	}
-	if err := s.repo.SetActivationCredentials(ctx, sess.UserID, pwHash, pinHash, sess.PhoneNumber, deviceID); err != nil {
+	if err := s.repo.SetActivationCredentials(ctx, sess.UserID, username, pwHash, pinHash, sess.PhoneNumber, deviceID); err != nil {
 		logger.GetLogger().Error("Gagal menyimpan kredensial aktivasi", map[string]interface{}{"error": err.Error()})
 		return nil, ErrServiceUnavailable
 	}
@@ -522,8 +629,6 @@ func (s *authService) CompleteActivation(ctx context.Context, req domain.Activat
 	}
 	if err := s.consent.EnsureUserConsent(ctx, user.ID, deviceID, acceptanceID, legaldoc.ChannelActivation,
 		legaldoc.ClientMeta{IP: client.IP, UserAgent: client.UserAgent}); err != nil {
-		// Credentials are set but no session is issued: the customer accepts the Terms
-		// in force and logs in (the login links the consent).
 		logger.GetLogger().Warn("Aktivasi selesai tanpa sesi: persetujuan SK gagal dicatat", map[string]interface{}{"error": err.Error()})
 		return nil, err
 	}
@@ -538,8 +643,6 @@ func (s *authService) CompleteActivation(ctx context.Context, req domain.Activat
 	return resp, nil
 }
 
-// RequestForgotPassword always answers the same way whether or not the phone is
-// registered (anti-enumeration); a decoy session is created for unknown numbers.
 func (s *authService) RequestForgotPassword(ctx context.Context, req domain.ForgotPasswordRequest, client ClientInfo) (*domain.ActivateVerifyResponse, error) {
 	deviceID, err := validDevice(firstNonEmpty(client.DeviceID, req.DeviceID))
 	if err != nil {
@@ -582,8 +685,6 @@ func (s *authService) VerifyForgotPasswordOTP(ctx context.Context, req domain.Fo
 	return err
 }
 
-// ResetForgotPassword sets a new password after OTP verification. The verified
-// device becomes the bound device (this is the OTP-protected device change path).
 func (s *authService) ResetForgotPassword(ctx context.Context, req domain.ForgotPasswordResetRequest, client ClientInfo) error {
 	deviceID, err := validDevice(firstNonEmpty(client.DeviceID, req.DeviceID))
 	if err != nil {
@@ -607,7 +708,7 @@ func (s *authService) ResetForgotPassword(ctx context.Context, req domain.Forgot
 		return ErrServiceUnavailable
 	}
 	_ = s.sessions.RevokeAllForUser(ctx, sess.UserID, session.ReasonPasswordReset, "")
-	audit.Record(ctx, s.repo.DB(), "NASABAH", sess.UserID, sess.FullName, "RESET_PASSWORD_SUCCESS", maskPhoneNumber(sess.PhoneNumber), "SUCCESS", deviceID, "Password di-reset melalui verifikasi OTP; perangkat terikat diperbarui; seluruh sesi lama dicabut")
+	audit.Record(ctx, s.repo.DB(), "NASABAH", sess.UserID, sess.FullName, "RESET_PASSWORD_SUCCESS", maskPhoneNumber(sess.PhoneNumber), "SUCCESS", deviceID, "Password di-reset melalui verifikasi OTP; perangkat terikat diperbarui; kunci perangkat lama dicabut; seluruh sesi lama dicabut")
 	notification.CreateAndPush(ctx, s.repo.DB(), sess.UserID, "Password Berhasil Diperbarui",
 		"Password login Mobile DMB Anda baru saja diperbarui dan perangkat terdaftar diperbarui. Jika Anda tidak merasa melakukan perubahan ini, segera hubungi CS Bank DMB.", "SECURITY")
 	return nil
@@ -618,12 +719,18 @@ func (s *authService) ChangePassword(ctx context.Context, userID string, req dom
 	if err != nil || user == nil {
 		return errors.New("data akun nasabah tidak ditemukan")
 	}
+	if err := s.binder.Require(ctx, devicebind.PurposeChangePassword, user.ID, client.DeviceID,
+		devicebind.Proof{ChallengeID: req.DeviceChallengeID, Signature: req.DeviceSignature},
+		devicebind.OperationContext(devicebind.PurposeChangePassword)); err != nil {
+		return err
+	}
 	if !security.CheckPassword(user.PasswordHash, req.OldPassword) {
+		maxFailedAttempts := s.repo.MaxLoginAttempts(ctx)
 		_, blocked, _ := s.repo.IncrementFailedLogin(ctx, user.ID, maxFailedAttempts)
 		audit.Record(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "CHANGE_PASSWORD_FAILED", user.CIF, "WARNING", client.DeviceID, "Gagal ganti password: password lama tidak sesuai")
 		if blocked {
 			_ = s.sessions.RevokeAllForUser(ctx, user.ID, session.ReasonAccountBlocked, "")
-			return errors.New("akun Anda diblokir karena 3x salah memasukkan password. Silakan gunakan menu Lupa Password")
+			return fmt.Errorf("akun Anda diblokir karena %dx salah memasukkan password. Silakan gunakan menu Lupa Password", maxFailedAttempts)
 		}
 		return errors.New("password lama yang Anda masukkan salah")
 	}
@@ -651,14 +758,19 @@ func (s *authService) ChangePIN(ctx context.Context, userID string, req domain.C
 	if err != nil || user == nil {
 		return errors.New("data akun nasabah tidak ditemukan")
 	}
-	// Failed attempts are counted here too, so this endpoint cannot be used as a PIN oracle (audit DMB-018).
+	if err := s.binder.Require(ctx, devicebind.PurposeChangePIN, user.ID, client.DeviceID,
+		devicebind.Proof{ChallengeID: req.DeviceChallengeID, Signature: req.DeviceSignature},
+		devicebind.OperationContext(devicebind.PurposeChangePIN)); err != nil {
+		return err
+	}
 	if !security.CheckPIN(user.PINHash, req.OldPIN) {
+		maxFailedAttempts := s.repo.MaxLoginAttempts(ctx)
 		attempts, blocked, _ := s.repo.IncrementFailedPIN(ctx, user.ID, maxFailedAttempts)
 		audit.Record(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "CHANGE_PIN_FAILED", user.CIF, "WARNING", client.DeviceID, fmt.Sprintf("Gagal ganti PIN: PIN lama tidak sesuai (Percobaan %d/%d)", attempts, maxFailedAttempts))
 		if blocked {
 			_ = s.sessions.RevokeAllForUser(ctx, user.ID, session.ReasonAccountBlocked, "")
-			notification.CreateAndPush(ctx, s.repo.DB(), user.ID, "Akun Diblokir: 3x Salah PIN", "Demi keamanan dana Anda, akun Mobile DMB telah dikunci karena 3x salah memasukkan PIN. Hubungi CS Bank DMB.", "SECURITY")
-			return errors.New("akun Anda diblokir karena 3x salah memasukkan PIN. Silakan hubungi CS Bank DMB")
+			notification.CreateAndPush(ctx, s.repo.DB(), user.ID, fmt.Sprintf("Akun Diblokir: %dx Salah PIN", maxFailedAttempts), fmt.Sprintf("Demi keamanan akun Anda, akun Mobile DMB telah dikunci karena %dx salah memasukkan PIN. Hubungi CS Bank DMB.", maxFailedAttempts), "SECURITY")
+			return fmt.Errorf("akun Anda diblokir karena %dx salah memasukkan PIN. Silakan hubungi CS Bank DMB", maxFailedAttempts)
 		}
 		return fmt.Errorf("PIN transaksi lama yang Anda masukkan salah (Percobaan %d/%d)", attempts, maxFailedAttempts)
 	}
@@ -679,4 +791,116 @@ func (s *authService) ChangePIN(ctx context.Context, userID string, req domain.C
 	audit.Record(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "CHANGE_PIN_SUCCESS", user.CIF, "SUCCESS", client.DeviceID, "Nasabah berhasil mengganti PIN Transaksi")
 	notification.CreateAndPush(ctx, s.repo.DB(), user.ID, "PIN Transaksi Diperbarui", "PIN Transaksi Mobile DMB Anda telah berhasil diganti melalui menu Pengaturan Keamanan.", "SECURITY")
 	return nil
+}
+
+// generateSuggestedUsername proposes "<name><4 random digits>". SECURITY (audit E-04): it is
+// never derived from the birth date or the CIF, so it reveals no personal data.
+func (s *authService) generateSuggestedUsername(ctx context.Context, fullName string) string {
+	nameLower := strings.ToLower(fullName)
+	titles := []string{"dr.", "dra.", "drs.", "ir.", "h.", "hj.", "s.e.", "s.kom.", "s.h.", "s.t.", "m.m.", "m.si.", "prof."}
+	for _, t := range titles {
+		nameLower = strings.ReplaceAll(nameLower, t, "")
+	}
+
+	var sb strings.Builder
+	for _, r := range nameLower {
+		if r >= 'a' && r <= 'z' {
+			sb.WriteRune(r)
+		}
+	}
+	baseName := sb.String()
+	if len(baseName) < 2 {
+		baseName = "user"
+	}
+	if len(baseName) > 15 {
+		baseName = baseName[:15]
+	}
+
+	candidate := ""
+	for i := 0; i < 8; i++ {
+		n, err := rand.Int(rand.Reader, big.NewInt(10000))
+		if err != nil {
+			break
+		}
+		candidate = fmt.Sprintf("%s%04d", baseName, n.Int64())
+		if taken, err := s.repo.IsUsernameTaken(ctx, candidate, ""); err == nil && !taken {
+			return candidate
+		}
+	}
+	return candidate
+}
+
+func validateUsername(u string) error {
+	if len(u) < 4 || len(u) > 30 {
+		return errors.New("username harus antara 4 sampai 30 karakter")
+	}
+	hasLetter := false
+	for _, r := range u {
+		if r >= 'a' && r <= 'z' {
+			hasLetter = true
+		}
+	}
+	// SECURITY (audit D-02): a username without letters could equal another customer's
+	// phone number or CIF and make the login identifier ambiguous.
+	if !hasLetter {
+		return errors.New("username wajib mengandung minimal satu huruf (tidak boleh hanya angka)")
+	}
+	for i, r := range u {
+		isAlphaNum := (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9')
+		isAllowedSpecial := r == '.' || r == '_'
+		if !isAlphaNum && !isAllowedSpecial {
+			return errors.New("username hanya boleh berisi huruf kecil, angka, titik (.), dan garis bawah (_)")
+		}
+		if (i == 0 || i == len(u)-1) && !isAlphaNum {
+			return errors.New("username tidak boleh diawali atau diakhiri tanda baca")
+		}
+	}
+	return nil
+}
+
+// ErrPINRequired: the profile reveal needs the 6-digit transaction PIN.
+var ErrPINRequired = errors.New("PIN transaksi 6 digit wajib diisi")
+
+// RevealProfile returns the unmasked customer identity after a server-side PIN check
+// (audit D-09). A wrong PIN counts toward the automatic block like Ganti PIN; the reveal
+// itself is audited.
+func (s *authService) RevealProfile(ctx context.Context, userID, pin string, client ClientInfo) (*domain.CBSNasabahData, error) {
+	pin = strings.TrimSpace(pin)
+	if len(pin) != 6 {
+		return nil, ErrPINRequired
+	}
+	user, err := s.repo.FindByID(ctx, userID)
+	if err != nil || user == nil {
+		return nil, errors.New("data akun nasabah tidak ditemukan")
+	}
+	if !user.IsActive {
+		return nil, errors.New("akun nasabah sedang diblokir. Hubungi CS Bank DMB")
+	}
+	if user.PINHash == "" || !security.CheckPIN(user.PINHash, pin) {
+		maxFailedAttempts := s.repo.MaxLoginAttempts(ctx)
+		attempts, blocked, incErr := s.repo.IncrementFailedPIN(ctx, user.ID, maxFailedAttempts)
+		if incErr != nil {
+			return nil, ErrServiceUnavailable
+		}
+		audit.Record(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "PROFILE_REVEAL_PIN_FAILED", user.CIF, "WARNING", client.DeviceID,
+			fmt.Sprintf("PIN salah saat membuka data identitas (Percobaan %d/%d)", attempts, maxFailedAttempts))
+		if blocked {
+			_ = s.sessions.RevokeAllForUser(ctx, user.ID, session.ReasonAccountBlocked, "")
+			notification.CreateAndPush(ctx, s.repo.DB(), user.ID, fmt.Sprintf("Akun Diblokir: %dx Salah PIN", maxFailedAttempts),
+				fmt.Sprintf("Demi keamanan akun Anda, akun Mobile DMB telah dikunci karena %dx salah memasukkan PIN. Hubungi CS Bank DMB.", maxFailedAttempts), "SECURITY")
+			return nil, fmt.Errorf("akun Anda diblokir karena %dx salah memasukkan PIN. Silakan hubungi CS Bank DMB", maxFailedAttempts)
+		}
+		return nil, fmt.Errorf("PIN transaksi salah (Percobaan %d/%d)", attempts, maxFailedAttempts)
+	}
+	if err := s.repo.ResetFailedPIN(ctx, user.ID); err != nil {
+		return nil, ErrServiceUnavailable
+	}
+	data, err := s.cbsProv.GetCustomerByCIF(ctx, user.CIF)
+	if err != nil || data == nil {
+		return nil, ErrServiceUnavailable
+	}
+	out := *data
+	out.NamaIbuKandung = "" // verification secret: never sent to clients (audit DMB-022)
+	audit.Record(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "PROFILE_REVEALED", user.CIF, "SUCCESS", client.DeviceID, "Data identitas dibuka dengan verifikasi PIN")
+	return &out, nil
 }

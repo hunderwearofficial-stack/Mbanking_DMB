@@ -80,7 +80,6 @@ class HelpdeskScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Hero Help Banner
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
@@ -166,7 +165,6 @@ class HelpdeskScreen extends StatelessWidget {
 
             const SizedBox(height: 22),
 
-            // 2. Kanal Kontak Resmi
             Text(
               'Kanal Komunikasi Resmi',
               style: GoogleFonts.plusJakartaSans(
@@ -226,7 +224,6 @@ class HelpdeskScreen extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            // 3. Kantor Operasional
             Text(
               'Kantor Operasional Bank DMB',
               style: GoogleFonts.plusJakartaSans(

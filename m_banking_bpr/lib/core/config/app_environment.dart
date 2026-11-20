@@ -1,13 +1,6 @@
 import 'package:flutter/foundation.dart';
+import '../security/ssl_pinning_service.dart';
 
-/// Environment aplikasi mobile (flavor), ditentukan SAAT BUILD:
-///
-///   flutter run   --dart-define-from-file=config/local.json --dart-define=API_BASE_URL=http://<IP-LAN>:8080
-///   flutter build apk --release --dart-define-from-file=config/production.json
-///
-/// Tidak ada nilai default: bila APP_FLAVOR / API_BASE_URL tidak valid, aplikasi
-/// menampilkan layar kesalahan konfigurasi (tidak diam-diam memakai alamat lain).
-/// Aplikasi mobile TIDAK PERNAH menyimpan secret backend (DB, JWT, kunci enkripsi).
 enum AppFlavor { local, development, staging, production }
 
 class AppEnvironment {
@@ -17,8 +10,9 @@ class AppEnvironment {
   static const String _apiBaseUrl = String.fromEnvironment('API_BASE_URL');
   static const String _certPins = String.fromEnvironment('API_CERT_PINS');
 
-  /// The configured flavor, or null when APP_FLAVOR is missing/unknown.
   static AppFlavor? get flavor => parseFlavor(_flavorRaw);
+
+  static bool get isProduction => flavor == AppFlavor.production;
 
   static String get apiBaseUrl => _apiBaseUrl.trim().replaceAll(RegExp(r'/+$'), '');
 
@@ -29,7 +23,6 @@ class AppEnvironment {
     return null;
   }
 
-  /// Validation error for the compiled configuration, or null when valid.
   static String? validate() => validateValues(
         flavorRaw: _flavorRaw,
         apiBaseUrl: _apiBaseUrl,
@@ -37,12 +30,12 @@ class AppEnvironment {
         isRelease: kReleaseMode,
       );
 
-  /// Pure validation (unit-tested).
   static String? validateValues({
     required String flavorRaw,
     required String apiBaseUrl,
     required String certPins,
     required bool isRelease,
+    bool strictPinFormat = false,
   }) {
     final flavor = parseFlavor(flavorRaw);
     if (flavor == null) {
@@ -78,8 +71,11 @@ class AppEnvironment {
         if (flavor == AppFlavor.production && isPrivate) {
           return 'Flavor production tidak boleh mengarah ke alamat lokal/privat ($host).';
         }
-        if (flavor == AppFlavor.production && isRelease && certPins.trim().isEmpty) {
-          return 'Build rilis production wajib menyertakan API_CERT_PINS (pin sertifikat aktif dan cadangan).';
+        if (flavor == AppFlavor.production && isRelease) {
+          final tokens = certPins.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+          if (tokens.isEmpty || (strictPinFormat && SslPinningService.parsePins(certPins).isEmpty)) {
+            return 'Build rilis production wajib menyertakan API_CERT_PINS (pin sertifikat aktif dan cadangan).';
+          }
         }
         return null;
     }

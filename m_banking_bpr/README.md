@@ -12,7 +12,7 @@ lib/
 ├── main.dart                 validasi konfigurasi build → aplikasi / layar kesalahan konfigurasi
 ├── core/   config (flavor) · constants · money · network (ApiClient) · security · services (FCM) · theme · utils
 ├── data/   models · repositories (meneruskan error; tanpa data dummy)
-└── presentation/  blocs (AuthCubit, AccountCubit) · screens (termasuk transfer)
+└── presentation/  blocs (AuthCubit, AccountCubit) · screens
 config/     local.json · development.json · staging.json · production.json (tanpa secret)
 test/       core · data · presentation · helpers
 ```

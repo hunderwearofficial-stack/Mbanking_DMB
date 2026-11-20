@@ -2,12 +2,6 @@ import 'package:flutter/services.dart';
 
 import '../content/app_content.dart';
 
-/// Kontak layanan nasabah Bank DMB — satu-satunya sumber di aplikasi.
-///
-/// Nilai dikelola bank melalui Backoffice (Konten Aplikasi → Kontak Layanan,
-/// GET /api/v1/content). Nilai bawaan (sebelum unduhan pertama) adalah nilai yang
-/// sebelumnya ditanam di aplikasi dan BELUM diverifikasi bank (lihat
-/// docs/USER_MANUAL.md bagian 13) — bank wajib menerbitkan kontak resmi.
 class BankContact {
   BankContact._();
 
@@ -24,12 +18,10 @@ class BankContact {
 
   static String get officeHours => AppContent.text('contact.office_hours');
 
-  /// Salin nomor call center ke clipboard
   static void callCenter() {
     Clipboard.setData(ClipboardData(text: callCenterDial));
   }
 
-  /// Salin nomor WhatsApp ke clipboard
   static void chatWhatsApp() {
     Clipboard.setData(ClipboardData(text: whatsAppDial));
   }

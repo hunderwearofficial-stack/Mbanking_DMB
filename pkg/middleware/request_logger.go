@@ -12,13 +12,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// noBodyLogPrefixes are paths whose request bodies are never logged (credentials, OTP, PIN).
 var noBodyLogPrefixes = []string{
 	"/api/v1/auth/",
 	"/api/v1/admin/login",
 	"/api/v1/admin/users",
 	"/api/v1/admin/config",
-	"/api/v1/transaction/",
 	"/api/v1/notifications/fcm-token",
 }
 
@@ -31,9 +29,6 @@ func bodyLoggable(path string) bool {
 	return true
 }
 
-// RequestLogger logs requests with masking (audit DMB-011): bodies of credential
-// endpoints are never logged; other JSON bodies are masked by key pattern; query
-// strings are masked.
 func RequestLogger() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()

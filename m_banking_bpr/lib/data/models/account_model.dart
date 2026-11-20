@@ -27,8 +27,6 @@ class AccountModel {
     this.updatedAt,
   });
 
-  /// Throws [FormatException] when the balance is missing or malformed: a balance
-  /// that was not obtained must never be shown as zero.
   factory AccountModel.fromJson(Map<String, dynamic> json) {
     if (json['balance'] == null) throw const FormatException('saldo tidak tersedia');
     return AccountModel(

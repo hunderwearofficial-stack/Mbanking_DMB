@@ -35,7 +35,7 @@ func TestIntegration_MobileContentWorkflow(t *testing.T) {
 
 	// Version 0 = what the app showed before (registry defaults / legacy configuration).
 	ver, items := app()
-	if ver != 0 || items["onboarding.slide1_title"] != "Jadi bestie di dunia finansial anak dengan DMB Mobile" ||
+	if ver != 0 || items["onboarding.slide1_title"] != "Solusi Finansial Terpercaya untuk Keluarga & UMKM" ||
 		items["contact.call_center_display"] != "(0251) 832-1234" {
 		t.Fatalf("baseline: v%d %v", ver, items)
 	}

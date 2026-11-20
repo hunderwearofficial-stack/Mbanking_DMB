@@ -38,24 +38,39 @@ function csvCell(value) {
 }
 
 /**
- * Returns standard authorization headers with JWT Bearer Token
+ * Returns standard authorization headers with JWT Bearer Token and CSRF header
  */
-function getAuthHeaders() {
+function getAuthHeaders(includeJsonContentType = true) {
   const token = localStorage.getItem('dmb_admin_token');
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`
+  const headers = {
+    'X-Requested-With': 'dmb-admin'
   };
+  if (includeJsonContentType) {
+    headers['Content-Type'] = 'application/json';
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
 }
 
 /**
- * Robust wrapper around fetch with JSON response parsing and HTTP error detection
+ * Robust wrapper around fetch with JSON response parsing, CSRF headers, credentials, and HTTP error detection
  */
 async function safeFetch(endpoint, options = {}) {
   const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint}`;
 
+  const mergedHeaders = Object.assign({
+    'X-Requested-With': 'dmb-admin'
+  }, options.headers || {});
+
+  const fetchOpts = Object.assign({}, options, {
+    credentials: 'same-origin',
+    headers: mergedHeaders
+  });
+
   try {
-    const res = await fetch(url, options);
+    const res = await fetch(url, fetchOpts);
 
     // Auto-detect expired token for authenticated requests
     if (res.status === 401 && !endpoint.includes('/login')) {
@@ -86,6 +101,9 @@ async function safeFetch(endpoint, options = {}) {
   }
 }
 
+// Alias apiCall to safeFetch for convenience
+const apiCall = safeFetch;
+
 /**
  * Global Branding & Logo Synchronizer
  * Loads the official bank logo from backend on page load and updates everywhere
@@ -111,7 +129,7 @@ function updateDOMBranding(c) {
   const shortName = c.bank_short_name || 'Bank DMB';
   const tagline = c.tagline || 'Mitra Terpercaya Menuju Sejahtera';
 
-  // 1. Sidebar Brand
+  // 1. Sidebar Brand & Mobile Drawer Brand
   const sidebarLogo = document.getElementById('sidebarLogoImg');
   const sidebarFallback = document.getElementById('sidebarLogoFallback');
   if (sidebarLogo) {
@@ -123,6 +141,10 @@ function updateDOMBranding(c) {
       sidebarLogo.classList.add('hidden');
       if (sidebarFallback) sidebarFallback.classList.remove('hidden');
     }
+  }
+  const mobileTopbarLogo = document.getElementById('mobileTopbarLogoImg');
+  if (mobileTopbarLogo && logoUrl) {
+    mobileTopbarLogo.src = logoUrl;
   }
 
   const sidebarBankTitle = document.getElementById('sidebarBankTitle');

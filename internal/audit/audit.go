@@ -1,5 +1,3 @@
-// Package audit menulis dan memverifikasi audit trail append-only ber-hash-chain
-// (audit DMB-016). Tabel audit_logs juga dilindungi trigger DB (pkg/database).
 package audit
 
 import (
@@ -18,7 +16,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// auditChainLockID serializes audit inserts so the hash chain is linear.
 const auditChainLockID = 7203112601
 
 var (
@@ -26,7 +23,6 @@ var (
 	ErrAuditTampered    = errors.New("data audit log terdeteksi mengalami modifikasi")
 )
 
-// canonicalAudit returns the canonical string hashed into the chain.
 func canonicalAudit(e *model.AuditLog) string {
 	return strings.Join([]string{
 		e.ID, e.ActorType, e.ActorID, e.ActorName, e.Action, e.Target, e.Status,
@@ -34,7 +30,6 @@ func canonicalAudit(e *model.AuditLog) string {
 	}, "\x1f")
 }
 
-// ComputeHash returns SHA-256(prevHash || canonical entry).
 func ComputeHash(prevHash string, e *model.AuditLog) string {
 	h := sha256.New()
 	h.Write([]byte(prevHash))
@@ -43,12 +38,6 @@ func ComputeHash(prevHash string, e *model.AuditLog) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-// Record appends an audit entry (audit DMB-016):
-//   - client IP / user agent are extracted from the verified request context;
-//   - for ADMIN actions the authenticated officer (from context) is recorded,
-//     never a generic placeholder;
-//   - device IDs are recorded as received — no substitution with fabricated values;
-//   - entries are hash-chained and the table is protected by DB triggers against UPDATE/DELETE.
 func Record(ctx context.Context, db *gorm.DB, actorType, actorID, actorName, action, target, status, deviceID, details string) {
 	if db == nil {
 		return
@@ -75,9 +64,8 @@ func Record(ctx context.Context, db *gorm.DB, actorType, actorID, actorName, act
 		Status:    trim(status, 20),
 		IPAddress: trim(meta.ClientIP, 50),
 		UserAgent: trim(meta.UserAgent, 255),
-		DeviceID:  trim(strings.TrimSpace(deviceID), 120),
+		DeviceID:  trim(strings.TrimSpace(deviceID), 128),
 		Details:   details,
-		// Truncated to the DB timestamp precision so the hash can be recomputed on verification.
 		CreatedAt: time.Now().UTC().Truncate(time.Microsecond),
 	}
 	if entry.ActorID == "" {
@@ -103,7 +91,6 @@ func Record(ctx context.Context, db *gorm.DB, actorType, actorID, actorName, act
 		return tx.Omit("Seq").Create(&entry).Error
 	})
 	if err != nil {
-		// Audit failures must be visible to operations (never silently dropped).
 		logger.GetLogger().Error("AUDIT WRITE FAILED", map[string]interface{}{
 			"action":     action,
 			"actor_type": actorType,
@@ -112,14 +99,6 @@ func Record(ctx context.Context, db *gorm.DB, actorType, actorID, actorName, act
 	}
 }
 
-// VerifyChain walks audit_logs in seq order and verifies the hash chain.
-//
-// Rows written before the chain existed (legacy rows with an empty hash, e.g. after an
-// upgrade from an older schema) are tolerated only as a prefix; once the chain has
-// started, every row must carry a valid PrevHash/Hash.
-//
-// It returns the seq of the first offending row (0 when the chain is intact), and
-// ErrAuditChainBroken / ErrAuditTampered describing the failure.
 func VerifyChain(ctx context.Context, db *gorm.DB) (int64, error) {
 	if db == nil {
 		return 0, errors.New("database connection is nil")

@@ -44,10 +44,10 @@ flowchart LR
 |---|---|---|---|
 | Aplikasi Flutter | HP nasabah (Android; iOS belum disiapkan untuk rilis) | Antarmuka nasabah; tidak menyimpan secret backend | IMPLEMENTED |
 | Konsol admin (`web/admin`) | Browser petugas; file statis disajikan backend di `/admin` | Operasional petugas (RBAC) | IMPLEMENTED |
-| Backend Go (`cmd/api`) | Server aplikasi | REST API, autentikasi, otorisasi, aturan transaksi, audit | IMPLEMENTED |
-| PostgreSQL | Server data | Identitas aplikasi, sesi, reservasi transfer, audit, notifikasi, pengajuan | IMPLEMENTED |
+| Backend Go (`cmd/api`) | Server aplikasi | REST API, autentikasi, otorisasi, audit | IMPLEMENTED |
+| PostgreSQL | Server data | Identitas aplikasi, sesi, audit, notifikasi, pengajuan | IMPLEMENTED |
 | Redis | Server data | OTP dan rate limit lintas instance (memori di local) | IMPLEMENTED |
-| CBS OpenAPI | Vendor/bank | Sumber resmi nasabah, rekening, saldo, mutasi, overbooking | Kode IMPLEMENTED; uji live NOT VERIFIED |
+| CBS OpenAPI | Vendor/bank | Sumber resmi nasabah, rekening, saldo, mutasi | Kode IMPLEMENTED; uji live NOT VERIFIED |
 | Gateway OTP | Pihak ketiga | Pengiriman OTP (Fonnte, Wablas, atau webhook) | Kode IMPLEMENTED; vendor resmi belum ditetapkan |
 | FCM | Google | Push notification | **PARTIAL** — backend memakai endpoint FCM *legacy* (`fcm.googleapis.com/fcm/send`) yang perlu dimigrasi ke HTTP v1 |
 | Reverse proxy | Server aplikasi | TLS termination | Contoh konfigurasi saja (`deploy/nginx/mbanking.conf.example`) |
@@ -111,10 +111,9 @@ admin (opsional) → Redis → provider CBS → router → HTTP server dengan gr
 | Syarat & Ketentuan (publik) | `GET /terms/active`, `GET /terms/versions/:id/pdf` (hanya PUBLISHED/ARCHIVED), `POST /terms/acceptances` (header `X-Device-ID`) | rate limit per IP |
 | Autentikasi | `POST /auth/login`, `/auth/refresh`, `/auth/activate/{verify,otp,setup}`, `/auth/forgot-password/{request,otp,reset}` | rate limit per IP dan identitas |
 | Nasabah | `POST /auth/logout`, `/auth/change-password`, `/auth/change-pin` | token nasabah + sesi + perangkat |
-| Rekening | `GET /account/{balance,mutations,inquiry,profile,list,loans,deposits,products}` dan detail pinjaman/deposito | token nasabah |
-| Transaksi | `POST /transaction/transfer` | token nasabah, `Idempotency-Key`, PIN |
-| Lainnya | `beneficiaries`, `applications`, `notifications` (+ `/read`, `/fcm-token`), `GET /terms/status` | token nasabah |
-| Petugas | `/admin/*` (login, statistik, nasabah, banner, transaksi, audit log, broadcast, pengajuan, konfigurasi operasional, upload gambar, user, CBS health, `/admin/terms/*`, `/admin/content*`) | token petugas + RBAC (SUPER_ADMIN, CS, MARKETING, COMPLIANCE) |
+| Rekening | `GET /account/{balance,mutations,profile,list,loans,deposits,products}` dan detail pinjaman/deposito | token nasabah |
+| Lainnya | `applications`, `notifications` (+ `/read`, `/fcm-token`), `GET /terms/status` | token nasabah |
+| Petugas | `/admin/*` (login, statistik, nasabah, banner, audit log, broadcast, pengajuan, konfigurasi operasional, upload gambar, user, CBS health, `/admin/terms/*`, `/admin/content*`) | token petugas + RBAC (SUPER_ADMIN, CS, MARKETING, COMPLIANCE) |
 | Operasional | `GET /health` (liveness), `GET /ready` (database & Redis) | publik, tanpa detail |
 
 ### Penanganan error
@@ -129,8 +128,6 @@ admin (opsional) → Redis → provider CBS → router → HTTP server dengan gr
 | Autentikasi gagal / sesi tidak berlaku | 401 | — |
 | Rekening bukan milik nasabah | 403 | — |
 | Data tidak ditemukan | 404 | — |
-| Ditolak CBS | 422 | "dana tidak terdebet" |
-| Status transfer tidak pasti | 202 | "status transaksi sedang diverifikasi" |
 | Gangguan CBS/database / error internal | 503 | pesan generik; detail hanya di log server (data sensitif dimasking) |
 
 ## 5. Autentikasi, otorisasi, dan sesi
@@ -174,50 +171,18 @@ sequenceDiagram
   end
 ```
 
-### Saldo, mutasi, dan inquiry
+### Saldo dan mutasi
 
-1. Aplikasi memanggil `GET /account/balance`, `GET /account/mutations` (rentang maks. 31 hari),
-   atau `GET /account/inquiry?account_number=…` dengan token.
-2. Backend memvalidasi token, sesi, dan perangkat; untuk saldo/mutasi memastikan rekening milik CIF
-   token (`ownership`).
-3. Backend memanggil CBS (`/api/savings-account-balance`, `/api/savings-account-mutations`);
-   inquiry mengembalikan nama pemilik rekening tujuan (rate limit 30/menit per nasabah).
+1. Aplikasi memanggil `GET /account/balance` atau `GET /account/mutations` (rentang maks. 31 hari)
+   dengan token.
+2. Backend memvalidasi token, sesi, dan perangkat; memastikan rekening milik CIF token (`ownership`).
+3. Backend memanggil CBS (`/api/savings-account-balance`, `/api/savings-account-mutations`).
+   Mutasi mencakup transaksi dari kanal lain bank (termasuk transfer historis) sebagai riwayat saja.
 4. CBS gagal/timeout → 503; aplikasi menampilkan "… belum dapat ditampilkan" dan tidak menampilkan
    saldo Rp 0.
 
-### Transfer (antar rekening Bank DMB)
-
-```mermaid
-sequenceDiagram
-  participant A as Aplikasi
-  participant B as Backend
-  participant D as PostgreSQL
-  participant C as CBS
-  A->>B: GET /account/inquiry (nama penerima)
-  A->>B: POST /transaction/transfer + Idempotency-Key + PIN
-  B->>B: validasi nominal (money.Amount, rupiah bulat), maintenance, minimum, status nasabah
-  B->>C: kepemilikan rekening sumber
-  B->>D: verifikasi PIN (blokir setelah 3x salah)
-  B->>D: reservasi atomik transfer_requests (row lock + limit harian)
-  B->>C: POST /api/overbooking
-  alt sukses
-    B->>D: SUCCESS + audit + notifikasi
-    B-->>A: 200 bukti transaksi
-  else ditolak
-    B->>D: FAILED + audit
-    B-->>A: 422 dana tidak terdebet
-  else timeout / tidak pasti
-    B->>D: UNKNOWN + audit (tidak di-retry)
-    B-->>A: 202 sedang diverifikasi
-  end
-```
-
-* Satu `Idempotency-Key` per konfirmasi. Pengiriman ulang dengan kunci yang sama mengembalikan
-  hasil asli (tidak mendebit dua kali); payload berbeda dengan kunci sama ditolak 409.
-* Tombol **Periksa Status** di aplikasi mengirim ulang dengan kunci yang sama.
-* Overbooking hanya diulang otomatis pada HTTP 401 (token CBS kedaluwarsa, request belum diproses).
-* Transfer antarbank **belum tersedia** (ditolak backend).
-* Rekonsiliasi otomatis status `UNKNOWN` **belum tersedia**.
+DMB Mobile **tidak** menyediakan fitur transfer dana (tidak ada endpoint transfer, rekening tujuan
+favorit, maupun inquiry rekening tujuan; overbooking CBS tidak dipanggil).
 
 ## 7. Integrasi CBS
 
@@ -235,14 +200,13 @@ Implementasi: `internal/cbsprovider/openapi_provider.go`. Kontrak upstream:
 | `GET /ping` | `/api/v1/admin/cbs/health` |
 | `POST /api/nasabah` | aktivasi, login (sinkron nama), profil |
 | `POST /api/savings-accounts` | aktivasi, login, kepemilikan, daftar rekening |
-| `POST /api/savings-account-balance` | saldo, inquiry |
+| `POST /api/savings-account-balance` | saldo |
 | `POST /api/savings-account-mutations` | mutasi |
-| `POST /api/overbooking` | transfer internal |
 | `POST /api/loan-accounts`, `/api/loan-account-detail`, `/api/loan-account-mutations` | pinjaman |
 | `POST /api/deposit-accounts`, `/api/deposit-account-detail`, `/api/deposit-account-mutations` | deposito |
 | `POST /api/products` | katalog produk |
 
-Keterbatasan: belum ada endpoint cek status overbooking untuk rekonsiliasi; kode respons "tidak
+`POST /api/overbooking` tercantum di kontrak vendor tetapi **tidak dipakai** aplikasi. Keterbatasan: kode respons "tidak
 ada mutasi" belum terdokumentasi vendor (kode selain sukses diperlakukan sebagai gangguan); CBS tidak
 menyediakan suku bunga produk.
 
@@ -252,9 +216,10 @@ menyediakan suku bunga produk.
   dan dijalankan `cmd/migrate` (`status | up | grants`) sebagai **pemilik skema**. Tabel
   `schema_migrations` menyimpan checksum; file yang berubah setelah diterapkan ditolak; satu
   transaksi per migrasi di bawah advisory lock. Tidak ada migrasi *down* otomatis.
-* 13 tabel bisnis: `users`, `accounts`, `mutations`, `transactions`, `transfer_requests`,
-  `user_sessions`, `audit_logs`, `admin_users`, `app_configs`, `banners`, `notifications`,
-  `saved_beneficiaries`, `product_applications`; ditambah (0008) `legal_documents`,
+* Tabel bisnis: `users`, `accounts`, `mutations`, `user_sessions`, `audit_logs`, `admin_users`,
+  `app_configs`, `banners`, `notifications`, `product_applications`. Tabel legacy fitur transfer yang
+  sudah dihapus (`transactions`, `transfer_requests`, `saved_beneficiaries`) masih ada di skema dan
+  tidak dipakai kode; penghapusannya menunggu persetujuan terpisah; ditambah (0008) `legal_documents`,
   `legal_document_versions`, `legal_acceptances`, `stored_files`, `mobile_content_revisions`.
 * Role: pemilik skema (DDL) · `mbanking_app` (backend; `audit_logs` hanya SELECT/INSERT) ·
   `mbanking_audit_reader` (SELECT audit). Server: `deploy/sql/create_roles.sql`; local:

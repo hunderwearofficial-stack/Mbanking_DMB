@@ -4,6 +4,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 const (
@@ -12,8 +13,6 @@ const (
 	testKey     = "0000000000000000000000000000000000000000000000000000000000000001"
 )
 
-// validEnv sets a complete, valid local configuration in the PROCESS environment and
-// runs the test in an empty directory (no .env) unless the test writes one.
 func validEnv(t *testing.T) {
 	t.Helper()
 	t.Chdir(t.TempDir())
@@ -40,7 +39,6 @@ func TestValidLocalConfig(t *testing.T) {
 	}
 }
 
-// A malformed value must fail startup instead of silently using a default.
 func TestMalformedValuesAreErrors(t *testing.T) {
 	for key, bad := range map[string]string{
 		"APP_PORT": "abc", "JWT_EXPIRY_MINUTES": "9999", "DB_MAX_OPEN_CONNS": "0",
@@ -96,7 +94,6 @@ func TestProductionLikeRequirements(t *testing.T) {
 	}
 }
 
-// Owner decision (13-11-2026): STANDALONE_CORE must not activate in any environment.
 func TestStandaloneCoreIsRefused(t *testing.T) {
 	for _, env := range []string{"local", "development", "staging", "production"} {
 		t.Run(env, func(t *testing.T) {
@@ -115,7 +112,6 @@ func TestStandaloneCoreIsRefused(t *testing.T) {
 	}
 }
 
-// Local: `go run ./cmd/api` with only a .env file (APP_ENV=local inside it).
 func TestDotEnvIsLoadedForLocal(t *testing.T) {
 	validEnv(t)
 	os.Unsetenv("APP_ENV")
@@ -139,7 +135,6 @@ func TestProcessEnvironmentWinsOverDotEnv(t *testing.T) {
 	}
 }
 
-// .env may only describe local: a server environment must never pick it up.
 func TestDotEnvIsRefusedOutsideLocal(t *testing.T) {
 	for _, env := range []string{"development", "staging", "production"} {
 		t.Run(env, func(t *testing.T) {
@@ -170,9 +165,102 @@ func TestDotEnvMustDeclareLocal(t *testing.T) {
 
 func TestSecretsNeverPrinted(t *testing.T) {
 	validEnv(t)
-	t.Setenv("ADMIN_JWT_SECRET", testSecretA) // same as JWT_SECRET → error
+	t.Setenv("ADMIN_JWT_SECRET", testSecretA)
 	err := LoadConfig().Validate()
 	if err == nil || strings.Contains(err.Error(), testSecretA) {
 		t.Fatalf("error must not contain secret values: %v", err)
 	}
+}
+
+func TestDeviceBindingProductionConfig(t *testing.T) {
+	for _, env := range []string{"staging", "production"} {
+		t.Run(env, func(t *testing.T) {
+			validEnv(t)
+			t.Setenv("APP_ENV", env)
+			err := LoadConfig().Validate()
+			if err == nil {
+				t.Fatal("expected errors")
+			}
+			for _, want := range []string{"DEVICE_BINDING_MODE wajib diisi eksplisit", "DEVICE_ATTESTATION_MODE wajib diisi eksplisit",
+				"DEVICE_ATTESTATION_ANDROID_REQUIRE_VERIFIED_BOOT wajib diisi eksplisit",
+				"DEVICE_ATTESTATION_ANDROID_ROOTS_FILE", "DEVICE_ATTESTATION_APPLE_APP_ID", "DEVICE_ATTESTATION_ANDROID_CERT_SHA256"} {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("must mention %q: %v", want, err)
+				}
+			}
+
+			t.Setenv("DEVICE_BINDING_MODE", "enforced")
+			t.Setenv("DEVICE_ATTESTATION_MODE", "enforce")
+			t.Setenv("DEVICE_ATTESTATION_ANDROID_REQUIRE_VERIFIED_BOOT", "true")
+			t.Setenv("DEVICE_ATTESTATION_ANDROID_PACKAGE", "com.example.m_banking_bpr")
+			t.Setenv("DEVICE_ATTESTATION_APPLE_APP_ID", "TEAM.com.example.mBankingBpr")
+			t.Setenv("DEVICE_ATTESTATION_APPLE_ENVIRONMENT", "development")
+			err = LoadConfig().Validate()
+			for _, want := range []string{"com.example", "production di"} {
+				if err == nil || !strings.Contains(err.Error(), want) {
+					t.Errorf("must refuse %q: %v", want, err)
+				}
+			}
+			if strings.Contains(err.Error(), "wajib diisi eksplisit") {
+				t.Errorf("explicit values must be accepted: %v", err)
+			}
+		})
+	}
+}
+
+func TestDeviceBindingValuesAreValidated(t *testing.T) {
+	for key, bad := range map[string]string{"DEVICE_BINDING_MODE": "strict", "DEVICE_ATTESTATION_MODE": "on",
+		"DEVICE_ATTESTATION_APPLE_ENVIRONMENT": "sandbox", "DEVICE_ATTESTATION_ANDROID_REQUIRE_VERIFIED_BOOT": "maybe"} {
+		t.Run(key, func(t *testing.T) {
+			validEnv(t)
+			t.Setenv(key, bad)
+			if err := LoadConfig().Validate(); err == nil || !strings.Contains(err.Error(), key) {
+				t.Fatalf("invalid %s must be rejected: %v", key, err)
+			}
+		})
+	}
+	validEnv(t)
+	c := LoadConfig()
+	if err := c.Validate(); err != nil || c.DeviceBindingMode != "dual" || c.DeviceAttestationMode != "observe" || !c.AndroidRequireVerifiedBoot {
+		t.Fatalf("local defaults: %v %+v", err, c)
+	}
+}
+
+// SR-4: switching device protection off in staging/production needs a reason and a
+// deadline of at most 72 hours.
+func TestDeviceProtectionOffIsTimeBoxed(t *testing.T) {
+	prod := func(t *testing.T) {
+		validEnv(t)
+		t.Setenv("APP_ENV", "production")
+		t.Setenv("DEVICE_BINDING_MODE", "off")
+		t.Setenv("DEVICE_ATTESTATION_MODE", "enforce")
+		t.Setenv("DEVICE_ATTESTATION_ANDROID_REQUIRE_VERIFIED_BOOT", "true")
+	}
+	cases := map[string]struct{ reason, until, want string }{
+		"no reason":     {"", time.Now().Add(time.Hour).Format(time.RFC3339), "DEVICE_BINDING_OFF_REASON"},
+		"no deadline":   {"INC-2026-001 rollback", "", "DEVICE_BINDING_OFF_UNTIL wajib"},
+		"past deadline": {"INC-2026-001 rollback", time.Now().Add(-time.Hour).Format(time.RFC3339), "sudah lewat"},
+		"too long":      {"INC-2026-001 rollback", time.Now().Add(100 * time.Hour).Format(time.RFC3339), "maksimal 72 jam"},
+		"bad format":    {"INC-2026-001 rollback", "besok", "RFC3339"},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			prod(t)
+			t.Setenv("DEVICE_BINDING_OFF_REASON", c.reason)
+			t.Setenv("DEVICE_BINDING_OFF_UNTIL", c.until)
+			err := LoadConfig().Validate()
+			if err == nil || !strings.Contains(err.Error(), c.want) {
+				t.Fatalf("expected %q, got %v", c.want, err)
+			}
+		})
+	}
+	t.Run("valid time-boxed switch", func(t *testing.T) {
+		prod(t)
+		t.Setenv("DEVICE_BINDING_OFF_REASON", "INC-2026-001 rollback")
+		t.Setenv("DEVICE_BINDING_OFF_UNTIL", time.Now().Add(24*time.Hour).Format(time.RFC3339))
+		err := LoadConfig().Validate()
+		if err != nil && strings.Contains(err.Error(), "DEVICE_BINDING_OFF") {
+			t.Fatalf("valid switch refused: %v", err)
+		}
+	})
 }

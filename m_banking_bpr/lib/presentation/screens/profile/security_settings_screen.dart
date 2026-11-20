@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,6 +5,7 @@ import '../../blocs/auth/auth_cubit.dart';
 import '../../../core/security/biometric_auth_service.dart';
 import '../../../core/security/security_hardening_service.dart';
 import '../../../core/security/session_inactivity_detector.dart';
+import '../../../core/services/dynamic_config_service.dart';
 import 'change_password_screen.dart';
 import 'change_pin_screen.dart';
 import '../../widgets/app_validation_feedback.dart';
@@ -18,7 +18,6 @@ class SecuritySettingsScreen extends StatefulWidget {
 }
 
 class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
-  // Executive DMB Brand Colors
   static const Color primaryNavy = Color(0xFF0B356D);
   static const Color royalBlue = Color(0xFF0062E3);
   static const Color dmbGreen = Color(0xFF16984B);
@@ -30,9 +29,6 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
   bool _flagSecureEnabled = true;
   bool _scanningRoot = false;
   RootInspectionResult? _rootResult;
-  bool _quickTimeoutActive = false;
-  int _countdown = 10;
-  Timer? _countdownTimer;
   bool _biometricEnabled = false;
   BiometricCapability? _biometricCap;
 
@@ -40,13 +36,6 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
   void initState() {
     super.initState();
     _loadSecurityStatus();
-  }
-
-  @override
-  void dispose() {
-    _countdownTimer?.cancel();
-    SessionInactivityDetector.resetToStandardTimeout();
-    super.dispose();
   }
 
   Future<void> _loadSecurityStatus() async {
@@ -138,30 +127,6 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
     }
   }
 
-  Future<void> _toggleFlagSecure(bool value) async {
-    final success = await SecurityHardeningService.setFlagSecure(value);
-    // Release builds refuse to disable screen protection; reflect the real state.
-    final effective = success ? value : true;
-    if (mounted) {
-      setState(() => _flagSecureEnabled = effective);
-      if (effective) {
-        AppToast.showInfo(
-          context,
-          value
-              ? 'Perlindungan Layar Aktif: Tangkapan layar dinonaktifkan demi menjaga privasi data saldo Anda.'
-              : 'Perlindungan Layar wajib aktif pada aplikasi perbankan dan tidak dapat dinonaktifkan.',
-          title: 'Perlindungan Layar',
-        );
-      } else {
-        AppToast.showWarning(
-          context,
-          'Perlindungan Layar Nonaktif: Tangkapan layar diizinkan sementara.',
-          title: 'Perlindungan Layar',
-        );
-      }
-    }
-  }
-
   Future<void> _scanRootIntegrity() async {
     setState(() => _scanningRoot = true);
     final result = await SecurityHardeningService.checkRootStatus();
@@ -241,7 +206,11 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                 isAlert: res.isRooted,
               ),
               _buildModalRow('Keaslian Sistem Operasi', res.reasons.isEmpty ? 'Lolos Pemeriksaan (Resmi)' : 'Terindikasi Modifikasi'),
-              _buildModalRow('Integritas Keamanan', '100% Terlindungi'),
+              _buildModalRow(
+                'Integritas Keamanan',
+                res.isRooted ? 'Tidak disarankan untuk layanan perbankan' : 'Terlindungi',
+                isAlert: res.isRooted,
+              ),
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
@@ -259,42 +228,6 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  void _startQuickIdleTest() {
-    setState(() {
-      _quickTimeoutActive = true;
-      _countdown = 10;
-    });
-
-    SessionInactivityDetector.setQuickTestTimeout(10);
-
-    _countdownTimer?.cancel();
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      if (_countdown > 1) {
-        setState(() => _countdown--);
-      } else {
-        timer.cancel();
-        SessionInactivityDetector.resetToStandardTimeout();
-        setState(() => _quickTimeoutActive = false);
-      }
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Simulasi Uji Coba: Diamkan layar selama 10 detik. Akun akan keluar otomatis untuk membuktikan fitur proteksi.',
-          style: GoogleFonts.plusJakartaSans(fontSize: 12.5),
-        ),
-        backgroundColor: const Color(0xFF0062E3),
-        duration: const Duration(seconds: 4),
-        behavior: SnackBarBehavior.floating,
       ),
     );
   }
@@ -374,7 +307,6 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ==================== SECTION 1: CREDENTIALS ====================
             Text(
               'Kredensial & Akses Masuk',
               style: GoogleFonts.plusJakartaSans(
@@ -400,7 +332,6 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
               ),
               child: Column(
                 children: [
-                  // 1. Ganti Password Login
                   ListTile(
                     onTap: () {
                       Navigator.of(context).push(
@@ -433,7 +364,6 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
 
                   const Divider(height: 1, indent: 56, endIndent: 16, color: Color(0xFFF1F5F9)),
 
-                  // 2. Ganti PIN Transaksi 6 Digit
                   ListTile(
                     onTap: () {
                       Navigator.of(context).push(
@@ -450,7 +380,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                       child: const Icon(Icons.dialpad_rounded, color: dmbGreen, size: 22),
                     ),
                     title: Text(
-                      'Ganti PIN Transaksi 6 Digit',
+                      'Ganti PIN 6 Digit',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
@@ -458,7 +388,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                       ),
                     ),
                     subtitle: Text(
-                      'Ubah 6 digit PIN otorisasi transaksi finansial',
+                      'Ubah PIN untuk verifikasi data sensitif akun Anda',
                       style: GoogleFonts.plusJakartaSans(fontSize: 12, color: textMuted, height: 1.3),
                     ),
                     trailing: const Icon(Icons.chevron_right_rounded, size: 20, color: textMuted),
@@ -469,7 +399,6 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
 
             const SizedBox(height: 24),
 
-            // ==================== SECTION 2: MOBILE SECURITY HARDENING ====================
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -522,7 +451,6 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
               ),
               child: Column(
                 children: [
-                  // 1. Login Biometrik
                   SwitchListTile(
                     value: _biometricEnabled,
                     onChanged: _toggleBiometric,
@@ -584,13 +512,14 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
 
                   const Divider(height: 1, indent: 56, endIndent: 16, color: Color(0xFFF1F5F9)),
 
-                  // 2. Perlindungan Privasi Layar
-                  SwitchListTile(
-                    value: _flagSecureEnabled,
-                    onChanged: _toggleFlagSecure,
-                    activeColor: royalBlue,
+                  ListTile(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                    secondary: Container(
+                    trailing: Icon(
+                      _flagSecureEnabled ? Icons.check_circle_rounded : Icons.info_outline_rounded,
+                      color: _flagSecureEnabled ? dmbGreen : textMuted,
+                      size: 22,
+                    ),
+                    leading: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         color: _flagSecureEnabled ? const Color(0xFFEFF6FF) : const Color(0xFFF1F5F9),
@@ -608,15 +537,14 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                     ),
                     subtitle: Text(
                       _flagSecureEnabled
-                          ? 'Aktif: Menjaga kerahasiaan saldo & transaksi dari tangkapan layar pihak lain.'
-                          : 'Nonaktif: Tangkapan layar diizinkan sementara.',
+                          ? 'Aktif (standar perbankan): tangkapan dan rekaman layar diblokir untuk menjaga kerahasiaan data Anda.'
+                          : 'Tidak aktif pada versi pengembangan aplikasi ini.',
                       style: GoogleFonts.plusJakartaSans(fontSize: 11.5, color: textMuted, height: 1.3),
                     ),
                   ),
 
                   const Divider(height: 1, indent: 56, endIndent: 16, color: Color(0xFFF1F5F9)),
 
-                  // 3. Keamanan Sistem Ponsel
                   ListTile(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                     leading: Container(
@@ -673,7 +601,6 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
 
                   const Divider(height: 1, indent: 56, endIndent: 16, color: Color(0xFFF1F5F9)),
 
-                  // 4. Enkripsi Jaringan Perbankan
                   ListTile(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                     leading: Container(
@@ -701,8 +628,12 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            'Terkoneksi Aman',
-                            style: GoogleFonts.plusJakartaSans(fontSize: 10, fontWeight: FontWeight.w800, color: dmbGreen),
+                            DynamicConfigService().isServerConnected ? 'Terhubung' : 'Tidak Terhubung',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: DynamicConfigService().isServerConnected ? dmbGreen : textMuted,
+                            ),
                           ),
                         ),
                       ],
@@ -716,7 +647,6 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
 
                   const Divider(height: 1, indent: 56, endIndent: 16, color: Color(0xFFF1F5F9)),
 
-                  // 5. Kunci Otomatis Saat Tidak Aktif
                   ListTile(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                     leading: Container(
@@ -732,31 +662,10 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                       style: GoogleFonts.plusJakartaSans(fontSize: 13.5, fontWeight: FontWeight.w700, color: titleDark),
                     ),
                     subtitle: Text(
-                      _quickTimeoutActive
-                          ? 'Simulasi aktif: keluar otomatis dalam $_countdown detik jika tanpa aktivitas!'
-                          : 'Akun otomatis keluar jika tidak aktif selama 3 menit demi menjaga keamanan saldo Anda.',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 11.5,
-                        color: _quickTimeoutActive ? const Color(0xFFEA580C) : textMuted,
-                        fontWeight: _quickTimeoutActive ? FontWeight.w700 : FontWeight.w500,
-                        height: 1.3,
-                      ),
+                      'Akun otomatis keluar jika tidak aktif selama ${SessionInactivityDetector.timeoutSeconds ~/ 60} menit demi menjaga keamanan data Anda.',
+                      style: GoogleFonts.plusJakartaSans(fontSize: 11.5, color: textMuted, height: 1.3),
                     ),
-                    trailing: ElevatedButton(
-                      onPressed: _quickTimeoutActive ? null : _startQuickIdleTest,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryNavy,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      child: Text(
-                        _quickTimeoutActive ? '$_countdown s' : 'Uji Coba',
-                        style: GoogleFonts.plusJakartaSans(fontSize: 11.5, fontWeight: FontWeight.w700),
-                      ),
-                    ),
+                    trailing: const Icon(Icons.check_circle_rounded, color: dmbGreen, size: 22),
                   ),
                 ],
               ),
@@ -764,7 +673,6 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
 
             const SizedBox(height: 24),
 
-            // ==================== SECTION 3: TIPS KEAMANAN ====================
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(

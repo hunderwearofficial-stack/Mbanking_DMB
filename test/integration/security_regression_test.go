@@ -17,7 +17,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -93,7 +92,6 @@ func setupITNoTerms(t *testing.T) *itEnv {
 		DBEncryptionKey: itEncKeyHex, EnableMockCBS: true,
 		DBHost: host, DBPort: os.Getenv("DMB_IT_DB_PORT"), DBUser: os.Getenv("DMB_IT_DB_USER"),
 		DBPass: os.Getenv("DMB_IT_DB_PASS"), DBName: name, DBSSL: "disable",
-		AllowedBankCodes: []string{"", "BPR", "DMB", "BPR_DMB", "000"},
 	}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("config: %v", err)
@@ -149,7 +147,7 @@ func (e *itEnv) seedCustomer(cif, phone, device, accountNo string, balanceRupiah
 	pw, _ := security.HashPassword(itPassword)
 	pin, _ := security.HashPIN(itPIN)
 	u := &model.User{ID: uuid.NewString(), CIF: cif, FullName: "Nasabah " + cif, PhoneNumber: phone,
-		NIK: crypto.EncryptedString("3201000000000" + cif[len(cif)-3:]), NamaIbuKandung: crypto.EncryptedString("Ibu " + cif),
+		Email: crypto.EncryptedString("nasabah." + cif + "@example.co.id"), NamaIbuKandung: crypto.EncryptedString("Ibu " + cif),
 		PasswordHash: pw, PINHash: pin, DeviceID: device, IsActive: true}
 	if err := e.db.Create(u).Error; err != nil {
 		e.t.Fatal(err)
@@ -187,25 +185,6 @@ func (e *itEnv) adminLogin(username string) string {
 		e.t.Fatalf("admin login failed: %d %v", r.Status, r.Body)
 	}
 	return r.data()["token"].(string)
-}
-
-func (e *itEnv) balance(acc string) money.Amount {
-	var a model.Account
-	e.db.Where("account_number = ?", acc).First(&a)
-	return a.Balance
-}
-
-func transferBody(from, to string, amount float64) map[string]interface{} {
-	return map[string]interface{}{"from_account": from, "to_bank_code": "BPR", "to_account": to, "amount": amount, "pin": itPIN}
-}
-
-func withKey(h map[string]string, key string) map[string]string {
-	out := map[string]string{}
-	for k, v := range h {
-		out[k] = v
-	}
-	out["Idempotency-Key"] = key
-	return out
 }
 
 func TestIntegration_SecurityRegressions(t *testing.T) {
@@ -251,7 +230,7 @@ func TestIntegration_SecurityRegressions(t *testing.T) {
 	})
 
 	t.Run("DMB-006 public config exposes no secrets", func(t *testing.T) {
-		e.db.Model(&model.AppConfig{}).Where("id = ?", "DEFAULT").Updates(map[string]interface{}{"otp_gateway_token": "it-secret-token-value", "fcm_server_key": "it-secret-fcm"})
+		e.db.Model(&model.AppConfig{}).Where("id = ?", "DEFAULT").Updates(map[string]interface{}{"otp_gateway_token": "it-secret-token-value"})
 		r := e.call("GET", "/api/v1/config", nil, nil)
 		raw, _ := json.Marshal(r.Body)
 		if r.Status != 200 || strings.Contains(string(raw), "it-secret") || strings.Contains(string(raw), "otp_gateway_token") {
@@ -277,93 +256,6 @@ func TestIntegration_SecurityRegressions(t *testing.T) {
 		if v, _ := p.data()["nama_ibu_kandung"].(string); v != "" {
 			t.Fatal("profile must not return mother's maiden name")
 		}
-	})
-
-	t.Run("DMB-004 transfer from a foreign account is refused", func(t *testing.T) {
-		before := e.balance(accB)
-		r := e.call("POST", "/api/v1/transaction/transfer", transferBody(accB, accA, 50000), withKey(hA, "idem-foreign-0001"))
-		if r.Status != http.StatusForbidden || e.balance(accB) != before {
-			t.Fatalf("IDOR transfer not blocked: %d %v", r.Status, r.Body)
-		}
-	})
-
-	t.Run("DMB-015 idempotency, replay and conflict", func(t *testing.T) {
-		if r := e.call("POST", "/api/v1/transaction/transfer", transferBody(accA, accB, 15000), hA); r.Status != http.StatusBadRequest {
-			t.Fatalf("missing Idempotency-Key: expected 400, got %d", r.Status)
-		}
-		bA, bB := e.balance(accA), e.balance(accB)
-		first := e.call("POST", "/api/v1/transaction/transfer", transferBody(accA, accB, 15000), withKey(hA, "idem-key-000000001"))
-		second := e.call("POST", "/api/v1/transaction/transfer", transferBody(accA, accB, 15000), withKey(hA, "idem-key-000000001"))
-		if first.Status != 200 || second.Status != 200 {
-			t.Fatalf("transfer/replay: %d %d %v", first.Status, second.Status, second.Body)
-		}
-		if first.data()["reference_no"] != second.data()["reference_no"] {
-			t.Fatal("replay must return the original result")
-		}
-		if e.balance(accA) != bA-money.Rupiah(15000) || e.balance(accB) != bB+money.Rupiah(15000) {
-			t.Fatalf("funds moved more than once: A %v->%v B %v->%v", bA, e.balance(accA), bB, e.balance(accB))
-		}
-		if r := e.call("POST", "/api/v1/transaction/transfer", transferBody(accA, accB, 16000), withKey(hA, "idem-key-000000001")); r.Status != http.StatusConflict {
-			t.Fatalf("same key different payload: expected 409, got %d", r.Status)
-		}
-		ib := transferBody(accA, accB, 15000)
-		ib["to_bank_code"] = "014"
-		if r := e.call("POST", "/api/v1/transaction/transfer", ib, withKey(hA, "idem-interbank-01")); r.Status != http.StatusBadRequest {
-			t.Fatalf("interbank must be refused, got %d", r.Status)
-		}
-	})
-
-	t.Run("DMB-015 transfer to an unknown account never debits the sender", func(t *testing.T) {
-		before := e.balance(accA)
-		r := e.call("POST", "/api/v1/transaction/transfer", transferBody(accA, "0010199999999", 12000), withKey(hA, "idem-unknown-dest-01"))
-		if r.Status == http.StatusOK {
-			t.Fatalf("transfer to unknown account must fail, got 200: %v", r.Body)
-		}
-		if after := e.balance(accA); after != before {
-			t.Fatalf("sender debited without a credit leg: %v -> %v", before, after)
-		}
-	})
-
-	t.Run("DMB-015 fractional or malformed amounts are rejected without moving funds", func(t *testing.T) {
-		before := e.balance(accA)
-		for i, amt := range []interface{}{15000.5, 15000.001, "abc", -15000, 0} {
-			body := transferBody(accA, accB, 0)
-			body["amount"] = amt
-			r := e.call("POST", "/api/v1/transaction/transfer", body, withKey(hA, fmt.Sprintf("idem-bad-amount-%02d", i)))
-			if r.Status == http.StatusOK {
-				t.Fatalf("amount %v must be rejected, got 200", amt)
-			}
-		}
-		if after := e.balance(accA); after != before {
-			t.Fatalf("balance changed by rejected transfers: %v -> %v", before, after)
-		}
-	})
-
-	t.Run("DMB-015 daily limit holds under concurrency", func(t *testing.T) {
-		// Customer B has not transferred today; limit allows exactly two transfers of 20,000.
-		e.db.Model(&model.AppConfig{}).Where("id = ?", "DEFAULT").Update("daily_transfer_limit", 40000)
-		tokB, _ := e.login("081200000102", devB)
-		hB := auth(tokB, devB)
-		var wg sync.WaitGroup
-		var mu sync.Mutex
-		ok := 0
-		for i := 0; i < 5; i++ {
-			wg.Add(1)
-			go func(i int) {
-				defer wg.Done()
-				r := e.call("POST", "/api/v1/transaction/transfer", transferBody(accB, accA, 20000), withKey(hB, fmt.Sprintf("idem-conc-%08d", i)))
-				if r.Status == 200 {
-					mu.Lock()
-					ok++
-					mu.Unlock()
-				}
-			}(i)
-		}
-		wg.Wait()
-		if ok != 2 {
-			t.Fatalf("expected exactly 2 transfers within the limit, got %d", ok)
-		}
-		e.db.Model(&model.AppConfig{}).Where("id = ?", "DEFAULT").Update("daily_transfer_limit", 25000000)
 	})
 
 	t.Run("DMB-013 password login from a new device requires OTP", func(t *testing.T) {
@@ -463,9 +355,9 @@ func TestIntegration_SecurityRegressions(t *testing.T) {
 
 	t.Run("DMB-008 PII is encrypted at rest with the v2 key", func(t *testing.T) {
 		var raw string
-		e.db.Raw("SELECT nik FROM users WHERE cif = ?", "001000000101").Scan(&raw)
+		e.db.Raw("SELECT email FROM users WHERE cif = ?", "001000000101").Scan(&raw)
 		if !strings.HasPrefix(raw, crypto.CipherPrefix) {
-			t.Fatalf("NIK not encrypted with current key format: %.12s...", raw)
+			t.Fatalf("Email not encrypted with current key format: %.12s...", raw)
 		}
 	})
 }

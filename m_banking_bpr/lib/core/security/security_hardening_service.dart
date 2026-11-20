@@ -19,11 +19,8 @@ class RootInspectionResult {
 
 class SecurityHardeningService {
   static const MethodChannel _channel = MethodChannel('com.bprdmb.mbanking/device_info');
-  static bool _flagSecureActive = true;
+  static bool _flagSecureActive = false;
 
-  // ==================== 1. FLAG_SECURE MANAGEMENT ====================
-
-  /// Enables or disables FLAG_SECURE on Android (disables screenshots, screen recordings, and hides app thumbnail)
   static Future<bool> setFlagSecure(bool enable) async {
     try {
       if (Platform.isAndroid) {
@@ -54,9 +51,6 @@ class SecurityHardeningService {
     return _flagSecureActive;
   }
 
-  // ==================== 2. ROOT & JAILBREAK DETECTION ====================
-
-  /// Checks whether device is rooted (Android) or jailbroken (iOS)
   static Future<RootInspectionResult> checkRootStatus() async {
     List<String> reasons = [];
     String deviceModel = 'Perangkat Mobile';
@@ -77,11 +71,9 @@ class SecurityHardeningService {
         }
       }
     } catch (_) {
-      // Dart Fallback Root Inspection if native method is not yet initialized
       reasons.addAll(_performDartFallbackRootCheck());
     }
 
-    // Secondary Dart file-system verification
     if (reasons.isEmpty && Platform.isAndroid) {
       reasons.addAll(_performDartFallbackRootCheck());
     }
@@ -122,7 +114,6 @@ class SecurityHardeningService {
     return detected;
   }
 
-  /// Displays a security advisory if the device is detected as rooted/jailbroken.
   static void showRootWarningDialog(BuildContext context, RootInspectionResult result) {
     showDialog(
       context: context,
@@ -157,35 +148,21 @@ class SecurityHardeningService {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Perangkat Anda (${result.deviceModel}) terdeteksi telah dimodifikasi (Rooted / Non-Standard OS).',
+              'Perangkat Anda (${result.deviceModel}) terdeteksi menggunakan sistem operasi yang telah dimodifikasi.',
               style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: const Color(0xFF0B2546)),
             ),
             const SizedBox(height: 8),
             Text(
-              'Perangkat yang dimodifikasi (root) memiliki risiko keamanan lebih tinggi terhadap malware/keylogger. Demi melindungi kredensial rekening dan dana Anda, gunakan perangkat dengan sistem operasi resmi.',
+              'Perangkat yang dimodifikasi memiliki risiko keamanan lebih tinggi terhadap pencurian data. Demi melindungi kredensial rekening dan dana Anda, kami menyarankan menggunakan perangkat dengan sistem operasi resmi pabrikan.',
               style: GoogleFonts.plusJakartaSans(fontSize: 12, color: const Color(0xFF64748B), height: 1.4),
             ),
-            if (result.reasons.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  'Indikator: ${result.reasons.first}',
-                  style: GoogleFonts.plusJakartaSans(fontSize: 11, color: const Color(0xFF475569)),
-                ),
-              ),
-            ],
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
             child: Text(
-              'Saya Mengerti Resikonya',
+              'Saya Mengerti',
               style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, color: const Color(0xFF0062E3)),
             ),
           ),

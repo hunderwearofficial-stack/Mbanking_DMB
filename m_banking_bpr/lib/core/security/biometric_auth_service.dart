@@ -39,7 +39,6 @@ class BiometricAuthResult {
 class BiometricAuthService {
   static final LocalAuthentication _auth = LocalAuthentication();
 
-  /// Inspects device hardware and enrolled biometric sensors (Fingerprint / Face ID)
   static Future<BiometricCapability> checkCapability() async {
     try {
       final isSupported = await _auth.isDeviceSupported();
@@ -81,7 +80,6 @@ class BiometricAuthService {
     }
   }
 
-  /// Prompts native Android / iOS biometric authentication dialog
   static Future<BiometricAuthResult> authenticate({
     String reason = 'Pindai sidik jari atau Face ID Anda untuk masuk ke Mobile DMB',
     String cancelButton = 'Gunakan Password',
@@ -133,19 +131,18 @@ class BiometricAuthService {
           isLockedOut: true,
         );
       } else if (e.code == 'no_fragment_activity') {
-        message = 'Sistem Android memerlukan FragmentActivity untuk biometrik.';
+        message = 'Autentikasi biometrik belum didukung pada konfigurasi perangkat ini.';
       }
 
       return BiometricAuthResult(success: false, errorMessage: message);
-    } catch (e) {
-      return BiometricAuthResult(
+    } catch (_) {
+      return const BiometricAuthResult(
         success: false,
-        errorMessage: 'Terjadi kesalahan pada sistem biometrik: $e',
+        errorMessage: 'Autentikasi biometrik belum dapat digunakan saat ini. Silakan gunakan kata sandi.',
       );
     }
   }
 
-  /// Checks if the user has previously enabled biometric login in settings
   static Future<bool> isBiometricLoginEnabled(SecureStorageService storage) async {
     return await storage.isBiometricEnabled();
   }

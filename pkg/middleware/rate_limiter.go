@@ -17,19 +17,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// KeyFunc derives the rate-limit subject from a request. Returning "" skips that limiter.
 type KeyFunc func(c *gin.Context) string
 
-// ByIP limits per client IP. ClientIP only trusts proxies configured in TRUSTED_PROXIES,
-// so X-Forwarded-For cannot be spoofed by clients (audit DMB-018).
 func ByIP(c *gin.Context) string { return c.ClientIP() }
 
-// ByUser limits per authenticated customer.
 func ByUser(c *gin.Context) string { return c.GetString(CtxUserID) }
 
-// ByJSONField limits per value of a JSON body field (e.g. phone number), so that
-// distributed attacks against one account are throttled independently of IP.
-// The value is hashed so that no PII is stored in the rate-limit keys.
 func ByJSONField(fields ...string) KeyFunc {
 	return func(c *gin.Context) string {
 		if c.Request.Body == nil {
@@ -46,7 +39,7 @@ func ByJSONField(fields ...string) KeyFunc {
 		}
 		for _, f := range fields {
 			if v, ok := m[f].(string); ok {
-				v = strings.ToLower(strings.TrimSpace(v))
+				v = canonicalIdentity(v)
 				if v != "" {
 					sum := sha256.Sum256([]byte(v))
 					return hex.EncodeToString(sum[:16])
@@ -57,14 +50,29 @@ func ByJSONField(fields ...string) KeyFunc {
 	}
 }
 
-// RateLimiterBy limits requests per subject returned by keyFn. FAIL-CLOSED: if the
-// limiter backend errors, the request is rejected (audit DMB-018 / DMB-026).
+// canonicalIdentity maps every spelling of the same identity to one rate-limit key
+// (audit E-05): "+62 812-3456", "62812-3456" and "0812 3456" are the same phone number,
+// exactly as the login normalises it.
+func canonicalIdentity(v string) string {
+	v = strings.ToLower(strings.TrimSpace(v))
+	compact := strings.NewReplacer(" ", "", "-", "", ".", "", "(", "", ")", "").Replace(v)
+	digits := strings.TrimPrefix(compact, "+")
+	if digits != "" && strings.Trim(digits, "0123456789") == "" {
+		if strings.HasPrefix(digits, "62") {
+			digits = "0" + digits[2:]
+		}
+		return digits
+	}
+	return v
+}
+
 func RateLimiterBy(redisClient *redis.Client, maxRequests int, windowSeconds int, prefix string, keyFn KeyFunc) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		subject := keyFn(c)
 		if subject == "" {
-			c.Next()
-			return
+			// SECURITY (audit E-05): a request without the identity field is still limited,
+			// keyed by client IP, instead of skipping the limiter.
+			subject = "noid:" + c.ClientIP()
 		}
 		cacheKey := fmt.Sprintf("ratelimit:%s:%s", prefix, subject)
 		allowed, remaining, err := redisClient.IncrementAndCheckRateLimit(c.Request.Context(), cacheKey, maxRequests, windowSeconds)

@@ -16,15 +16,18 @@ import (
 	"mbanking-bpr/internal/module/admin/repository"
 	"mbanking-bpr/internal/notification"
 	"mbanking-bpr/internal/session"
+	"mbanking-bpr/pkg/crypto"
 	"mbanking-bpr/pkg/reqctx"
 	"mbanking-bpr/pkg/security"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 var (
 	ErrAdminInvalidCredentials = errors.New("username atau password petugas salah")
 	ErrAdminAccountDisabled    = errors.New("akun petugas telah dinonaktifkan")
+	ErrAdminAccountLocked      = errors.New("Akun petugas sedang terkunci sementara karena terlalu banyak percobaan gagal. Silakan coba kembali beberapa saat lagi.")
 	ErrAdminDefaultPassword    = errors.New("password petugas adalah password bawaan yang terpublikasi dan telah dinonaktifkan. Reset melalui prosedur bootstrap (ADMIN_BOOTSTRAP_*)")
 	ErrBannerNotFound          = errors.New("data banner tidak ditemukan")
 	ErrCustomerNotFound        = errors.New("data nasabah tidak ditemukan")
@@ -34,52 +37,45 @@ var (
 	ErrValidation              = errors.New("data tidak valid")
 )
 
-// AdminLoginResult is returned on successful backoffice login.
 type AdminLoginResult struct {
 	Token     string
 	ExpiresAt time.Time
 	Admin     *model.AdminUser
 }
 
-// AppConfigUpdate is the editable configuration. Secret fields are write-only:
-// empty means "keep the current value" (audit DMB-006).
 type AppConfigUpdate struct {
-	BankName             string       `json:"bank_name"`
-	BankShortName        string       `json:"bank_short_name"`
-	Tagline              string       `json:"tagline"`
-	LogoURL              string       `json:"logo_url"`
-	LoginBgURL           string       `json:"login_bg_url"`
-	SplashBgURL          string       `json:"splash_bg_url"`
-	OnboardingBgURL      string       `json:"onboarding_bg_url"`
-	WelcomeTitle         string       `json:"welcome_title"`
-	WelcomeSubtitle      string       `json:"welcome_subtitle"`
-	LoginTitle           string       `json:"login_title"`
-	LoginSubtitle        string       `json:"login_subtitle"`
-	TermsVersion         string       `json:"terms_version"`
-	HomeGreeting         string       `json:"home_greeting"`
-	AnnouncementText     string       `json:"announcement_text"`
-	TermsPdfURL          string       `json:"terms_pdf_url"`
-	PrivacyPdfURL        string       `json:"privacy_pdf_url"`
-	QuickMenuConfig      string       `json:"quick_menu_config"`
-	CallCenter           string       `json:"call_center"`
-	WhatsAppCS           string       `json:"whatsapp_cs"`
-	EmailCS              string       `json:"email_cs"`
-	WebsiteURL           string       `json:"website_url"`
-	HeadOfficeAddress    string       `json:"head_office_address"`
-	MaintenanceMode      bool         `json:"maintenance_mode"`
-	MaintenanceMessage   string       `json:"maintenance_message"`
-	MinTransferAmount    money.Amount `json:"min_transfer_amount"`
-	DailyTransferLimit   money.Amount `json:"daily_transfer_limit"`
-	InterbankTransferFee money.Amount `json:"interbank_transfer_fee"`
-	EnforceDeviceBinding bool         `json:"enforce_device_binding"`
-	MaxLoginAttempts     int          `json:"max_login_attempts"`
-	OTPProvider          string       `json:"otp_provider"`
-	OTPGatewayURL        string       `json:"otp_gateway_url"`
-	OTPGatewayToken      string       `json:"otp_gateway_token"` // write-only
-	ClearOTPGatewayToken bool         `json:"clear_otp_gateway_token"`
+	BankName             string  `json:"bank_name"`
+	BankShortName        string  `json:"bank_short_name"`
+	Tagline              string  `json:"tagline"`
+	LogoURL              string  `json:"logo_url"`
+	LoginBgURL           string  `json:"login_bg_url"`
+	SplashBgURL          string  `json:"splash_bg_url"`
+	OnboardingBgURL      string  `json:"onboarding_bg_url"`
+	WelcomeTitle         string  `json:"welcome_title"`
+	WelcomeSubtitle      string  `json:"welcome_subtitle"`
+	LoginTitle           string  `json:"login_title"`
+	LoginSubtitle        string  `json:"login_subtitle"`
+	TermsVersion         string  `json:"terms_version"`
+	HomeGreeting         string  `json:"home_greeting"`
+	AnnouncementText     string  `json:"announcement_text"`
+	TermsPdfURL          string  `json:"terms_pdf_url"`
+	PrivacyPdfURL        string  `json:"privacy_pdf_url"`
+	QuickMenuConfig      string  `json:"quick_menu_config"`
+	CallCenter           string  `json:"call_center"`
+	WhatsAppCS           string  `json:"whatsapp_cs"`
+	EmailCS              string  `json:"email_cs"`
+	WebsiteURL           string  `json:"website_url"`
+	HeadOfficeAddress    string  `json:"head_office_address"`
+	MaintenanceMode      bool    `json:"maintenance_mode"`
+	MaintenanceMessage   string  `json:"maintenance_message"`
+	EnforceDeviceBinding *bool   `json:"enforce_device_binding"`
+	MaxLoginAttempts     int     `json:"max_login_attempts"`
+	OTPProvider          string  `json:"otp_provider"`
+	OTPGatewayURL        string  `json:"otp_gateway_url"`
+	OTPGatewayToken      *string `json:"otp_gateway_token"` // write-only
+	ClearOTPGatewayToken bool    `json:"clear_otp_gateway_token"`
 }
 
-// BannerInput is the editable banner data (Image + URL centric).
 type BannerInput struct {
 	Title        string `json:"title"`
 	ImageURL     string `json:"image_url"`
@@ -96,6 +92,9 @@ type BannerInput struct {
 
 type AdminService interface {
 	Login(ctx context.Context, username, password string) (*AdminLoginResult, error)
+	Logout(ctx context.Context)
+	IsProductionLike() bool
+	DB() *gorm.DB
 	GetDashboardStats(ctx context.Context) (map[string]interface{}, error)
 
 	ListCustomers(ctx context.Context, search string, page, limit int) ([]repository.CustomerSummary, int64, error)
@@ -107,17 +106,17 @@ type AdminService interface {
 	UpdateBanner(ctx context.Context, id string, in BannerInput) (*model.Banner, error)
 	DeleteBanner(ctx context.Context, id string) error
 
-	ListTransactions(ctx context.Context, limit int) ([]repository.TransactionSummary, error)
-
 	ListAdminUsers(ctx context.Context) ([]model.AdminUser, error)
 	CreateAdminUser(ctx context.Context, username, fullName, email, password, role string, isActive bool) (*model.AdminUser, error)
+	UpdateAdminUser(ctx context.Context, id, fullName, email, role, password string) (*model.AdminUser, error)
+	ChangeOwnPassword(ctx context.Context, oldPassword, newPassword string) error
 	ToggleAdminStatus(ctx context.Context, id string, isActive bool) error
 	DeleteAdminUser(ctx context.Context, id string) error
 
 	GetAppConfig(ctx context.Context) (*model.AppConfig, error)
 	UpdateAppConfig(ctx context.Context, in AppConfigUpdate) (*model.AppConfig, error)
 
-	ListAuditLogs(ctx context.Context, actorType string, limit int) ([]model.AuditLog, error)
+	ListAuditLogs(ctx context.Context, filter repository.AuditLogFilter) ([]model.AuditLog, error)
 
 	ListAllApplications(ctx context.Context, productType string, limit int) ([]model.ProductApplication, error)
 	UpdateApplicationStatus(ctx context.Context, id string, status string, adminNotes string) (*model.ProductApplication, error)
@@ -170,6 +169,22 @@ func validHTTPSURL(raw string, allowRelative bool) bool {
 	return err == nil && u.Scheme == "https" && u.Host != ""
 }
 
+func (s *adminService) IsProductionLike() bool {
+	return s.cfg != nil && s.cfg.IsProductionLike()
+}
+
+func (s *adminService) DB() *gorm.DB {
+	return s.repo.DB()
+}
+
+func (s *adminService) Logout(ctx context.Context) {
+	target := "UNKNOWN"
+	if a, ok := reqctx.AdminFrom(ctx); ok && a.Username != "" {
+		target = a.Username
+	}
+	s.audit(ctx, "ADMIN_LOGOUT", target, "SUCCESS", "Logout konsol backoffice")
+}
+
 func (s *adminService) Login(ctx context.Context, username, password string) (*AdminLoginResult, error) {
 	admin, err := s.repo.FindByUsername(ctx, strings.TrimSpace(username))
 	if err != nil || admin == nil {
@@ -177,8 +192,29 @@ func (s *adminService) Login(ctx context.Context, username, password string) (*A
 		audit.Record(ctx, s.repo.DB(), "ADMIN", "UNKNOWN", limitLen(username, 50), "ADMIN_LOGIN_FAILED", limitLen(username, 50), "WARNING", "WEB-BACKOFFICE", "Login backoffice gagal: username tidak dikenal")
 		return nil, ErrAdminInvalidCredentials
 	}
+	if admin.LockedUntil != nil && admin.LockedUntil.After(time.Now()) {
+		audit.Record(ctx, s.repo.DB(), "ADMIN", admin.ID, admin.Username, "ADMIN_LOGIN_LOCKED", admin.Username, "WARNING", "WEB-BACKOFFICE", "Percobaan login saat akun petugas terkunci sementara")
+		return nil, ErrAdminAccountLocked
+	}
 	if !security.CheckPassword(admin.PasswordHash, password) {
-		audit.Record(ctx, s.repo.DB(), "ADMIN", admin.ID, admin.Username, "ADMIN_LOGIN_FAILED", admin.Username, "WARNING", "WEB-BACKOFFICE", "Login backoffice gagal: password salah")
+		maxFailed := 5
+		lockMinutes := 15
+		if s.cfg != nil {
+			if s.cfg.AdminMaxFailedLogin > 0 {
+				maxFailed = s.cfg.AdminMaxFailedLogin
+			}
+			if s.cfg.AdminLockoutMinutes > 0 {
+				lockMinutes = s.cfg.AdminLockoutMinutes
+			}
+		}
+		lockedUntil, attempts, _ := s.repo.RecordAdminLoginFailure(ctx, admin.ID, maxFailed, time.Duration(lockMinutes)*time.Minute)
+		if lockedUntil != nil {
+			audit.Record(ctx, s.repo.DB(), "ADMIN", admin.ID, admin.Username, "ADMIN_LOGIN_LOCKED", admin.Username, "DANGER", "WEB-BACKOFFICE",
+				fmt.Sprintf("Akun petugas dikunci sementara karena %dx salah password", attempts))
+			return nil, ErrAdminAccountLocked
+		}
+		audit.Record(ctx, s.repo.DB(), "ADMIN", admin.ID, admin.Username, "ADMIN_LOGIN_FAILED", admin.Username, "WARNING", "WEB-BACKOFFICE",
+			fmt.Sprintf("Login backoffice gagal: password salah (Percobaan %d/%d)", attempts, maxFailed))
 		return nil, ErrAdminInvalidCredentials
 	}
 	if !admin.IsActive {
@@ -191,6 +227,7 @@ func (s *adminService) Login(ctx context.Context, username, password string) (*A
 	if !model.IsValidAdminRole(admin.Role) {
 		return nil, ErrInvalidRole
 	}
+	_ = s.repo.ResetAdminLoginFailures(ctx, admin.ID)
 	token, exp, err := security.GenerateAdminToken(admin.ID, admin.Username, admin.Role, s.cfg.AdminJWTSecret,
 		time.Duration(s.cfg.AdminJWTExpiryMinutes)*time.Minute)
 	if err != nil {
@@ -226,7 +263,7 @@ func (s *adminService) ResetCustomerDevice(ctx context.Context, userID string) e
 		_ = s.sessions.RevokeAllForUser(ctx, user.ID, session.ReasonAdminAction, "")
 	}
 	s.audit(ctx, "UNBIND_CUSTOMER_DEVICE", user.FullName+" ("+user.CIF+")", "WARNING",
-		fmt.Sprintf("Unbind/Reset Device ID nasabah (perangkat sebelumnya: %s); seluruh sesi dicabut", user.DeviceID))
+		fmt.Sprintf("Unbind/Reset Device ID nasabah (perangkat sebelumnya: %s); kunci perangkat dicabut; seluruh sesi dicabut", user.DeviceID))
 	notification.CreateAndPush(ctx, s.repo.DB(), user.ID, "Reset Perangkat Berhasil",
 		"Ikatan perangkat akun Mobile DMB Anda telah di-reset oleh petugas Bank DMB. Verifikasi perangkat baru melalui menu Lupa Password.", "SECURITY")
 	return nil
@@ -326,10 +363,6 @@ func (s *adminService) DeleteBanner(ctx context.Context, id string) error {
 	return nil
 }
 
-func (s *adminService) ListTransactions(ctx context.Context, limit int) ([]repository.TransactionSummary, error) {
-	return s.repo.ListRecentTransactions(ctx, limit)
-}
-
 func (s *adminService) GetAppConfig(ctx context.Context) (*model.AppConfig, error) {
 	return s.repo.GetAppConfig(ctx)
 }
@@ -341,25 +374,21 @@ func (s *adminService) UpdateAppConfig(ctx context.Context, in AppConfigUpdate) 
 	}
 	provider := strings.ToUpper(strings.TrimSpace(in.OTPProvider))
 	switch provider {
-	case "", "SANDBOX", "FONNTE", "WABLAS", "CUSTOM_WEBHOOK":
+	case "", "SANDBOX", "JATIS", "SMS_GATEWAY":
 	default:
-		return nil, fmt.Errorf("%w: OTP provider tidak dikenal", ErrValidation)
+		return nil, fmt.Errorf("%w: penyedia OTP tidak dikenal", ErrValidation)
 	}
 	if provider == "" {
 		provider = current.OTPProvider
 	}
-	if s.cfg.IsProductionLike() && provider == "SANDBOX" {
-		return nil, fmt.Errorf("%w: mode SANDBOX OTP tidak diizinkan di production", ErrValidation)
+	if s.cfg != nil && s.cfg.IsProductionLike() && provider == "SANDBOX" {
+		return nil, fmt.Errorf("%w: mode SANDBOX OTP tidak diizinkan di lingkungan produksi", ErrValidation)
 	}
 	if !validHTTPSURL(in.OTPGatewayURL, false) || !validHTTPSURL(in.WebsiteURL, false) ||
 		!validHTTPSURL(in.LogoURL, true) || !validHTTPSURL(in.LoginBgURL, true) ||
 		!validHTTPSURL(in.SplashBgURL, true) || !validHTTPSURL(in.OnboardingBgURL, true) ||
 		!validHTTPSURL(in.TermsPdfURL, true) || !validHTTPSURL(in.PrivacyPdfURL, true) {
-		return nil, fmt.Errorf("%w: URL harus https:// (atau path lokal)", ErrValidation)
-	}
-	if in.MinTransferAmount < 0 || in.DailyTransferLimit < 0 || in.InterbankTransferFee < 0 ||
-		(in.DailyTransferLimit > 0 && in.MinTransferAmount > in.DailyTransferLimit) {
-		return nil, fmt.Errorf("%w: nilai limit/biaya tidak valid", ErrValidation)
+		return nil, fmt.Errorf("%w: alamat URL harus diawali https:// (atau path lokal)", ErrValidation)
 	}
 	if in.MaxLoginAttempts < 0 || in.MaxLoginAttempts > 10 {
 		return nil, fmt.Errorf("%w: batas percobaan login tidak valid", ErrValidation)
@@ -372,41 +401,114 @@ func (s *adminService) UpdateAppConfig(ctx context.Context, in AppConfigUpdate) 
 	if strings.TrimSpace(in.BankShortName) != "" {
 		updated.BankShortName = limitLen(in.BankShortName, 50)
 	}
-	// Texts and images rendered by the mobile app (tagline, logo, login background/title/
-	// subtitle, announcement, home greeting, call center, WhatsApp) are versioned content:
-	// they change only through draft → publish in /admin/content (internal/mobilecontent),
-	// never through this endpoint. Fields the app does not read (splash/onboarding
-	// background, welcome texts, terms version/PDF URLs, quick menu) are kept as they are.
+	if strings.TrimSpace(in.Tagline) != "" {
+		updated.Tagline = limitLen(in.Tagline, 255)
+	}
+	updated.LogoURL = limitLen(in.LogoURL, 500)
+	if strings.TrimSpace(in.LoginBgURL) != "" {
+		updated.LoginBgURL = limitLen(in.LoginBgURL, 500)
+	}
+	if strings.TrimSpace(in.SplashBgURL) != "" {
+		updated.SplashBgURL = limitLen(in.SplashBgURL, 500)
+	}
+	if strings.TrimSpace(in.OnboardingBgURL) != "" {
+		updated.OnboardingBgURL = limitLen(in.OnboardingBgURL, 500)
+	}
+	if strings.TrimSpace(in.WelcomeTitle) != "" {
+		updated.WelcomeTitle = limitLen(in.WelcomeTitle, 150)
+	}
+	if strings.TrimSpace(in.WelcomeSubtitle) != "" {
+		updated.WelcomeSubtitle = limitLen(in.WelcomeSubtitle, 255)
+	}
+	if strings.TrimSpace(in.LoginTitle) != "" {
+		updated.LoginTitle = limitLen(in.LoginTitle, 150)
+	}
+	if strings.TrimSpace(in.LoginSubtitle) != "" {
+		updated.LoginSubtitle = limitLen(in.LoginSubtitle, 255)
+	}
+	if strings.TrimSpace(in.TermsVersion) != "" {
+		updated.TermsVersion = limitLen(in.TermsVersion, 50)
+	}
+	if strings.TrimSpace(in.HomeGreeting) != "" {
+		updated.HomeGreeting = limitLen(in.HomeGreeting, 150)
+	}
+	if strings.TrimSpace(in.AnnouncementText) != "" {
+		updated.AnnouncementText = limitLen(in.AnnouncementText, 1000)
+	}
+	if strings.TrimSpace(in.TermsPdfURL) != "" {
+		updated.TermsPdfURL = limitLen(in.TermsPdfURL, 500)
+	}
+	if strings.TrimSpace(in.PrivacyPdfURL) != "" {
+		updated.PrivacyPdfURL = limitLen(in.PrivacyPdfURL, 500)
+	}
+	if strings.TrimSpace(in.QuickMenuConfig) != "" {
+		updated.QuickMenuConfig = limitLen(in.QuickMenuConfig, 2000)
+	}
+	updated.CallCenter = limitLen(in.CallCenter, 50)
+	updated.WhatsAppCS = limitLen(in.WhatsAppCS, 50)
 	updated.EmailCS = limitLen(in.EmailCS, 100)
 	updated.WebsiteURL = limitLen(in.WebsiteURL, 255)
 	updated.HeadOfficeAddress = limitLen(in.HeadOfficeAddress, 500)
 	updated.MaintenanceMode = in.MaintenanceMode
 	updated.MaintenanceMessage = limitLen(in.MaintenanceMessage, 255)
-	updated.MinTransferAmount = in.MinTransferAmount
-	updated.DailyTransferLimit = in.DailyTransferLimit
-	updated.InterbankTransferFee = in.InterbankTransferFee
-	updated.EnforceDeviceBinding = true // device binding cannot be disabled from the console
+
+	if s.cfg != nil && (s.cfg.DeviceBindingMode == "required" || s.cfg.DeviceBindingMode == "enforced") {
+		updated.EnforceDeviceBinding = true
+	} else if in.EnforceDeviceBinding != nil {
+		updated.EnforceDeviceBinding = *in.EnforceDeviceBinding
+	}
+
 	if in.MaxLoginAttempts > 0 {
 		updated.MaxLoginAttempts = in.MaxLoginAttempts
 	}
 	updated.OTPProvider = provider
 	updated.OTPGatewayURL = limitLen(in.OTPGatewayURL, 255)
 
-	secretChanges := []string{}
+	var diffs []string
+	addDiff := func(name, oldVal, newVal string) {
+		if oldVal != newVal {
+			diffs = append(diffs, fmt.Sprintf("%s: %q -> %q", name, oldVal, newVal))
+		}
+	}
+	addDiff("bank_name", current.BankName, updated.BankName)
+	addDiff("bank_short_name", current.BankShortName, updated.BankShortName)
+	addDiff("tagline", current.Tagline, updated.Tagline)
+	addDiff("logo_url", current.LogoURL, updated.LogoURL)
+	addDiff("call_center", current.CallCenter, updated.CallCenter)
+	addDiff("whatsapp_cs", current.WhatsAppCS, updated.WhatsAppCS)
+	addDiff("email_cs", current.EmailCS, updated.EmailCS)
+	addDiff("website_url", current.WebsiteURL, updated.WebsiteURL)
+	addDiff("head_office_address", current.HeadOfficeAddress, updated.HeadOfficeAddress)
+	addDiff("maintenance_mode", fmt.Sprintf("%t", current.MaintenanceMode), fmt.Sprintf("%t", updated.MaintenanceMode))
+	addDiff("maintenance_message", current.MaintenanceMessage, updated.MaintenanceMessage)
+	addDiff("enforce_device_binding", fmt.Sprintf("%t", current.EnforceDeviceBinding), fmt.Sprintf("%t", updated.EnforceDeviceBinding))
+	addDiff("max_login_attempts", fmt.Sprintf("%d", current.MaxLoginAttempts), fmt.Sprintf("%d", updated.MaxLoginAttempts))
+	addDiff("otp_provider", current.OTPProvider, updated.OTPProvider)
+	addDiff("otp_gateway_url", current.OTPGatewayURL, updated.OTPGatewayURL)
+
 	if in.ClearOTPGatewayToken {
 		updated.OTPGatewayToken = ""
-		secretChanges = append(secretChanges, "otp_gateway_token dihapus")
-	} else if t := strings.TrimSpace(in.OTPGatewayToken); t != "" {
-		updated.OTPGatewayToken = t
-		secretChanges = append(secretChanges, "otp_gateway_token diganti")
+		diffs = append(diffs, "otp_gateway_token: [SET] -> [CLEARED]")
+	} else if in.OTPGatewayToken != nil {
+		if t := strings.TrimSpace(*in.OTPGatewayToken); t != "" {
+			enc, encErr := crypto.EncryptString(t)
+			if encErr != nil {
+				return nil, encErr
+			}
+			updated.OTPGatewayToken = enc
+			diffs = append(diffs, "otp_gateway_token: [REDACTED] -> [ENCRYPTED_NEW]")
+		}
 	}
 
 	if err := s.repo.UpdateAppConfig(ctx, &updated); err != nil {
 		return nil, err
 	}
-	s.audit(ctx, "UPDATE_BANK_CONFIG", updated.BankShortName, "SUCCESS",
-		fmt.Sprintf("Memperbarui konfigurasi (OTP provider: %s; limit harian: %s; maintenance: %t; secret: %s)",
-			updated.OTPProvider, money.FormatIDR(updated.DailyTransferLimit), updated.MaintenanceMode, strings.Join(append(secretChanges, "-"), ", ")))
+	diffSummary := "tidak ada perubahan nilai"
+	if len(diffs) > 0 {
+		diffSummary = strings.Join(diffs, "; ")
+	}
+	s.audit(ctx, "UPDATE_CONFIG", updated.BankShortName, "SUCCESS",
+		fmt.Sprintf("Memperbarui konfigurasi sistem: %s", diffSummary))
 	return &updated, nil
 }
 
@@ -478,6 +580,115 @@ func (s *adminService) ToggleAdminStatus(ctx context.Context, id string, isActiv
 	return nil
 }
 
+func (s *adminService) UpdateAdminUser(ctx context.Context, id, fullName, email, role, password string) (*model.AdminUser, error) {
+	target, err := s.repo.FindAdminByID(ctx, id)
+	if err != nil || target == nil {
+		return nil, fmt.Errorf("%w: petugas tidak ditemukan", ErrValidation)
+	}
+	role = strings.ToUpper(strings.TrimSpace(role))
+	if role == "" {
+		role = target.Role
+	}
+	if !model.IsValidAdminRole(role) {
+		return nil, ErrInvalidRole
+	}
+	if target.Role == model.AdminRoleSuperAdmin && role != model.AdminRoleSuperAdmin && target.IsActive {
+		if id == currentAdminID(ctx) {
+			return nil, ErrSelfModification
+		}
+		n, err := s.repo.CountActiveSuperAdmins(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if n == 0 {
+			return nil, ErrLastSuperAdmin
+		}
+	}
+
+	newFullName := limitLen(fullName, 100)
+	if newFullName == "" {
+		newFullName = target.FullName
+	}
+	newEmail := limitLen(email, 100)
+
+	pwHash := ""
+	if strings.TrimSpace(password) != "" {
+		if len(password) < 12 {
+			return nil, fmt.Errorf("%w: password petugas minimal 12 karakter", ErrValidation)
+		}
+		if err := security.ValidateNewPassword(password); err != nil {
+			return nil, err
+		}
+		h, err := security.HashPassword(password)
+		if err != nil {
+			return nil, err
+		}
+		pwHash = h
+	}
+
+	if err := s.repo.UpdateAdminUser(ctx, id, newFullName, newEmail, role, pwHash); err != nil {
+		return nil, err
+	}
+
+	var diffs []string
+	if target.FullName != newFullName {
+		diffs = append(diffs, fmt.Sprintf("full_name: %q -> %q", target.FullName, newFullName))
+	}
+	if target.Email != newEmail {
+		diffs = append(diffs, fmt.Sprintf("email: %q -> %q", target.Email, newEmail))
+	}
+	if target.Role != role {
+		diffs = append(diffs, fmt.Sprintf("role: %q -> %q", target.Role, role))
+	}
+	if pwHash != "" {
+		diffs = append(diffs, "password: [RESET_BY_SUPER_ADMIN]")
+	}
+	diffStr := "tidak ada perubahan"
+	if len(diffs) > 0 {
+		diffStr = strings.Join(diffs, "; ")
+	}
+	s.audit(ctx, "UPDATE_ADMIN_USER", target.Username, "WARNING", fmt.Sprintf("Memperbarui data petugas %s: %s", target.Username, diffStr))
+
+	updated, err := s.repo.FindAdminByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return updated, nil
+}
+
+func (s *adminService) ChangeOwnPassword(ctx context.Context, oldPassword, newPassword string) error {
+	adminID := currentAdminID(ctx)
+	if adminID == "" {
+		return ErrAdminInvalidCredentials
+	}
+	admin, err := s.repo.FindAdminByID(ctx, adminID)
+	if err != nil || admin == nil {
+		return ErrAdminInvalidCredentials
+	}
+	if !security.CheckPassword(admin.PasswordHash, oldPassword) {
+		s.audit(ctx, "ADMIN_CHANGE_PASSWORD_FAILED", admin.Username, "WARNING", "Gagal ganti password petugas: password lama salah")
+		return fmt.Errorf("%w: password lama yang Anda masukkan salah", ErrValidation)
+	}
+	if len(newPassword) < 12 {
+		return fmt.Errorf("%w: password baru petugas minimal 12 karakter", ErrValidation)
+	}
+	if err := security.ValidateNewPassword(newPassword); err != nil {
+		return err
+	}
+	if oldPassword == newPassword {
+		return fmt.Errorf("%w: password baru tidak boleh sama dengan password lama", ErrValidation)
+	}
+	pwHash, err := security.HashPassword(newPassword)
+	if err != nil {
+		return err
+	}
+	if err := s.repo.UpdateAdminPassword(ctx, admin.ID, pwHash); err != nil {
+		return err
+	}
+	s.audit(ctx, "ADMIN_CHANGE_PASSWORD", admin.Username, "SUCCESS", "Petugas berhasil mengganti password akunnya sendiri")
+	return nil
+}
+
 func (s *adminService) DeleteAdminUser(ctx context.Context, id string) error {
 	if err := s.guardAdminChange(ctx, id, true); err != nil {
 		return err
@@ -489,8 +700,8 @@ func (s *adminService) DeleteAdminUser(ctx context.Context, id string) error {
 	return nil
 }
 
-func (s *adminService) ListAuditLogs(ctx context.Context, actorType string, limit int) ([]model.AuditLog, error) {
-	return s.repo.ListAuditLogs(ctx, actorType, limit)
+func (s *adminService) ListAuditLogs(ctx context.Context, filter repository.AuditLogFilter) ([]model.AuditLog, error) {
+	return s.repo.ListAuditLogs(ctx, filter)
 }
 
 func (s *adminService) ListAllApplications(ctx context.Context, productType string, limit int) ([]model.ProductApplication, error) {

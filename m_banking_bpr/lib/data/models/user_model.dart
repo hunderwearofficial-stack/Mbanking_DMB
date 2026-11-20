@@ -1,8 +1,11 @@
+import 'device_binding_model.dart';
+
 class UserModel {
   final String id;
   final String nik;
   final String cif;
   final String fullName;
+  final String username;
   final String phoneNumber;
   final String email;
   final String alamat;
@@ -21,6 +24,7 @@ class UserModel {
     this.nik = '',
     required this.cif,
     required this.fullName,
+    this.username = '',
     required this.phoneNumber,
     required this.email,
     this.alamat = '',
@@ -41,6 +45,7 @@ class UserModel {
       nik: json['nik'] ?? '',
       cif: json['cif'] ?? '',
       fullName: json['full_name'] ?? json['nama'] ?? '',
+      username: json['username'] ?? '',
       phoneNumber: json['phone_number'] ?? json['nohp'] ?? '',
       email: json['email'] ?? '',
       alamat: json['alamat'] ?? '',
@@ -61,6 +66,7 @@ class UserModel {
         'nik': nik,
         'cif': cif,
         'full_name': fullName,
+        'username': username,
         'phone_number': phoneNumber,
         'email': email,
         'alamat': alamat,
@@ -84,6 +90,7 @@ class AuthResponseModel {
   final String tokenType;
   final int expiresIn;
   final UserModel user;
+  final DeviceBindingStatusModel? deviceBinding;
 
   AuthResponseModel({
     required this.accessToken,
@@ -91,6 +98,7 @@ class AuthResponseModel {
     required this.tokenType,
     required this.expiresIn,
     required this.user,
+    this.deviceBinding,
   });
 
   factory AuthResponseModel.fromJson(Map<String, dynamic> json) {
@@ -100,6 +108,9 @@ class AuthResponseModel {
       tokenType: json['token_type'] ?? 'Bearer',
       expiresIn: json['expires_in'] ?? 900,
       user: UserModel.fromJson(json['user'] ?? {}),
+      deviceBinding: json['device_binding'] is Map<String, dynamic>
+          ? DeviceBindingStatusModel.fromJson(json['device_binding'] as Map<String, dynamic>)
+          : null,
     );
   }
 }

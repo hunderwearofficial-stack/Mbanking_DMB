@@ -111,8 +111,6 @@ menerus, periksa jam HP/server (NTP) dan log `refresh`.
 | Gejala | Solusi |
 |---|---|
 | Saldo/mutasi "belum dapat ditampilkan" (503) | Local: pastikan `ENABLE_MOCK_CBS=true`. Server: `GET /api/v1/admin/cbs/health`, cek jaringan keluar 443, kredensial CBS, `CBS_TIMEOUT_SEC`; hubungi vendor |
-| Transfer "Status Transaksi Sedang Diverifikasi" | Jangan transfer ulang; **Periksa Status** (kunci idempotensi sama); rekonsiliasi dengan CBS |
-| Transfer `UNKNOWN` menumpuk | Aktifkan `maintenance_mode`; rekonsiliasi |
 
 ## 10. OTP gagal
 
@@ -163,3 +161,19 @@ Jangan menonaktifkan pinning di build production sebagai solusi.
 | "Setujui & Publikasikan" nonaktif | Anda pembuat/pengaju revisi (maker-checker) atau peran tidak berwenang | Minta petugas lain (SUPER_ADMIN/MARKETING/COMPLIANCE) menyetujui |
 | Nilai konten ditolak (422) | Tidak sesuai aturan elemen (panjang, `<`/`>`, gambar bukan unggahan/https, nomor/email tidak valid) | Perbaiki sesuai pesan; nilai tidak valid juga diabaikan aplikasi |
 | Backoffice di port selain 8080 gagal memanggil API | (diperbaiki) konsol kini selalu memanggil API pada origin yang sama | Muat ulang halaman (Ctrl+F5) |
+
+## Device binding & kunci keamanan perangkat
+
+| Gejala | Penyebab | Tindakan |
+|---|---|---|
+| "Login tidak dapat diproses. Periksa kembali nomor handphone dan password …" (403/08) | Salah satu dari: nomor/password salah dari perangkat yang belum terikat, akun tidak dikenal, atau perangkat/ID berbeda dari binding (HP baru, reset pabrik, ganti signing key, ID versi lama). Jawaban sengaja sama (anti-oracle); alasan sebenarnya ada di Audit Trail | Periksa nomor dan password; bila benar, Lupa Password (OTP) |
+| "Kunci keamanan perangkat tidak memenuhi kebijakan verifikasi hardware …" (403/13) | `DEVICE_ATTESTATION_MODE=enforce` dan kunci nasabah terdaftar tanpa bukti hardware (masa `observe`) | Lupa Password (OTP), lalu kunci terverifikasi didaftarkan otomatis |
+| "Kunci keamanan perangkat ini tidak ditemukan …" (403/10) | Kunci lokal hilang (clear data / reinstall Android) sementara server masih punya kunci | Lupa Password (OTP) |
+| "Verifikasi kunci keamanan perangkat diperlukan. Perbarui aplikasi" (403/10) | Aplikasi versi lama tanpa dukungan kunci | Perbarui aplikasi; bila tetap, Lupa Password |
+| "Perangkat Anda belum memiliki kunci keamanan" (403/11) | Mode `enforced`, kunci belum terdaftar | Lupa Password (OTP) membuka jendela pendaftaran |
+| Pendaftaran ditolak (403/13) | Attestation gagal: bootloader terbuka, ROM tidak resmi, aplikasi tidak resmi, perangkat tanpa kunci hardware | Gunakan perangkat resmi; alasan rinci di Audit Trail (`DEVICE_ATTESTATION_FAILED`) |
+| "Identitas perangkat belum dapat dibaca. Buka kunci perangkat" | Keychain iOS belum tersedia sebelum unlock pertama | Buka kunci perangkat lalu ulangi |
+| "Penyimpanan aman perangkat tidak dapat diakses" | Secure storage OS gagal | Mulai ulang aplikasi; bila berulang, reinstall lalu Lupa Password |
+| Backend tidak mau start: `DEVICE_… wajib diisi eksplisit` | Variabel device binding tidak diset di staging/production | Lengkapi sesuai ENVIRONMENT_SETUP.md §7 |
+| Backend tidak mau start: `DEVICE_ATTESTATION_…_FILE` | File root/revocation tidak ada atau rusak | Perbaiki path/isi file (fail-closed) |
+| Build release Android ditolak | Keystore resmi tidak dikonfigurasi | DEPLOYMENT_AND_CICD.md §7.1 |

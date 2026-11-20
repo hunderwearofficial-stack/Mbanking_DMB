@@ -51,10 +51,5 @@
 	<string>Aplikasi membutuhkan akses kamera untuk pemindaian QR dan dokumen nasabah.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Aplikasi membutuhkan akses galeri foto untuk pengunggahan dokumen.</string>
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSAllowsArbitraryLoads</key>
-		<true/>
-	</dict>
 </dict>
 </plist>

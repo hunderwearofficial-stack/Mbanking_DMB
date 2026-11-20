@@ -9,7 +9,6 @@ import (
 	"mbanking-bpr/internal/domain"
 )
 
-// fakeCBS implements only what the resolver needs; other methods panic if called.
 type fakeCBS struct {
 	cbsprovider.CBSProvider
 	savings map[string][]string

@@ -1,6 +1,3 @@
-// Package pdfdoc renders a legal document version as an A4 portrait PDF with a formal
-// layout: bank header with logo, document metadata, numbered clauses as written in the
-// content, footer with page numbers. The template adds layout only — never wording.
 package pdfdoc
 
 import (
@@ -24,7 +21,6 @@ var fontBold []byte
 //go:embed assets/bank_logo.png
 var bankLogo []byte
 
-// Template identity (fixed text of the PDF template, not of the document content).
 const (
 	BankName        = "PT BPR Dana Mandiri Bogor"
 	BankNameUpper   = "PT BPR DANA MANDIRI BOGOR"
@@ -33,12 +29,8 @@ const (
 	TemplateVersion = "sk-pdf-template/1"
 )
 
-// Meta is the version metadata printed on the document: DocumentNumber is printed only
-// when an official number exists; PublishedAt/EffectiveFrom are nil for a draft; Draft
-// prints a "DRAF" marker on every page.
 type Meta = legaldoc.RenderMeta
 
-// RenderPDF adapts Render to legaldoc.Renderer.
 func RenderPDF(c *legaldoc.Content, m Meta) ([]byte, error) {
 	res, err := Render(c, m)
 	if err != nil {
@@ -47,7 +39,6 @@ func RenderPDF(c *legaldoc.Content, m Meta) ([]byte, error) {
 	return res.PDF, nil
 }
 
-// Result is the rendered PDF plus the text that was laid out (for verification).
 type Result struct {
 	PDF   []byte
 	Pages int
@@ -59,19 +50,16 @@ var wib = time.FixedZone("WIB", 7*3600)
 var months = [...]string{"Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli",
 	"Agustus", "September", "Oktober", "November", "Desember"}
 
-// FormatDate formats a date in Indonesian (e.g. "14 November 2026"), WIB.
 func FormatDate(t time.Time) string {
 	t = t.In(wib)
 	return fmt.Sprintf("%d %s %d", t.Day(), months[t.Month()-1], t.Year())
 }
 
-// FormatDateTime formats date and time in Indonesian, WIB.
 func FormatDateTime(t time.Time) string {
 	t = t.In(wib)
 	return fmt.Sprintf("%s, %02d.%02d WIB", FormatDate(t), t.Hour(), t.Minute())
 }
 
-// Page geometry (points). A4 = 595 × 842.
 const (
 	pageW        = 595.0
 	pageH        = 842.0
@@ -131,7 +119,6 @@ func (l *layout) width(text string, bold bool, size float64) (float64, error) {
 	return l.pdf.MeasureTextWidth(text)
 }
 
-// wrap splits text into lines no wider than maxW (words longer than a line are split).
 func (l *layout) wrap(text string, bold bool, size, maxW float64) ([]string, error) {
 	var out []string
 	for _, para := range strings.Split(text, "\n") {
@@ -158,7 +145,6 @@ func (l *layout) wrap(text string, bold bool, size, maxW float64) ([]string, err
 				out = append(out, cur)
 				cur = ""
 			}
-			// the word alone may still be too long: split by characters
 			ww, err := l.width(w, bold, size)
 			if err != nil {
 				return nil, err
@@ -188,7 +174,6 @@ func (l *layout) wrap(text string, bold bool, size, maxW float64) ([]string, err
 	return out, nil
 }
 
-// paragraph appends wrapped text at indent x.
 func (l *layout) paragraph(text string, x float64, bold bool, size float64, c color, spaceBefore float64, keep bool) error {
 	lines, err := l.wrap(text, bold, size, contentWidth-(x-marginLeft))
 	if err != nil {
@@ -209,7 +194,6 @@ func (l *layout) paragraph(text string, x float64, bold bool, size float64, c co
 	return nil
 }
 
-// row appends a "label : value" row with a fixed label column.
 func (l *layout) row(label, value string, labelW float64, size float64, spaceBefore float64) error {
 	colon := ":"
 	cw, err := l.width(colon+" ", false, size)
@@ -256,7 +240,6 @@ func (l *layout) rule(spaceBefore float64) {
 	l.lines = append(l.lines, line{rule: true, height: 8, spaceBefore: spaceBefore})
 }
 
-// Render produces the PDF for one version.
 func Render(c *legaldoc.Content, m Meta) (*Result, error) {
 	if c == nil {
 		return nil, errors.New("isi dokumen kosong")
@@ -286,7 +269,6 @@ func Render(c *legaldoc.Content, m Meta) (*Result, error) {
 		CreationDate: m.GeneratedAt,
 	})
 
-	// ---- layout pass -------------------------------------------------------------
 	if err := l.paragraph(DocumentTitle, marginLeft, true, 14, cBrand, 0, true); err != nil {
 		return nil, err
 	}
@@ -378,7 +360,6 @@ func Render(c *legaldoc.Content, m Meta) (*Result, error) {
 		return nil, fmt.Errorf("%w: karakter tidak tersedia pada font PDF (U+%04X)", legaldoc.ErrInvalidContent, l.glyphMu[0])
 	}
 
-	// ---- pagination pass ---------------------------------------------------------
 	top := contentTop
 	if m.Draft {
 		top = draftTop
@@ -393,7 +374,6 @@ func Render(c *legaldoc.Content, m Meta) (*Result, error) {
 			sb = 0
 		}
 		need := sb + ln.height
-		// keep a heading/lead-in together with the following line
 		j := i
 		for j < len(l.lines)-1 && l.lines[j].keepWithNext {
 			j++
@@ -419,7 +399,6 @@ func Render(c *legaldoc.Content, m Meta) (*Result, error) {
 	}
 	total := len(pages)
 
-	// ---- render pass -------------------------------------------------------------
 	logo, err := gopdf.ImageHolderByBytes(bankLogo)
 	if err != nil {
 		return nil, fmt.Errorf("logo: %w", err)
@@ -473,7 +452,6 @@ type placed struct {
 }
 
 func drawHeader(pdf *gopdf.GoPdf, logo gopdf.ImageHolder, m Meta) error {
-	// logo 494×197 px → keep aspect ratio
 	h := 34.0
 	w := h * 494.0 / 197.0
 	if err := pdf.ImageByHolder(logo, marginLeft, 26, &gopdf.Rect{W: w, H: h}); err != nil {

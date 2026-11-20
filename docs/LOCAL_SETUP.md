@@ -225,18 +225,15 @@ dilakukan di HP.
 | 1 | Aktivasi | Daftar Akun → CIF `990000000001`, HP `081200000001` → OTP dari jendela backend → buat kata sandi (huruf+angka, ≥ 8) & PIN 6 digit (tidak berurutan/berulang) | "Aktivasi Berhasil!" |
 | 2 | Login | Nomor HP + kata sandi | Masuk ke Beranda |
 | 3 | Saldo | Beranda | Saldo Rp 1.000.000 |
-| 4 | Mutasi | Mutasi Tabungan / Riwayat | Kosong sebelum ada transfer |
-| 5 | Transfer | Transfer DMB → rekening `9900000000002` → nominal `15000` → periksa nama "Nasabah Uji Dua" → Transfer Sekarang → PIN | "Transfer Berhasil" + nomor referensi; saldo turun Rp 15.000 |
-| 6 | Rekening tujuan tidak ada | rekening `9900000009999` | Ditolak; saldo tidak berubah |
-| 7 | Di bawah minimum | nominal `5000` | Ditolak (minimum default Rp 10.000) |
-| 8 | PIN salah 3× | — | Akun diblokir otomatis (buka via konsol admin) |
-| 9 | Pinjaman/Deposito | menu terkait | Kosong (ledger local tidak berisi data ini) |
-| 10 | Katalog Produk | menu terkait | Pesan gangguan (katalog hanya dari CBS) |
-| 11 | Backend mati | Ctrl+C di jendela `run-api.ps1`, tarik-segarkan Beranda | "Saldo belum dapat diperbarui…"; tidak tampil Rp 0 |
-| 12 | Database mati | `.\scripts\local\stop-db.ps1` | Pesan gangguan; `/ready` = `NOT_READY`. Nyalakan lagi `start-db.ps1` |
-| 13 | Logout | Profil → Keluar dari Aplikasi | Kembali ke layar login |
-| 14 | SK gagal dimuat | Matikan backend lalu buka halaman SK | Pesan gangguan + **Coba Lagi**; tombol setuju tetap nonaktif |
-| 15 | Persetujuan ulang | Terbitkan SK versi 2 di backoffice (draf baru → PDF → ajukan → setujui petugas lain), lalu login lagi di HP | Aplikasi membuka halaman SK versi 2; setelah disetujui, login berhasil; riwayat persetujuan v1 dan v2 terlihat di backoffice |
+| 4 | Mutasi | Mutasi Tabungan / Riwayat | Kosong bila ledger local belum berisi mutasi |
+| 5 | PIN salah 3× | Profil → Ganti PIN dengan PIN lama salah 3× | Akun diblokir otomatis (buka via konsol admin) |
+| 6 | Pinjaman/Deposito | menu terkait | Kosong (ledger local tidak berisi data ini) |
+| 7 | Katalog Produk | menu terkait | Pesan gangguan (katalog hanya dari CBS) |
+| 8 | Backend mati | Ctrl+C di jendela `run-api.ps1`, tarik-segarkan Beranda | "Saldo belum dapat diperbarui…"; tidak tampil Rp 0 |
+| 9 | Database mati | `.\scripts\local\stop-db.ps1` | Pesan gangguan; `/ready` = `NOT_READY`. Nyalakan lagi `start-db.ps1` |
+| 10 | Logout | Profil → Keluar dari Aplikasi | Kembali ke layar login |
+| 11 | SK gagal dimuat | Matikan backend lalu buka halaman SK | Pesan gangguan + **Coba Lagi**; tombol setuju tetap nonaktif |
+| 12 | Persetujuan ulang | Terbitkan SK versi 2 di backoffice (draf baru → PDF → ajukan → setujui petugas lain), lalu login lagi di HP | Aplikasi membuka halaman SK versi 2; setelah disetujui, login berhasil; riwayat persetujuan v1 dan v2 terlihat di backoffice |
 
 ### Simulasi CBS tidak dapat dihubungi (tanpa mengubah `.env`)
 
@@ -249,8 +246,7 @@ $env:CBS_CLIENT_ID="uji-timeout"; $env:CBS_CLIENT_SECRET="uji-timeout-bukan-kred
 go run ./cmd/api
 ```
 
-Diharapkan: login berhasil; saldo, mutasi, dan transfer menampilkan pesan gangguan (HTTP 503),
-tidak ada dana bergerak. Selesai: Ctrl+C lalu tutup jendela PowerShell.
+Diharapkan: login berhasil; saldo dan mutasi menampilkan pesan gangguan (HTTP 503). Selesai: Ctrl+C lalu tutup jendela PowerShell.
 
 ## 14. Pengujian otomatis
 

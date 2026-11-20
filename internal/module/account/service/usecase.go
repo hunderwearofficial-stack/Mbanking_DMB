@@ -3,14 +3,15 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
+	"time"
 
 	"mbanking-bpr/internal/cbsprovider"
 	"mbanking-bpr/internal/domain"
 	"mbanking-bpr/internal/ownership"
 )
 
-// Caller is the authenticated customer (always derived from the verified token).
 type Caller struct {
 	UserID       string
 	CIF          string
@@ -19,13 +20,76 @@ type Caller struct {
 
 var ErrForbidden = ownership.ErrNotOwned
 
-// AccountService enforces object-level authorization on every read (audit DMB-005):
-// the CIF always comes from the token, and any account number supplied by the
-// client must belong to that CIF.
+// ErrInvalidQuery: malformed mutation date range or limit (audit D-08).
+var ErrInvalidQuery = errors.New("parameter riwayat mutasi tidak valid")
+
+const (
+	maxMutationRangeDays = 31
+	maxMutationLimit     = 50
+	defaultMutationLimit = 20
+)
+
+// validateRange enforces the documented contract server-side: YYYY-MM-DD dates, start <=
+// end, at most 31 days, not in the future. Empty dates let the CBS apply its default period.
+func validateRange(start, end string) error {
+	start, end = strings.TrimSpace(start), strings.TrimSpace(end)
+	if start == "" && end == "" {
+		return nil
+	}
+	if start == "" || end == "" {
+		return fmt.Errorf("%w: Tanggal awal dan tanggal akhir harus diisi bersamaan", ErrInvalidQuery)
+	}
+	s, err1 := time.Parse("2006-01-02", start)
+	e, err2 := time.Parse("2006-01-02", end)
+	if err1 != nil || err2 != nil {
+		return fmt.Errorf("%w: format tanggal harus YYYY-MM-DD", ErrInvalidQuery)
+	}
+	if e.Before(s) {
+		return fmt.Errorf("%w: tanggal akhir tidak boleh sebelum tanggal awal", ErrInvalidQuery)
+	}
+	if e.Sub(s) > time.Duration(maxMutationRangeDays)*24*time.Hour {
+		return fmt.Errorf("%w: rentang tanggal maksimal %d hari", ErrInvalidQuery, maxMutationRangeDays)
+	}
+	if s.After(time.Now().Add(24 * time.Hour)) {
+		return fmt.Errorf("%w: tanggal awal tidak boleh di masa depan", ErrInvalidQuery)
+	}
+	return nil
+}
+
+func clampLimit(limit int) int {
+	if limit <= 0 {
+		return defaultMutationLimit
+	}
+	if limit > maxMutationLimit {
+		return maxMutationLimit
+	}
+	return limit
+}
+
+// maskTail keeps the last n characters of s.
+func maskTail(s string, keep int) string {
+	s = strings.TrimSpace(s)
+	if s == "" || len(s) <= keep {
+		return s
+	}
+	return strings.Repeat("*", len(s)-keep) + s[len(s)-keep:]
+}
+
+// maskWords keeps the first word of an address.
+func maskWords(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return s
+	}
+	if i := strings.IndexByte(s, ' '); i > 0 {
+		return s[:i] + " ***"
+	}
+	return "***"
+}
+
 type AccountService interface {
 	GetBalance(ctx context.Context, caller Caller, requestedAccount string) (*domain.BalanceResponse, error)
 	GetMutations(ctx context.Context, caller Caller, query domain.MutationQueryParam) (string, []domain.Mutation, error)
-	InquiryRecipient(ctx context.Context, accountNo string) (*domain.BalanceResponse, error)
 	GetCustomerProfile(ctx context.Context, caller Caller) (*domain.CBSNasabahData, error)
 	GetSavingsAccounts(ctx context.Context, caller Caller) ([]domain.CBSSavingsAccountItem, error)
 
@@ -49,8 +113,6 @@ func NewAccountService(cbsProv cbsprovider.CBSProvider, resolver *ownership.Reso
 	return &accountService{cbsProv: cbsProv, resolver: resolver}
 }
 
-// ownershipErr maps ownership failures: "not owned" -> ErrForbidden (403); a Core
-// Banking outage is returned as-is so the handler reports a service disruption (503).
 func ownershipErr(err error) error {
 	if errors.Is(err, cbsprovider.ErrCBSUnavailable) {
 		return err
@@ -73,7 +135,6 @@ func (s *accountService) GetBalance(ctx context.Context, caller Caller, requeste
 	if err != nil {
 		return nil, ownershipErr(err)
 	}
-	// Balance comes from Core Banking only; no cached/local substitute (audit DMB-026).
 	return s.cbsProv.GetBalance(ctx, accNo)
 }
 
@@ -85,25 +146,15 @@ func (s *accountService) GetMutations(ctx context.Context, caller Caller, query 
 	if err != nil {
 		return "", nil, ownershipErr(err)
 	}
-	limit := query.Limit
-	if limit <= 0 || limit > 100 {
-		limit = 20
+	if err := validateRange(query.StartDate, query.EndDate); err != nil {
+		return accNo, nil, err
 	}
+	limit := clampLimit(query.Limit)
 	muts, err := s.cbsProv.GetMutations(ctx, caller.CIF, accNo, query.StartDate, query.EndDate, limit)
 	if err != nil {
 		return accNo, nil, err
 	}
 	return accNo, muts, nil
-}
-
-// InquiryRecipient verifies a transfer destination. Only the minimum fields needed
-// to confirm the beneficiary are returned by the handler (never balances).
-func (s *accountService) InquiryRecipient(ctx context.Context, accountNo string) (*domain.BalanceResponse, error) {
-	accountNo = strings.TrimSpace(accountNo)
-	if accountNo == "" || len(accountNo) > 30 {
-		return nil, cbsprovider.ErrAccountNotFound
-	}
-	return s.cbsProv.GetBalance(ctx, accountNo)
 }
 
 func (s *accountService) GetCustomerProfile(ctx context.Context, caller Caller) (*domain.CBSNasabahData, error) {
@@ -119,6 +170,13 @@ func (s *accountService) GetCustomerProfile(ctx context.Context, caller Caller) 
 	}
 	sanitized := *data
 	sanitized.NamaIbuKandung = "" // knowledge-based verification secret: never sent to clients (audit DMB-022)
+	// SECURITY (audit D-09): identity data is masked by the server; the full values are only
+	// returned by POST /account/profile/reveal after a server-side PIN check.
+	sanitized.NIK = maskTail(sanitized.NIK, 4)
+	sanitized.Alamat = maskWords(sanitized.Alamat)
+	if sanitized.TglLahir != "" {
+		sanitized.TglLahir = "**-**-****"
+	}
 	return &sanitized, nil
 }
 
@@ -147,7 +205,10 @@ func (s *accountService) GetLoanMutations(ctx context.Context, caller Caller, ac
 	if err := s.resolver.OwnsLoan(ctx, caller.CIF, accountNo); err != nil {
 		return nil, ownershipErr(err)
 	}
-	return s.cbsProv.GetLoanMutations(ctx, caller.CIF, accountNo, startDate, endDate, limit)
+	if err := validateRange(startDate, endDate); err != nil {
+		return nil, err
+	}
+	return s.cbsProv.GetLoanMutations(ctx, caller.CIF, accountNo, startDate, endDate, clampLimit(limit))
 }
 
 func (s *accountService) GetDeposits(ctx context.Context, caller Caller) ([]domain.DMBDepositAccountItem, error) {
@@ -168,7 +229,10 @@ func (s *accountService) GetDepositMutations(ctx context.Context, caller Caller,
 	if err := s.resolver.OwnsDeposit(ctx, caller.CIF, accountNo); err != nil {
 		return nil, ownershipErr(err)
 	}
-	return s.cbsProv.GetDepositMutations(ctx, caller.CIF, accountNo, startDate, endDate, limit)
+	if err := validateRange(startDate, endDate); err != nil {
+		return nil, err
+	}
+	return s.cbsProv.GetDepositMutations(ctx, caller.CIF, accountNo, startDate, endDate, clampLimit(limit))
 }
 
 func (s *accountService) GetProductsCatalog(ctx context.Context) (*domain.DMBProductsCatalog, error) {

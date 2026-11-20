@@ -8,15 +8,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// Token design (audit DMB-001, DMB-014):
-//   - Customer tokens and backoffice tokens are signed with DIFFERENT keys and
-//     carry different audiences and token types, so one can never be accepted
-//     in place of the other.
-//   - Customer tokens carry a server-side session id ("sid"). The session is
-//     checked on every request and on refresh, enabling logout/revocation and
-//     refresh-token rotation with reuse detection.
-//   - Only HS256 is accepted (explicit algorithm allow-list).
-
 var (
 	ErrInvalidToken     = errors.New("token tidak valid atau telah kadaluarsa")
 	ErrInvalidTokenType = errors.New("tipe token tidak sesuai")
@@ -26,25 +17,26 @@ const (
 	TokenTypeAccess  = "ACCESS"
 	TokenTypeRefresh = "REFRESH"
 	TokenTypeAdmin   = "ADMIN"
+	// TokenTypeAdminMFASetup authorises only the officer's own TOTP enrolment (audit E-01).
+	TokenTypeAdminMFASetup = "ADMIN_MFA_SETUP"
 
 	TokenIssuer        = "mbanking-bpr-middleware"
 	AudienceMobile     = "dmb-mobile"
 	AudienceBackoffice = "dmb-backoffice"
 )
 
-// JWTClaims holds claims for customer (mobile) tokens.
 type JWTClaims struct {
 	UserID      string `json:"user_id"`
 	CIF         string `json:"cif"`
 	PhoneNumber string `json:"phone_number"`
 	AccountNo   string `json:"account_no"`
 	DeviceID    string `json:"device_id"`
+	DeviceKeyID string `json:"dk,omitempty"`
 	SessionID   string `json:"sid"`
 	TokenType   string `json:"token_type"`
 	jwt.RegisteredClaims
 }
 
-// AdminClaims holds claims for backoffice tokens.
 type AdminClaims struct {
 	AdminID   string `json:"admin_id"`
 	Username  string `json:"username"`
@@ -53,7 +45,6 @@ type AdminClaims struct {
 	jwt.RegisteredClaims
 }
 
-// TokenPair contains generated access and refresh tokens
 type TokenPair struct {
 	AccessToken    string    `json:"access_token"`
 	RefreshToken   string    `json:"refresh_token"`
@@ -62,17 +53,16 @@ type TokenPair struct {
 	RefreshTokenID string    `json:"-"` // jti of the refresh token (stored server-side)
 }
 
-// CustomerTokenInput describes the subject of a customer token pair.
 type CustomerTokenInput struct {
 	UserID      string
 	CIF         string
 	PhoneNumber string
 	AccountNo   string
 	DeviceID    string
+	DeviceKeyID string
 	SessionID   string
 }
 
-// GenerateTokenPair generates a short-lived access token and a refresh token bound to a server-side session.
 func GenerateTokenPair(in CustomerTokenInput, secret string, accessExp time.Duration, refreshExp time.Duration) (*TokenPair, error) {
 	if secret == "" || in.SessionID == "" || in.UserID == "" {
 		return nil, ErrInvalidToken
@@ -89,6 +79,7 @@ func GenerateTokenPair(in CustomerTokenInput, secret string, accessExp time.Dura
 			PhoneNumber: in.PhoneNumber,
 			AccountNo:   in.AccountNo,
 			DeviceID:    in.DeviceID,
+			DeviceKeyID: in.DeviceKeyID,
 			SessionID:   in.SessionID,
 			TokenType:   tokenType,
 			RegisteredClaims: jwt.RegisteredClaims{
@@ -150,18 +141,21 @@ func parseCustomer(tokenString, secret, expectedType string) (*JWTClaims, error)
 	return claims, nil
 }
 
-// ValidateAccessToken parses and verifies a customer access token.
 func ValidateAccessToken(tokenString, secret string) (*JWTClaims, error) {
 	return parseCustomer(tokenString, secret, TokenTypeAccess)
 }
 
-// ValidateRefreshToken parses and verifies a customer refresh token.
 func ValidateRefreshToken(tokenString, secret string) (*JWTClaims, error) {
 	return parseCustomer(tokenString, secret, TokenTypeRefresh)
 }
 
-// GenerateAdminToken issues a backoffice token signed with the admin key.
 func GenerateAdminToken(adminID, username, role, secret string, ttl time.Duration) (string, time.Time, error) {
+	return GenerateAdminTokenOfType(TokenTypeAdmin, adminID, username, role, secret, ttl)
+}
+
+// GenerateAdminTokenOfType issues a backoffice token of the given type (full session or
+// MFA-enrolment only).
+func GenerateAdminTokenOfType(tokenType, adminID, username, role, secret string, ttl time.Duration) (string, time.Time, error) {
 	if secret == "" || adminID == "" || role == "" {
 		return "", time.Time{}, ErrInvalidToken
 	}
@@ -171,7 +165,7 @@ func GenerateAdminToken(adminID, username, role, secret string, ttl time.Duratio
 		AdminID:   adminID,
 		Username:  username,
 		Role:      role,
-		TokenType: TokenTypeAdmin,
+		TokenType: tokenType,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ID:        uuid.NewString(),
 			Subject:   adminID,
@@ -186,8 +180,12 @@ func GenerateAdminToken(adminID, username, role, secret string, ttl time.Duratio
 	return s, exp, err
 }
 
-// ValidateAdminToken parses and verifies a backoffice token.
 func ValidateAdminToken(tokenString, secret string) (*AdminClaims, error) {
+	return ValidateAdminTokenOfType(tokenString, secret, TokenTypeAdmin)
+}
+
+// ValidateAdminTokenOfType validates a backoffice token and requires the given type.
+func ValidateAdminTokenOfType(tokenString, secret, tokenType string) (*AdminClaims, error) {
 	if secret == "" {
 		return nil, ErrInvalidToken
 	}
@@ -203,7 +201,7 @@ func ValidateAdminToken(tokenString, secret string) (*AdminClaims, error) {
 		return nil, ErrInvalidToken
 	}
 	claims, ok := token.Claims.(*AdminClaims)
-	if !ok || !token.Valid || claims.TokenType != TokenTypeAdmin || claims.AdminID == "" || claims.Role == "" {
+	if !ok || !token.Valid || claims.TokenType != tokenType || claims.AdminID == "" || claims.Role == "" {
 		return nil, ErrInvalidToken
 	}
 	return claims, nil

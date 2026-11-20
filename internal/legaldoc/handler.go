@@ -15,19 +15,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Response codes specific to consent (see pkg/response for the common ones).
 const (
 	CodeConsentRequired  = "10"
 	CodeTermsUnavailable = "11"
 	CodeVersionNotActive = "12"
 )
 
-// Handler exposes the public, customer and back-office endpoints.
 type Handler struct{ svc *Service }
 
 func NewHandler(svc *Service) *Handler { return &Handler{svc: svc} }
 
-// ActiveMeta is what the app needs to show and accept the document in force.
 type ActiveMeta struct {
 	DocumentID         string     `json:"document_id"`
 	Title              string     `json:"title"`
@@ -59,7 +56,6 @@ func activeMeta(v *Version, c *Content) ActiveMeta {
 	return m
 }
 
-// WriteError maps service errors to HTTP responses (used by auth handlers too).
 func WriteError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, ErrNoActiveVersion):
@@ -82,9 +78,6 @@ func WriteError(c *gin.Context, err error) {
 	}
 }
 
-// ---- public -------------------------------------------------------------------------
-
-// Active handles GET /api/v1/terms/active.
 func (h *Handler) Active(c *gin.Context) {
 	v, content, err := h.svc.Active(c.Request.Context())
 	if err != nil {
@@ -97,7 +90,6 @@ func (h *Handler) Active(c *gin.Context) {
 func writePDF(c *gin.Context, v *Version, data []byte, sha string, public bool) {
 	etag := `"` + sha + `"`
 	if public {
-		// Published versions never change: the version id + hash identify the bytes.
 		c.Header("Cache-Control", "public, max-age=86400, immutable")
 		if strings.Contains(c.GetHeader("If-None-Match"), sha) {
 			c.Header("ETag", etag)
@@ -114,7 +106,6 @@ func writePDF(c *gin.Context, v *Version, data []byte, sha string, public bool) 
 	c.Data(http.StatusOK, "application/pdf", data)
 }
 
-// PublicPDF handles GET /api/v1/terms/versions/:id/pdf (published/archived only).
 func (h *Handler) PublicPDF(c *gin.Context) {
 	v, data, err := h.svc.PublishedPDF(c.Request.Context(), c.Param("id"))
 	if err != nil {
@@ -129,7 +120,6 @@ type acceptRequest struct {
 	Accepted  bool   `json:"accepted"`
 }
 
-// AcceptPreLogin handles POST /api/v1/terms/acceptances (device consent before login).
 func (h *Handler) AcceptPreLogin(c *gin.Context) {
 	var req acceptRequest
 	if err := c.ShouldBindJSON(&req); err != nil || !req.Accepted {
@@ -150,9 +140,6 @@ func (h *Handler) AcceptPreLogin(c *gin.Context) {
 	})
 }
 
-// ---- customer ------------------------------------------------------------------------
-
-// Status handles GET /api/v1/terms/status (authenticated customer).
 func (h *Handler) Status(c *gin.Context) {
 	ok, active, acc, err := h.svc.UserConsent(c.Request.Context(), c.GetString(middleware.CtxUserID))
 	if err != nil {
@@ -166,8 +153,6 @@ func (h *Handler) Status(c *gin.Context) {
 	response.Success(c, "Status persetujuan Syarat dan Ketentuan", data)
 }
 
-// ---- back office ---------------------------------------------------------------------
-
 func actor(c *gin.Context) (Actor, bool) {
 	a, ok := ActorFromContext(c.Request.Context())
 	if !ok {
@@ -176,7 +161,6 @@ func actor(c *gin.Context) (Actor, bool) {
 	return a, ok
 }
 
-// ListVersions handles GET /admin/terms/versions.
 func (h *Handler) ListVersions(c *gin.Context) {
 	vs, err := h.svc.ListVersions(c.Request.Context())
 	if err != nil {
@@ -186,7 +170,6 @@ func (h *Handler) ListVersions(c *gin.Context) {
 	response.Success(c, "Daftar versi Syarat dan Ketentuan", vs)
 }
 
-// GetVersion handles GET /admin/terms/versions/:id.
 func (h *Handler) GetVersion(c *gin.Context) {
 	v, err := h.svc.GetVersion(c.Request.Context(), c.Param("id"))
 	if err != nil {
@@ -219,7 +202,6 @@ func (r *draftRequest) input() (DraftInput, error) {
 	return in, nil
 }
 
-// CreateDraft handles POST /admin/terms/versions.
 func (h *Handler) CreateDraft(c *gin.Context) {
 	a, ok := actor(c)
 	if !ok {
@@ -243,7 +225,6 @@ func (h *Handler) CreateDraft(c *gin.Context) {
 	response.Success(c, "Draf versi baru dibuat", v)
 }
 
-// UpdateDraft handles PUT /admin/terms/versions/:id.
 func (h *Handler) UpdateDraft(c *gin.Context) {
 	a, ok := actor(c)
 	if !ok {
@@ -267,7 +248,6 @@ func (h *Handler) UpdateDraft(c *gin.Context) {
 	response.Success(c, "Draf disimpan", v)
 }
 
-// GeneratePDF handles POST /admin/terms/versions/:id/pdf.
 func (h *Handler) GeneratePDF(c *gin.Context) {
 	a, ok := actor(c)
 	if !ok {
@@ -281,7 +261,6 @@ func (h *Handler) GeneratePDF(c *gin.Context) {
 	response.Success(c, "PDF draf dibuat", v)
 }
 
-// AdminPDF handles GET /admin/terms/versions/:id/pdf?type=draft|final.
 func (h *Handler) AdminPDF(c *gin.Context) {
 	final := c.Query("type") != "draft"
 	v, data, err := h.svc.AdminPDF(c.Request.Context(), c.Param("id"), final)
@@ -302,7 +281,6 @@ type submitRequest struct {
 	EffectiveFrom string `json:"effective_from"`
 }
 
-// Submit handles POST /admin/terms/versions/:id/submit.
 func (h *Handler) Submit(c *gin.Context) {
 	a, ok := actor(c)
 	if !ok {
@@ -314,7 +292,7 @@ func (h *Handler) Submit(c *gin.Context) {
 	if s := strings.TrimSpace(req.EffectiveFrom); s != "" {
 		t, err := time.Parse(time.RFC3339, s)
 		if err != nil {
-			response.BadRequest(c, "Format tanggal mulai berlaku harus RFC3339 (contoh 2026-12-01T00:00:00+07:00)", nil)
+			response.BadRequest(c, "Format tanggal mulai berlaku tidak valid (contoh: 2026-12-01T00:00:00+07:00)", nil)
 			return
 		}
 		eff = &t
@@ -327,7 +305,6 @@ func (h *Handler) Submit(c *gin.Context) {
 	response.Success(c, "Diajukan untuk persetujuan", v)
 }
 
-// Approve handles POST /admin/terms/versions/:id/approve.
 func (h *Handler) Approve(c *gin.Context) {
 	a, ok := actor(c)
 	if !ok {
@@ -341,7 +318,6 @@ func (h *Handler) Approve(c *gin.Context) {
 	response.Success(c, "Versi diterbitkan", v)
 }
 
-// Reject handles POST /admin/terms/versions/:id/reject.
 func (h *Handler) Reject(c *gin.Context) {
 	a, ok := actor(c)
 	if !ok {
@@ -359,7 +335,6 @@ func (h *Handler) Reject(c *gin.Context) {
 	response.Success(c, "Dikembalikan ke draf", v)
 }
 
-// Archive handles POST /admin/terms/versions/:id/archive.
 func (h *Handler) Archive(c *gin.Context) {
 	a, ok := actor(c)
 	if !ok {
@@ -373,7 +348,6 @@ func (h *Handler) Archive(c *gin.Context) {
 	response.Success(c, "Versi diarsipkan", v)
 }
 
-// ListAcceptances handles GET /admin/terms/acceptances.
 func (h *Handler) ListAcceptances(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.Query("limit"))
 	out, err := h.svc.ListAcceptances(c.Request.Context(), AcceptanceFilter{UserID: c.Query("user_id"), VersionID: c.Query("version_id"), Limit: limit})

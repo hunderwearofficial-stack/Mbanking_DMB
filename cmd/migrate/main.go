@@ -4,15 +4,19 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
+	"time"
 
 	"mbanking-bpr/config"
+	"mbanking-bpr/internal/devicebind"
 	"mbanking-bpr/pkg/database"
 
 	"github.com/joho/godotenv"
 )
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "pemakaian: migrate status | up | grants")
+	fmt.Fprintln(os.Stderr, "pemakaian: migrate status | up | grants | purge-challenges")
+	fmt.Fprintln(os.Stderr, "  purge-challenges: hapus challenge device binding yang kedaluwarsa > DEVICE_CHALLENGE_RETENTION_DAYS hari (default 30)")
 	fmt.Fprintln(os.Stderr, "  wajib: APP_ENV, DB_HOST, DB_NAME, DB_SSL, DB_ENCRYPTION_KEY, MIGRATION_DB_USER, MIGRATION_DB_PASS")
 }
 
@@ -83,6 +87,22 @@ func main() {
 			os.Exit(1)
 		}
 		fmt.Println("privilege role diterapkan")
+	case "purge-challenges":
+		days := 30
+		if v := os.Getenv("DEVICE_CHALLENGE_RETENTION_DAYS"); v != "" {
+			n, err := strconv.Atoi(v)
+			if err != nil || n < 1 || n > 3650 {
+				fmt.Fprintln(os.Stderr, "DEVICE_CHALLENGE_RETENTION_DAYS harus 1..3650")
+				os.Exit(2)
+			}
+			days = n
+		}
+		n, err := devicebind.PurgeChallenges(ctx, db, time.Duration(days)*24*time.Hour)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "purge gagal:", err)
+			os.Exit(1)
+		}
+		fmt.Printf("%d challenge kedaluwarsa (> %d hari) dihapus\n", n, days)
 	default:
 		usage()
 		os.Exit(2)

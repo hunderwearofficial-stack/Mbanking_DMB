@@ -23,7 +23,6 @@ class MutationModel {
 
   bool get isCredit => transactionType.toUpperCase() == 'CREDIT' || transactionType.toUpperCase() == 'CR';
 
-  /// Throws [FormatException] when the amount is missing or malformed.
   factory MutationModel.fromJson(Map<String, dynamic> json) {
     if (json['amount'] == null) throw const FormatException('nominal mutasi tidak tersedia');
     return MutationModel(

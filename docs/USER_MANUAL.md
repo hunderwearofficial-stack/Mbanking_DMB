@@ -86,7 +86,7 @@ inti bank. Tarik layar ke bawah untuk memperbarui.
 
 * Bila saldo tidak dapat diambil, aplikasi menampilkan **"Saldo belum dapat ditampilkan"** atau
   **"Saldo belum dapat diperbarui"** — bukan Rp 0. Coba kembali beberapa saat lagi.
-* Menu utama di Beranda: **Transfer DMB**, **Mutasi Tabungan**, **Fasilitas Pinjaman**,
+* Menu utama di Beranda: **Mutasi Tabungan**, **Fasilitas Pinjaman**,
   **Portofolio Deposito**, **Katalog Produk**.
 * Ikon di bagian atas: **Pusat Bantuan**, **Pengaturan Keamanan**, **Notifikasi**.
 * Navigasi bawah: **Beranda**, **Riwayat**, **Profil**.
@@ -104,33 +104,10 @@ masukkan PIN transaksi untuk melihatnya; tekan **Kunci Data** untuk menyembunyik
 
 Bila tidak ada transaksi pada periode itu, tampil **"Belum Ada Transaksi"**.
 
-## 8. Transfer antar rekening Bank DMB
+DMB Mobile adalah aplikasi **informasi rekening**: aplikasi ini **tidak** menyediakan fitur
+transfer dana. Transaksi yang dilakukan melalui kanal lain bank tetap tampil di mutasi rekening.
 
-1. Beranda → **Transfer DMB**.
-2. Isi *Nomor rekening tujuan (Bank DMB)*, *Nominal* (rupiah bulat, tanpa desimal), dan *Berita*
-   (opsional). Rekening sumber adalah rekening utama Anda.
-3. Aplikasi menampilkan **nama pemilik rekening tujuan** dari sistem bank (*inquiry*).
-   **Pastikan nama penerima benar.** Bila salah, tekan **Ubah data**.
-4. Pada **Konfirmasi Transfer**, periksa kembali, lalu tekan **Transfer Sekarang**.
-5. Masukkan **PIN Transaksi**.
-
-Hasil yang mungkin:
-
-| Tampilan | Arti | Yang perlu Anda lakukan |
-|---|---|---|
-| **Transfer Berhasil** + No. Referensi | Dana telah dipindahkan | Simpan nomor referensi. Transfer berhasil **tidak dapat dibatalkan** |
-| Pesan penolakan | Transfer tidak diproses; **dana tidak terdebet** | Periksa pesan (mis. rekening tidak ditemukan, di bawah minimum, melebihi limit harian) |
-| **Status Transaksi Sedang Diverifikasi** | Sistem belum mendapat kepastian dari bank | **Jangan mengulang transfer.** Tekan **Periksa Status**. Bila tetap belum pasti, hubungi bank dengan menyebut *No. Permintaan* |
-| "Layanan sedang mengalami gangguan" | Layanan tidak tersedia | Coba kembali nanti |
-
-Ketentuan:
-
-* Nominal minimum dan limit transfer harian ditetapkan bank (pengaturan awal sistem: minimum
-  Rp 10.000, limit Rp 25.000.000 per hari). ⚠ Nilai resmi wajib dikonfirmasi bank.
-* Salah PIN **3 kali** membuat akun diblokir otomatis. Hubungi bank untuk membuka blokir.
-* Transfer ke **bank lain belum tersedia**.
-
-## 9. Pinjaman, deposito, dan katalog produk
+## 8. Pinjaman, deposito, dan katalog produk
 
 * **Fasilitas Pinjaman** — daftar pinjaman Anda (plafon, sisa pokok, status kolektibilitas).
 * **Portofolio Deposito** — daftar bilyet deposito (nominal, suku bunga, jatuh tempo).
@@ -141,14 +118,14 @@ Ketentuan:
 
 Bila data tidak dapat diambil dari sistem bank, tampil pesan gangguan dan tombol **Coba Lagi**.
 
-## 10. Notifikasi
+## 9. Notifikasi
 
 Ikon lonceng di Beranda membuka **Kotak Masuk & Notifikasi** (aktivitas akun, keamanan, serta
 informasi dari bank). Titik merah menandakan ada pesan belum dibaca. Tekan **Tandai Dibaca** untuk
 menandai semua pesan sebagai telah dibaca. Pemberitahuan *pop-up* di HP bergantung pada izin
 notifikasi HP Anda.
 
-## 11. Pengaturan keamanan
+## 10. Pengaturan keamanan
 
 Buka ikon perisai di Beranda atau **Profil** → **Pengaturan & Keamanan Akun**:
 
@@ -159,7 +136,7 @@ Buka ikon perisai di Beranda atau **Profil** → **Pengaturan & Keamanan Akun**:
 * **Keamanan Sistem Ponsel** — aplikasi memberi peringatan bila sistem HP terdeteksi dimodifikasi
   (*root*). Sebaiknya jangan memakai DMB Mobile di HP yang dimodifikasi.
 
-## 12. Tips keamanan dan bila terjadi transaksi mencurigakan
+## 11. Tips keamanan dan bila terjadi transaksi mencurigakan
 
 **Petugas Bank DMB tidak pernah meminta kata sandi, PIN, atau kode OTP Anda melalui kanal apa pun.**
 
@@ -168,7 +145,6 @@ Buka ikon perisai di Beranda atau **Profil** → **Pengaturan & Keamanan Akun**:
 * Jangan memakai tanggal lahir atau angka berurutan sebagai PIN.
 * Pasang aplikasi hanya dari kanal resmi yang diumumkan bank.
 * Kunci layar HP Anda; jangan meminjamkan HP yang terdaftar.
-* Selalu periksa nama penerima sebelum menekan **Transfer Sekarang**.
 
 **Bila melihat transaksi yang tidak Anda lakukan, HP hilang, atau menerima OTP yang tidak Anda minta:**
 
@@ -178,13 +154,13 @@ Buka ikon perisai di Beranda atau **Profil** → **Pengaturan & Keamanan Akun**:
 3. Siapkan nomor referensi transaksi dan waktu kejadian.
 4. Setelah akun dibuka kembali, ganti kata sandi dan PIN.
 
-**Fitur yang belum tersedia:** transfer antarbank/BI-FAST, pembayaran tagihan, pembelian pulsa
-atau token listrik, top up dompet digital, reset PIN mandiri, berbagi bukti transfer, aplikasi
-iPhone, dan e-Statement PDF (lihat bagian 13).
+**Fitur yang tidak tersedia:** transfer dana, pembayaran tagihan, pembelian pulsa atau token
+listrik, top up dompet digital, reset PIN mandiri, aplikasi iPhone, dan e-Statement PDF (lihat
+bagian 12).
 
 ---
 
-## 13. Catatan internal untuk bank (bukan untuk nasabah)
+## 12. Catatan internal untuk bank (bukan untuk nasabah)
 
 Ketidaksesuaian antara tampilan aplikasi dan sistem yang ditemukan saat penyusunan buku ini. Harus
 diselesaikan atau diputuskan bank sebelum rilis:

@@ -1,0 +1,73 @@
+name: Security gates
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: dmb_it_test
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: test -z "$(gofmt -l . | grep -v vendor)"
+      - run: go vet ./...
+      - name: Unit, migration and integration tests (throw-away database)
+        env:
+          DMB_IT_DB_HOST: 127.0.0.1
+          DMB_IT_DB_PORT: "5432"
+          DMB_IT_DB_USER: postgres
+          DMB_IT_DB_PASS: ci-only-password
+          DMB_IT_DB_NAME: dmb_it_test
+        run: go test -p 1 -count=1 ./...
+
+  mobile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: cd m_banking_bpr && flutter pub get && flutter analyze --no-fatal-infos && flutter test
+
+  static-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: No test doubles / fallbacks on production paths
+        run: bash scripts/ci/check_production_paths.sh
+      - name: iOS production configuration
+        run: bash scripts/ci/verify_ios_config.sh
+
+  android-release:
+    if: ${{ vars.DMB_RELEASE_GATES == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Restore release keystore (bank secret)
+        env:
+          KEYSTORE_B64: ${{ secrets.DMB_ANDROID_KEYSTORE_B64 }}
+          PROPS_B64: ${{ secrets.DMB_ANDROID_KEY_PROPERTIES_B64 }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/keys"
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/keys/release.jks"
+          echo "$PROPS_B64" | base64 -d > "$RUNNER_TEMP/keys/key.properties"
+          echo "DMB_ANDROID_KEY_PROPERTIES=$RUNNER_TEMP/keys/key.properties" >> "$GITHUB_ENV"
+      - run: cd m_banking_bpr && flutter build apk --release --dart-define-from-file=config/production.json
+      - name: Release artifact gate
+        env:
+          DMB_ANDROID_RELEASE_CERT_SHA256: ${{ secrets.DMB_ANDROID_RELEASE_CERT_SHA256 }}
+        run: bash scripts/ci/verify_android_release.sh m_banking_bpr/build/app/outputs/flutter-apk/app-release.apk

@@ -83,12 +83,22 @@ async function uploadPushCredential(input) {
     showToast('Berkas terlalu besar untuk service account', 'error');
     return;
   }
-  if (!confirm('Unggah credential Firebase Admin SDK? Credential lama diganti dan integrasi dinonaktifkan sampai diaktifkan kembali.')) return;
+  const confirmed = await showConfirmModal({
+    title: 'Unggah Credential Firebase Admin SDK',
+    message: 'Unggah berkas service account JSON baru? Credential lama akan diganti dan integrasi pengiriman dinonaktifkan sementara hingga Anda melakukan Uji Koneksi & mengaktifkannya kembali.',
+    confirmText: 'Ya, Unggah Credential',
+    cancelText: 'Batal',
+    variant: 'warning'
+  });
+  if (!confirmed) return;
   const fd = new FormData();
   fd.append('file', file);
   try {
     const res = await fetch(`${API_BASE}/admin/push/credential`, {
-      method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('dmb_admin_token')}` }, body: fd
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: getAuthHeaders(false),
+      body: fd
     });
     const json = await res.json();
     showToast(json.message || (res.ok ? 'Credential disimpan' : 'Credential ditolak'), res.ok && json.success ? 'success' : 'error');
@@ -113,7 +123,16 @@ async function testPushConnection() {
 
 async function togglePushEnabled() {
   const enable = !pushState.settings.enabled;
-  if (!confirm(enable ? 'Aktifkan pengiriman notifikasi melalui Firebase?' : 'Nonaktifkan pengiriman notifikasi? Notifikasi tetap tersimpan di kotak masuk aplikasi.')) return;
+  const confirmed = await showConfirmModal({
+    title: enable ? 'Aktifkan Pengiriman Notifikasi Push' : 'Nonaktifkan Pengiriman Notifikasi Push',
+    message: enable
+      ? 'Aktifkan pengiriman notifikasi push ke perangkat HP nasabah melalui Firebase Cloud Messaging?'
+      : 'Nonaktifkan pengiriman notifikasi push Firebase? Notifikasi tetap tersimpan di kotak masuk aplikasi nasabah.',
+    confirmText: enable ? 'Ya, Aktifkan' : 'Ya, Nonaktifkan',
+    cancelText: 'Batal',
+    variant: enable ? 'primary' : 'warning'
+  });
+  if (!confirmed) return;
   await pushPost('/admin/push/settings', 'PUT', { enabled: enable });
   loadPush();
 }
@@ -171,7 +190,6 @@ async function loadPushCampaigns() {
       <td class="py-3 px-4">${result}</td>
       <td class="py-3 px-4 text-right whitespace-nowrap space-x-2">${actions.join('')}</td></tr>`;
   }).join('') || '<tr><td colspan="6" class="py-6 text-center text-slate-400">Belum ada notifikasi.</td></tr>';
-  // Refresh once while something is still being sent (no continuous polling).
   if (json.data.some(c => c.status === 'SENDING') && currentTab === 'push') {
     clearTimeout(pushState.timer);
     pushState.timer = setTimeout(loadPushCampaigns, 4000);
@@ -182,16 +200,36 @@ async function submitPushCampaign(id) {
   await pushPost(`/admin/push/campaigns/${encodeURIComponent(id)}/submit`, 'POST', null);
   loadPushCampaigns();
 }
+
 async function approvePushCampaign(id) {
   const c = pushState.campaigns.find(x => x.id === id);
-  if (!c || !confirm(`Setujui dan kirim notifikasi "${c.title}" ke ${c.target_type === 'ALL' ? 'SEMUA nasabah aktif' : 'satu nasabah'}? Notifikasi yang terkirim tidak dapat ditarik.`)) return;
+  if (!c) return;
+  const confirmed = await showConfirmModal({
+    title: 'Setujui & Kirim Notifikasi Push',
+    message: `Setujui dan kirim notifikasi "${c.title}" ke ${c.target_type === 'ALL' ? 'SEMUA nasabah aktif' : 'satu nasabah'}? Notifikasi yang telah dikirim ke perangkat tidak dapat ditarik kembali.`,
+    confirmText: 'Ya, Setujui & Kirim',
+    cancelText: 'Batal',
+    variant: 'primary'
+  });
+  if (!confirmed) return;
   await pushPost(`/admin/push/campaigns/${encodeURIComponent(id)}/approve`, 'POST', null);
   loadPush();
 }
+
 async function rejectPushCampaign(id) {
-  const reason = prompt('Alasan penolakan:', '');
+  const reason = await showConfirmModal({
+    title: 'Tolak Pengajuan Notifikasi Push',
+    message: 'Tuliskan alasan penolakan notifikasi push ini:',
+    confirmText: 'Tolak Notifikasi',
+    cancelText: 'Batal',
+    variant: 'danger',
+    requireInput: true,
+    inputType: 'textarea',
+    inputLabel: 'Alasan Penolakan',
+    inputPlaceholder: 'Contoh: Redaksi pesan terlalu panjang atau kurang jelas...'
+  });
   if (!reason) return;
-  await pushPost(`/admin/push/campaigns/${encodeURIComponent(id)}/reject`, 'POST', { reason });
+  await pushPost(`/admin/push/campaigns/${encodeURIComponent(id)}/reject`, 'POST', { reason: reason.trim() });
   loadPushCampaigns();
 }
 

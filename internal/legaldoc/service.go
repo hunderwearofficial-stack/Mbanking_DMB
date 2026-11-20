@@ -26,15 +26,10 @@ var (
 	errDBUnavailable     = errors.New("database tidak tersedia")
 )
 
-// PreLoginValidity is how long a consent given on the device before login may be
-// linked to the customer who then logs in / activates on that device.
 const PreLoginValidity = 24 * time.Hour
 
-// preLoginReuseWindow: repeated submissions from the same device within this window
-// return the same record (duplicate tap / retry), later ones create a new record.
 const preLoginReuseWindow = 10 * time.Minute
 
-// RenderMeta is the metadata printed on a PDF rendition.
 type RenderMeta struct {
 	VersionNumber  int
 	DocumentNumber string
@@ -44,16 +39,13 @@ type RenderMeta struct {
 	GeneratedAt    time.Time
 }
 
-// Renderer turns content into PDF bytes (implemented by package pdfdoc).
 type Renderer func(*Content, RenderMeta) ([]byte, error)
 
-// Actor identifies the officer performing an action.
 type Actor struct {
 	ID   string
 	Name string
 }
 
-// ActorFromContext returns the authenticated officer.
 func ActorFromContext(ctx context.Context) (Actor, bool) {
 	a, ok := reqctx.AdminFrom(ctx)
 	if !ok {
@@ -62,13 +54,11 @@ func ActorFromContext(ctx context.Context) (Actor, bool) {
 	return Actor{ID: a.ID, Name: a.Username + " (" + a.Role + ")"}, true
 }
 
-// ClientMeta is audit metadata of the consenting client.
 type ClientMeta struct {
 	IP        string
 	UserAgent string
 }
 
-// Service implements versioning, publication and consent.
 type Service struct {
 	db     *gorm.DB
 	files  FileStore
@@ -80,7 +70,6 @@ func NewService(db *gorm.DB, files FileStore, render Renderer) *Service {
 	return &Service{db: db, files: files, render: render, now: func() time.Time { return time.Now().UTC() }}
 }
 
-// SetClock replaces the clock (tests).
 func (s *Service) SetClock(now func() time.Time) { s.now = now }
 
 func trimTo(s string, n int) string {
@@ -89,10 +78,6 @@ func trimTo(s string, n int) string {
 	}
 	return s
 }
-
-// ---------------------------------------------------------------------------------
-// Reading
-// ---------------------------------------------------------------------------------
 
 func (s *Service) activeTx(ctx context.Context, db *gorm.DB) (*Version, error) {
 	if db == nil {
@@ -111,7 +96,6 @@ func (s *Service) activeTx(ctx context.Context, db *gorm.DB) (*Version, error) {
 	return &v, nil
 }
 
-// Active returns the published version in force now, with its content.
 func (s *Service) Active(ctx context.Context) (*Version, *Content, error) {
 	v, err := s.activeTx(ctx, s.db)
 	if err != nil {
@@ -124,7 +108,6 @@ func (s *Service) Active(ctx context.Context) (*Version, *Content, error) {
 	return v, c, nil
 }
 
-// ParsedContent decodes the stored content.
 func (v *Version) ParsedContent() (*Content, error) {
 	var c Content
 	if err := json.Unmarshal([]byte(v.Content), &c); err != nil {
@@ -133,8 +116,6 @@ func (v *Version) ParsedContent() (*Content, error) {
 	return &c, nil
 }
 
-// PublishedPDF returns the final PDF of a published or archived version (draft and
-// pending versions are never served to customers).
 func (s *Service) PublishedPDF(ctx context.Context, versionID string) (*Version, []byte, error) {
 	v, err := s.version(ctx, s.db, versionID)
 	if err != nil {
@@ -184,12 +165,6 @@ func validUUID(s string) bool {
 	return true
 }
 
-// ---------------------------------------------------------------------------------
-// Consent
-// ---------------------------------------------------------------------------------
-
-// AcceptPreLogin records consent given on a device before the customer is identified.
-// Only the version in force can be accepted; the server sets the time.
 func (s *Service) AcceptPreLogin(ctx context.Context, versionID, deviceID string, meta ClientMeta) (*Acceptance, error) {
 	if s.db == nil {
 		return nil, errDBUnavailable
@@ -211,8 +186,6 @@ func (s *Service) AcceptPreLogin(ctx context.Context, versionID, deviceID string
 			return ErrVersionNotActive
 		}
 		var existing Acceptance
-		// Reuse only a record that is not yet linked to a customer (a linked consent is
-		// evidence for that customer only; the next customer on the device gets a new one).
 		err = tx.Where("device_id = ? AND version_id = ? AND user_id IS NULL AND accepted_at > ?",
 			deviceID, versionID, s.now().Add(-preLoginReuseWindow)).
 			Where("NOT EXISTS (SELECT 1 FROM legal_acceptances l WHERE l.pre_login_acceptance_id = legal_acceptances.id)").
@@ -241,7 +214,6 @@ func (s *Service) AcceptPreLogin(ctx context.Context, versionID, deviceID string
 	return out, nil
 }
 
-// UserConsent reports whether the customer accepted the version in force.
 func (s *Service) UserConsent(ctx context.Context, userID string) (bool, *Version, *Acceptance, error) {
 	active, err := s.activeTx(ctx, s.db)
 	if err != nil {
@@ -258,8 +230,6 @@ func (s *Service) UserConsent(ctx context.Context, userID string) (bool, *Versio
 	return true, active, &a, nil
 }
 
-// RequireUserConsent fails with ErrConsentRequired when the customer has not accepted
-// the version in force (used when refreshing a session).
 func (s *Service) RequireUserConsent(ctx context.Context, userID string) error {
 	ok, _, _, err := s.UserConsent(ctx, userID)
 	if err != nil {
@@ -281,8 +251,6 @@ func (s *Service) loadPreLogin(ctx context.Context, db *gorm.DB, deviceID, accep
 	}
 	q := db.WithContext(ctx)
 	if lock {
-		// legal_acceptances is append-only for the application role (no UPDATE privilege,
-		// so no row lock): serialise linking of one device consent with an advisory lock.
 		if err := q.Exec("SELECT pg_advisory_xact_lock(hashtext(?))", "legal-accept:"+acceptanceID).Error; err != nil {
 			return nil, nil, err
 		}
@@ -303,8 +271,6 @@ func (s *Service) loadPreLogin(ctx context.Context, db *gorm.DB, deviceID, accep
 	return &a, active, nil
 }
 
-// ValidatePreLogin checks, before an irreversible step (activation), that the device
-// holds a valid consent for the version in force.
 func (s *Service) ValidatePreLogin(ctx context.Context, deviceID, acceptanceID string) error {
 	if strings.TrimSpace(acceptanceID) == "" {
 		return ErrConsentRequired
@@ -313,9 +279,6 @@ func (s *Service) ValidatePreLogin(ctx context.Context, deviceID, acceptanceID s
 	return err
 }
 
-// EnsureUserConsent makes sure the customer has a consent record for the version in
-// force. If not, the device's pre-login consent is linked to the customer through a new
-// record (the pre-login record itself is never modified).
 func (s *Service) EnsureUserConsent(ctx context.Context, userID, deviceID, acceptanceID, channel string, meta ClientMeta) error {
 	if channel != ChannelLogin && channel != ChannelActivation {
 		return fmt.Errorf("kanal persetujuan tidak dikenal: %s", channel)
@@ -366,14 +329,12 @@ func (s *Service) EnsureUserConsent(ctx context.Context, userID, deviceID, accep
 	})
 }
 
-// AcceptanceFilter selects consent records for evidence queries.
 type AcceptanceFilter struct {
 	UserID    string
 	VersionID string
 	Limit     int
 }
 
-// ListAcceptances returns consent records (newest first).
 func (s *Service) ListAcceptances(ctx context.Context, f AcceptanceFilter) ([]Acceptance, error) {
 	q := s.db.WithContext(ctx).Where("document_id = ?", DocMobileTerms)
 	if f.UserID != "" {
@@ -396,18 +357,12 @@ func (s *Service) ListAcceptances(ctx context.Context, f AcceptanceFilter) ([]Ac
 	return out, err
 }
 
-// ---------------------------------------------------------------------------------
-// Back-office workflow (maker-checker)
-// ---------------------------------------------------------------------------------
-
-// VersionView is a version with derived flags for the back office.
 type VersionView struct {
 	Version
 	IsActive bool     `json:"is_active"`
 	Content  *Content `json:"content,omitempty"`
 }
 
-// ListVersions returns all versions, newest first.
 func (s *Service) ListVersions(ctx context.Context) ([]VersionView, error) {
 	var vs []Version
 	if err := s.db.WithContext(ctx).Where("document_id = ?", DocMobileTerms).Order("version_number DESC").Find(&vs).Error; err != nil {
@@ -426,7 +381,6 @@ func (s *Service) ListVersions(ctx context.Context) ([]VersionView, error) {
 	return out, nil
 }
 
-// GetVersion returns one version with its content.
 func (s *Service) GetVersion(ctx context.Context, id string) (*VersionView, error) {
 	v, err := s.version(ctx, s.db, id)
 	if err != nil {
@@ -443,7 +397,6 @@ func (s *Service) GetVersion(ctx context.Context, id string) (*VersionView, erro
 	return view, nil
 }
 
-// DraftInput is the editable part of a draft.
 type DraftInput struct {
 	BaseVersionID  string
 	Content        *Content
@@ -455,7 +408,6 @@ func (s *Service) auditAdmin(ctx context.Context, db *gorm.DB, action string, v 
 	audit.Record(ctx, db, "ADMIN", "", "", action, fmt.Sprintf("SK versi %d", v.VersionNumber), "SUCCESS", "WEB-BACKOFFICE", details)
 }
 
-// CreateDraft starts a new version (copy of a base version or new content).
 func (s *Service) CreateDraft(ctx context.Context, actor Actor, in DraftInput) (*Version, error) {
 	if err := ValidDocumentNumber(in.DocumentNumber); err != nil {
 		return nil, err
@@ -525,7 +477,6 @@ func (s *Service) lockVersion(ctx context.Context, tx *gorm.DB, id string) (*Ver
 	return &v, err
 }
 
-// UpdateDraft changes a draft's content; any generated draft PDF is discarded.
 func (s *Service) UpdateDraft(ctx context.Context, actor Actor, id string, in DraftInput) (*Version, error) {
 	if in.Content == nil {
 		return nil, fmt.Errorf("%w: isi dokumen wajib diisi", ErrInvalidContent)
@@ -565,7 +516,6 @@ func (s *Service) UpdateDraft(ctx context.Context, actor Actor, id string, in Dr
 	return out, err
 }
 
-// GenerateDraftPDF renders the draft PDF (marked DRAF) for review.
 func (s *Service) GenerateDraftPDF(ctx context.Context, actor Actor, id string) (*Version, error) {
 	var out *Version
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -609,7 +559,6 @@ func (s *Service) GenerateDraftPDF(ctx context.Context, actor Actor, id string) 
 	return out, err
 }
 
-// AdminPDF returns the draft or final PDF of any version for officers.
 func (s *Service) AdminPDF(ctx context.Context, id string, final bool) (*Version, []byte, error) {
 	v, err := s.version(ctx, s.db, id)
 	if err != nil {
@@ -629,7 +578,6 @@ func (s *Service) AdminPDF(ctx context.Context, id string, final bool) (*Version
 	return v, data, nil
 }
 
-// Submit sends a reviewed draft for approval. effectiveFrom nil = upon approval.
 func (s *Service) Submit(ctx context.Context, actor Actor, id string, effectiveFrom *time.Time) (*Version, error) {
 	if effectiveFrom != nil && effectiveFrom.Before(s.now().Add(-time.Minute)) {
 		return nil, fmt.Errorf("%w: tanggal mulai berlaku tidak boleh di masa lalu", ErrInvalidContent)
@@ -661,7 +609,6 @@ func (s *Service) Submit(ctx context.Context, actor Actor, id string, effectiveF
 	return out, err
 }
 
-// Reject returns a pending version to draft.
 func (s *Service) Reject(ctx context.Context, actor Actor, id, reason string) (*Version, error) {
 	reason = trimTo(strings.TrimSpace(reason), 500)
 	if reason == "" {
@@ -688,8 +635,6 @@ func (s *Service) Reject(ctx context.Context, actor Actor, id, reason string) (*
 	return out, err
 }
 
-// Approve publishes a pending version (checker ≠ maker and ≠ submitter). The final PDF
-// is rendered with the publication metadata and stored; the version becomes immutable.
 func (s *Service) Approve(ctx context.Context, actor Actor, id string) (*Version, error) {
 	var out *Version
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -753,7 +698,6 @@ func (s *Service) Approve(ctx context.Context, actor Actor, id string) (*Version
 	return out, err
 }
 
-// Archive archives a published version that is no longer (or not yet) in force.
 func (s *Service) Archive(ctx context.Context, actor Actor, id string) (*Version, error) {
 	var out *Version
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {

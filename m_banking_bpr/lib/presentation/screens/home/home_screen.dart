@@ -3,24 +3,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/content/app_content.dart';
+import '../../../core/money/money.dart';
+import '../../../core/services/dynamic_config_service.dart';
+import '../../../core/services/fcm_service.dart';
 import '../../../core/utils/currency_formatter.dart';
+import '../../../data/repositories/auth_repository.dart';
 import '../../blocs/account/account_cubit.dart';
 import '../../blocs/account/account_state.dart';
 import '../../blocs/auth/auth_cubit.dart';
 import '../../blocs/auth/auth_state.dart';
-import '../auth/login_screen.dart';
-import '../notification/notification_screen.dart';
-import '../profile/security_settings_screen.dart';
-import '../helpdesk/helpdesk_screen.dart';
-import '../profile/profile_screen.dart';
-import 'widgets/quick_menu_grid.dart';
-import '../../../core/content/app_content.dart';
-import '../../../core/services/fcm_service.dart';
-import '../../../data/repositories/auth_repository.dart';
-import '../../../core/money/money.dart';
-import '../../widgets/smart_security_capsule.dart';
 import '../../widgets/app_validation_feedback.dart';
-import '../../../core/services/dynamic_config_service.dart';
+import '../../widgets/smart_security_capsule.dart';
+import '../account/account_info_screen.dart';
+import '../auth/login_screen.dart';
+import '../helpdesk/helpdesk_screen.dart';
+import '../mutation/mutation_screen.dart';
+import '../notification/notification_screen.dart';
+import '../profile/profile_screen.dart';
+import '../profile/security_settings_screen.dart';
+import 'widgets/quick_menu_grid.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -31,25 +34,21 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentNavIndex = 0;
-  bool _isBalanceVisible = false; // Persistent balance visibility (default hidden, preserves across refresh)
-  int _unreadNotifications = 0; // Dynamic unread notification counter for red dot badge
+  int _unreadNotifications = 0;
 
-  // Cached live values so during refresh (pull-to-refresh) the screen NEVER flashes fake numbers
   Money? _cachedBalance;
   String? _cachedAccountNo;
   String? _cachedUserName;
 
-  // Banner Carousel State (3 Sessions auto-sliding)
-  final PageController _promoPageController = PageController();
+  final PageController _promoPageController = PageController(viewportFraction: 0.88);
   int _currentPromoPage = 0;
   Timer? _promoTimer;
 
-  // Executive Brand Colors
-  static const Color primaryNavy = Color(0xFF0B356D);
-  static const Color royalBlue = Color(0xFF0062E3);
-  static const Color titleDark = Color(0xFF0B2546);
-  static const Color textMuted = Color(0xFF64748B);
-  static const Color borderLight = Color(0xFFE2E8F0);
+  static const Color primaryNavy = AppColors.primaryNavy;
+  static const Color royalBlue = AppColors.royalBlue;
+  static const Color titleDark = AppColors.titleDark;
+  static const Color textMuted = AppColors.textMuted;
+  static const Color borderLight = AppColors.borderLight;
 
   @override
   void initState() {
@@ -58,7 +57,6 @@ class _HomeScreenState extends State<HomeScreen> {
     context.read<AccountCubit>().loadDashboardData();
     _checkUnreadNotifications();
 
-    // Ensure FCM Token is actively synced to backend when dashboard loads
     WidgetsBinding.instance.addPostFrameCallback((_) {
       try {
         final authRepo = context.read<AuthRepository>();
@@ -73,7 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _onBannerAction(String action) {
     switch (action) {
       case 'profil':
-        setState(() => _currentNavIndex = 1);
+        setState(() => _currentNavIndex = 3);
         break;
       case 'keamanan':
         Navigator.push(context, MaterialPageRoute(builder: (_) => const SecuritySettingsScreen()));
@@ -125,11 +123,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showToast(String msg) {
-    AppToast.showInfo(context, msg);
+    AppToast.showSuccess(context, msg);
   }
 
   String _formatAccountNumber(String raw) {
-    if (raw.isEmpty) return '-';
+    if (raw.isEmpty || raw == '-') return '-';
     final cleaned = raw.replaceAll(RegExp(r'\D'), '');
     if (cleaned.isEmpty) return raw;
     final buffer = StringBuffer();
@@ -167,11 +165,14 @@ class _HomeScreenState extends State<HomeScreen> {
             }
           },
           child: Scaffold(
-            backgroundColor: const Color(0xFFF8FAFC),
+            backgroundColor: const Color(0xFFF6F6F2),
+            extendBody: true,
             body: IndexedStack(
               index: _currentNavIndex,
               children: [
                 _buildHomeContent(),
+                const MutationScreen(isTab: true),
+                const NotificationScreen(isTab: true),
                 const ProfileScreen(isTab: true),
               ],
             ),
@@ -185,11 +186,12 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildHomeContent() {
     return BlocBuilder<AccountCubit, AccountState>(
       builder: (context, state) {
+        final accountCubit = context.read<AccountCubit>();
         final authState = context.watch<AuthCubit>().state;
         String userName = _cachedUserName ?? '';
         String rawAccountNo = _cachedAccountNo ?? '';
-        // null = balance not (successfully) obtained: never render a placeholder number.
         Money? balance = _cachedBalance;
+        bool isBalanceVisible = accountCubit.isBalanceVisible;
 
         if (authState is AuthAuthenticated) {
           if (userName.isEmpty && authState.user.fullName.isNotEmpty) {
@@ -208,6 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
         if (state is AccountLoaded) {
           balance = state.account.balance;
           _cachedBalance = balance;
+          isBalanceVisible = state.isBalanceVisible;
 
           if (state.account.accountNumber.isNotEmpty) {
             rawAccountNo = state.account.accountNumber;
@@ -221,285 +224,132 @@ class _HomeScreenState extends State<HomeScreen> {
 
         final formattedAccountNo = _formatAccountNumber(rawAccountNo);
 
-        return Stack(
-          children: [
-            // 1. Mount Salak & Sky Artwork Backdrop at top
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              height: 250,
-              child: Opacity(
-                opacity: 0.85,
-                child: Image.asset(
-                  'assets/images/splash_artwork.jpg',
-                  fit: BoxFit.cover,
-                  alignment: Alignment.topCenter,
-                ),
-              ),
-            ),
+        return SafeArea(
+          bottom: false,
+          child: RefreshIndicator(
+            onRefresh: () async {
+              final error = await context.read<AccountCubit>().refresh();
+              if (error != null && context.mounted) {
+                AppToast.showWarning(context, 'Saldo belum dapat diperbarui. $error', title: 'Pemberitahuan');
+              }
+            },
+            color: primaryNavy,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 110),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildTopHeader(userName, rawAccountNo),
 
-            // Soft gradient fade into white body
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              height: 260,
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    stops: const [0.0, 0.40, 0.85, 1.0],
-                    colors: [
-                      Colors.white.withOpacity(0.10),
-                      Colors.white.withOpacity(0.55),
-                      const Color(0xFFF8FAFC).withOpacity(0.95),
-                      const Color(0xFFF8FAFC),
-                    ],
+                  _buildAnnouncementBanner(),
+
+                  const SizedBox(height: 18),
+
+                  _buildMainBalanceCard(
+                    balance: balance,
+                    accountNoFormatted: formattedAccountNo,
+                    rawAccountNo: rawAccountNo,
+                    isBalanceVisible: isBalanceVisible,
+                    onToggleVisibility: () {
+                      context.read<AccountCubit>().toggleBalanceVisibility();
+                      setState(() {});
+                    },
                   ),
-                ),
+
+                  const SizedBox(height: 22),
+
+                  _buildPromoBanner(),
+
+                  const SizedBox(height: 22),
+
+                  const FigmaMenuGrid(),
+                ],
               ),
             ),
-
-            // 2. Main Scrollable Content
-            SafeArea(
-              child: RefreshIndicator(
-                onRefresh: () async {
-                  final error = await context.read<AccountCubit>().refresh();
-                  if (error != null && context.mounted) {
-                    AppToast.showWarning(context, 'Saldo belum dapat diperbarui. $error', title: 'Pemberitahuan');
-                  }
-                },
-                color: primaryNavy,
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header Top: Smart Security Capsule, Sapaan & Action Icons
-                      _buildTopHeader(userName, rawAccountNo),
-
-                      _buildAnnouncementBanner(),
-
-                      const SizedBox(height: 16),
-
-                      // Main Saldo Card (Ocean-Green Gradient Card per new mockup)
-                      _buildMainBalanceCard(
-                        balance: balance,
-                        accountNoFormatted: formattedAccountNo,
-                        rawAccountNo: rawAccountNo,
-                        isBalanceVisible: _isBalanceVisible,
-                        onToggleVisibility: () {
-                          setState(() {
-                            _isBalanceVisible = !_isBalanceVisible;
-                          });
-                          context.read<AccountCubit>().toggleBalanceVisibility();
-                        },
-                      ),
-
-                      const SizedBox(height: 18),
-
-                      // Banner Promo / Iklan (Dipindah ke atas menu utama)
-                      _buildPromoBanner(),
-
-                      const SizedBox(height: 18),
-
-                      // Menu Utama Resmi Core Banking DMB (8 Menu Lengkap Terintegrasi Live API)
-                      const FigmaMenuGrid(),
-
-                      // Extra bottom padding for bottom navigation bar
-                      const SizedBox(height: 90),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
+          ),
         );
       },
     );
   }
 
-  // ==================== 1. TOP HEADER WITH SMART SECURITY CAPSULE ====================
   Widget _buildTopHeader(String userName, String rawAccountNo) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Upper Status Bar: Smart Security Capsule + Action Icons
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Smart Security Capsule (Bank DMB Connected / Offline Indicator)
             SmartSecurityCapsule(
               customerName: userName,
               accountNumber: rawAccountNo,
             ),
 
-            // Top Action Icons: Bantuan, Pengaturan, Notifikasi
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 1. Pusat Bantuan (Helpdesk)
-                InkWell(
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const HelpdeskScreen()),
-                    );
-                  },
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    padding: const EdgeInsets.all(9),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.92),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: borderLight),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+            InkWell(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const HelpdeskScreen()),
+                );
+              },
+              borderRadius: BorderRadius.circular(22),
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
                     ),
-                    child: const Icon(
-                      Icons.headset_mic_outlined,
-                      color: titleDark,
-                      size: 20,
-                    ),
-                  ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-
-                // 2. Pengaturan (Settings)
-                InkWell(
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const SecuritySettingsScreen()),
-                    );
-                  },
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    padding: const EdgeInsets.all(9),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.92),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: borderLight),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.settings_outlined,
-                      color: titleDark,
-                      size: 20,
-                    ),
-                  ),
+                child: const Icon(
+                  Icons.headset_mic_outlined,
+                  color: Color(0xFF0A2A66),
+                  size: 20,
                 ),
-                const SizedBox(width: 8),
-
-                // 3. Notification Bell Icon with Dynamic Red Dot Badge (Only shown if unread > 0)
-                InkWell(
-                  onTap: () async {
-                    await Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const NotificationScreen()),
-                    );
-                    _checkUnreadNotifications();
-                  },
-                  borderRadius: BorderRadius.circular(20),
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(9),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.92),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: borderLight),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.04),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.notifications_none_rounded,
-                          color: titleDark,
-                          size: 20,
-                        ),
-                      ),
-                      if (_unreadNotifications > 0)
-                        Positioned(
-                          top: 2,
-                          right: 2,
-                          child: Container(
-                            width: 9,
-                            height: 9,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFEF4444),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 1.5),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
+              ),
             ),
           ],
         ),
 
-        const SizedBox(height: 12),
+        const SizedBox(height: 18),
 
-        // Greeting & Name
         Text(
           AppContent.text('home.greeting_title'),
           style: GoogleFonts.plusJakartaSans(
-            fontSize: 13.0,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF0B2A63),
-            letterSpacing: -0.1,
+            fontSize: 13.5,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textMuted,
           ),
         ),
-        const SizedBox(height: 1.5),
-        Row(
-          children: [
-            Text(
-              userName,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 18.0,
-                fontWeight: FontWeight.w800,
-                color: const Color(0xFF072152),
-                letterSpacing: -0.3,
-              ),
-            ),
-            const SizedBox(width: 5),
-            const Text('👋', style: TextStyle(fontSize: 16)),
-          ],
+        const SizedBox(height: 2),
+        Text(
+          userName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+            color: titleDark,
+            letterSpacing: -0.4,
+          ),
         ),
-        const SizedBox(height: 2.5),
+        const SizedBox(height: 3),
         Text(
           AppContent.text('home.greeting_subtitle'),
           style: GoogleFonts.plusJakartaSans(
-            fontSize: 11.5,
+            fontSize: 12.5,
             fontWeight: FontWeight.w500,
-            color: const Color(0xFF1E3A6E), // Deep Navy-Blue tone, definitely NOT washed-out grey
-            letterSpacing: 0.1,
+            color: AppColors.textMuted,
           ),
         ),
       ],
     );
   }
 
-  // ==================== LIVE ANNOUNCEMENT BANNER ====================
   Widget _buildAnnouncementBanner() {
     return ListenableBuilder(
       listenable: DynamicConfigService(),
@@ -511,12 +361,12 @@ class _HomeScreenState extends State<HomeScreen> {
           margin: const EdgeInsets.only(top: 10),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color: const Color(0xFFF0FDF4),
+            color: AppColors.successLight,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFBBF7D0)),
+            border: Border.all(color: AppColors.successBorder),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF16984B).withOpacity(0.06),
+                color: AppColors.dmbGreen.withOpacity(0.06),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -527,12 +377,12 @@ class _HomeScreenState extends State<HomeScreen> {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF16984B).withOpacity(0.12),
+                  color: AppColors.dmbGreen.withOpacity(0.12),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.campaign_rounded,
-                  color: Color(0xFF16984B),
+                  color: AppColors.dmbGreen,
                   size: 16,
                 ),
               ),
@@ -543,7 +393,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
-                    color: const Color(0xFF0F172A),
+                    color: AppColors.textPrimary,
                     height: 1.35,
                   ),
                 ),
@@ -555,7 +405,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ==================== 2. MAIN SALDO CARD (NEW DESIGN) ====================
   Widget _buildMainBalanceCard({
     required Money? balance,
     required String accountNoFormatted,
@@ -563,14 +412,20 @@ class _HomeScreenState extends State<HomeScreen> {
     required bool isBalanceVisible,
     required VoidCallback onToggleVisibility,
   }) {
+    final canCopy = rawAccountNo.isNotEmpty && rawAccountNo != '-';
+
     return Container(
       width: double.infinity,
-      constraints: const BoxConstraints(minHeight: 195),
       decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF0A2A66), Color(0xFF0D3882)],
+        ),
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0754A8).withOpacity(0.24),
+            color: const Color(0xFF0A2A66).withOpacity(0.22),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),
@@ -578,160 +433,219 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(22),
-        child: Stack(
-          children: [
-            // Official Card Template Image provided by User
-            Positioned.fill(
-              child: Image.asset(
-                'assets/images/Card.png',
-                fit: BoxFit.fill,
-              ),
-            ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const AccountInfoScreen()),
+              );
+            },
+            child: Stack(
+              children: [
+                // Subtle concentric rings decoration on the right
+                Positioned(
+                  right: -45,
+                  top: -35,
+                  child: Container(
+                    width: 170,
+                    height: 170,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.08),
+                        width: 16,
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: -15,
+                  top: -5,
+                  child: Container(
+                    width: 110,
+                    height: 110,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.06),
+                        width: 12,
+                      ),
+                    ),
+                  ),
+                ),
 
-            // Card Foreground Content
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 22),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Top Row: (Rekening Utama + Copy) on Left, (Realistic ATM Chip) on Right
-                  Row(
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Left: Card Icon + Rekening Utama + Copy Icon
-                      InkWell(
-                        onTap: () {
-                          Clipboard.setData(ClipboardData(text: rawAccountNo));
-                          _showToast('Nomor rekening disalin: $rawAccountNo');
-                        },
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(7.5),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.18),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: Colors.white.withOpacity(0.30)),
-                              ),
-                              child: const Icon(
-                                Icons.credit_card_outlined,
-                                color: Colors.white,
-                                size: 18,
-                              ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.14),
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            const SizedBox(width: 12),
-                            Column(
+                            child: const Icon(
+                              Icons.credit_card_rounded,
+                              color: Colors.white,
+                              size: 21,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   'Rekening Utama',
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: 11.5,
                                     fontWeight: FontWeight.w500,
-                                    color: Colors.white.withOpacity(0.85),
+                                    color: Colors.white.withOpacity(0.78),
                                   ),
                                 ),
                                 const SizedBox(height: 2),
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      accountNoFormatted,
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.white,
-                                        letterSpacing: 0.3,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Icon(
-                                      Icons.copy_rounded,
-                                      color: Colors.white.withOpacity(0.85),
-                                      size: 15,
-                                    ),
-                                  ],
+                                Text(
+                                  accountNoFormatted,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                    letterSpacing: 0.4,
+                                  ),
                                 ),
                               ],
                             ),
-                          ],
-                        ),
+                          ),
+                          if (canCopy)
+                            Material(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(20),
+                                onTap: () {
+                                  Clipboard.setData(ClipboardData(text: rawAccountNo));
+                                  _showToast('Nomor rekening disalin: $rawAccountNo');
+                                },
+                                child: const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                                  child: Text(
+                                    'Salin',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF0A2A66),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Saldo Tersedia',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.white.withOpacity(0.80),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  balance == null
+                                      ? 'Saldo belum tersedia'
+                                      : isBalanceVisible
+                                          ? CurrencyFormatter.formatRupiah(balance)
+                                          : 'Rp ••••••••',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: balance == null ? 15 : 24,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                    letterSpacing: -0.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Material(
+                            color: const Color(0xFF4ADEA8),
+                            borderRadius: BorderRadius.circular(22),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(22),
+                              onTap: onToggleVisibility,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      isBalanceVisible
+                                          ? Icons.visibility_off_outlined
+                                          : Icons.visibility_outlined,
+                                      color: const Color(0xFF064E3B),
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      isBalanceVisible ? 'Tutup' : 'Lihat',
+                                      style: const TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF064E3B),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-
-                  const SizedBox(height: 26),
-
-                  // Middle Row: Saldo Tersedia + Eye Toggle
-                  Row(
-                    children: [
-                      Text(
-                        'Saldo Tersedia',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white.withOpacity(0.90),
-                          letterSpacing: 0.2,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: onToggleVisibility,
-                        child: Icon(
-                          isBalanceVisible
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
-                          color: Colors.white.withOpacity(0.90),
-                          size: 17,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 6),
-
-                  // Big Balance Nominal
-                  Text(
-                    balance == null
-                        ? 'Saldo belum dapat ditampilkan'
-                        : isBalanceVisible
-                            ? CurrencyFormatter.formatRupiah(balance)
-                            : 'Rp •••••••••',
-                    style: TextStyle(
-                      fontSize: balance == null ? 15 : 27,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      letterSpacing: -0.4,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  // ==================== 5. PROMO BANNER CAROUSEL (3 SESSIONS) ====================
   Widget _buildPromoBanner() {
     if (_promoTimer == null || !_promoTimer!.isActive) {
       _startPromoTimer();
     }
-    // 3 carousel slots; visibility, image, fallback texts and tap action are managed content
-    // (Backoffice → Konten Aplikasi → Beranda). Slots keep their bundled image and colours.
     final banners = <_PromoBannerData>[
       for (final slot in _bannerSlots)
         if (AppContent.flag('home.banner${slot.number}_visible'))
           _PromoBannerData(
-            imagePath: slot.asset,
-            imageUrl: AppContent.imageUrl('home.banner${slot.number}_image'),
+            contentKey: 'home.banner${slot.number}_image',
+            tag: AppContent.text('home.banner${slot.number}_tag'),
             title: AppContent.text('home.banner${slot.number}_title'),
             subtitle: AppContent.text('home.banner${slot.number}_subtitle'),
-            gradientColors: slot.gradient,
+            cardBgColor: slot.cardBgColor,
+            tagColor: slot.tagColor,
             onTap: () => _onBannerAction(AppContent.text('home.banner${slot.number}_action')),
           ),
     ];
@@ -739,12 +653,24 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_currentPromoPage >= banners.length) _currentPromoPage = 0;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Text(
+          AppContent.text('home.info_section_title'),
+          style: const TextStyle(
+            fontSize: 16.5,
+            fontWeight: FontWeight.w800,
+            color: titleDark,
+            letterSpacing: -0.2,
+          ),
+        ),
+        const SizedBox(height: 12),
+
         SizedBox(
-          height: 165,
+          height: 132,
           child: PageView.builder(
             controller: _promoPageController,
+            padEnds: false,
             itemCount: banners.length,
             onPageChanged: (index) {
               setState(() {
@@ -753,90 +679,99 @@ class _HomeScreenState extends State<HomeScreen> {
             },
             itemBuilder: (context, index) {
               final item = banners[index];
+              final hasImage = AppContent.imageUrl(item.contentKey) != null;
               return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 2),
+                padding: const EdgeInsets.only(right: 12),
                 child: GestureDetector(
                   onTap: item.onTap,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(18),
-                      boxShadow: [
-                        BoxShadow(
-                          color: royalBlue.withOpacity(0.08),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(18),
-                      child: item.imageUrl != null
-                          ? Image.network(
-                              item.imageUrl!,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: item.cardBgColor,
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          if (hasImage) ...[
+                            ContentImage(
+                              item.contentKey,
                               fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) => Image.asset(
-                                item.imagePath,
-                                fit: BoxFit.cover,
-                              ),
-                            )
-                          : Image.asset(
-                              item.imagePath,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                          // Clean fallback card if asset fails or loading
-                          return Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: item.gradientColors,
-                              ),
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(color: const Color(0xFFD6E8F8)),
                             ),
-                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                            child: Row(
+                            Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.black.withOpacity(0.15),
+                                    Colors.black.withOpacity(0.70),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    item.tag.toUpperCase(),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      color: item.tagColor,
+                                      letterSpacing: 0.4,
+                                    ),
+                                  ),
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (item.title.trim().isNotEmpty)
                                       Text(
                                         item.title,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
                                         style: GoogleFonts.plusJakartaSans(
-                                          fontSize: 16,
+                                          fontSize: 15,
                                           fontWeight: FontWeight.w800,
-                                          color: titleDark,
+                                          color: hasImage ? Colors.white : titleDark,
+                                          height: 1.25,
                                         ),
                                       ),
-                                      const SizedBox(height: 4),
+                                    if (item.subtitle.trim().isNotEmpty) ...[
+                                      const SizedBox(height: 3),
                                       Text(
                                         item.subtitle,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                         style: GoogleFonts.plusJakartaSans(
                                           fontSize: 12,
-                                          color: textMuted,
                                           fontWeight: FontWeight.w500,
+                                          color: hasImage
+                                              ? Colors.white.withOpacity(0.90)
+                                              : AppColors.textSecondary,
                                         ),
                                       ),
                                     ],
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Image.asset(
-                                  'assets/images/bank_logo.png',
-                                  width: 44,
-                                  height: 44,
-                                  errorBuilder: (_, __, ___) => const Icon(
-                                    Icons.campaign_rounded,
-                                    size: 36,
-                                    color: royalBlue,
-                                  ),
+                                  ],
                                 ),
                               ],
                             ),
-                          );
-                        },
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -845,21 +780,20 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
 
-        // Carousel 3-session indicator dots (Pill for active, circles for inactive)
         Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.start,
           children: List.generate(banners.length, (index) {
             final isActive = _currentPromoPage == index;
             return AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
+              duration: const Duration(milliseconds: 260),
               curve: Curves.easeInOut,
-              margin: const EdgeInsets.symmetric(horizontal: 3),
+              margin: const EdgeInsets.only(right: 5),
               width: isActive ? 20 : 6,
-              height: 6,
+              height: 5,
               decoration: BoxDecoration(
-                color: isActive ? royalBlue : const Color(0xFFCBD5E1),
+                color: isActive ? const Color(0xFF0F9D76) : const Color(0xFFCBD5E1),
                 borderRadius: BorderRadius.circular(3),
               ),
             );
@@ -869,28 +803,63 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ==================== 6. BOTTOM NAVIGATION BAR (2 TABS: BERANDA & PROFIL) ====================
   Widget _buildBottomNavigationBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 16,
-            offset: const Offset(0, -4),
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
+        child: Container(
+          height: 66,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0A2A66),
+            borderRadius: BorderRadius.circular(34),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF0A2A66).withOpacity(0.28),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 62,
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildNavItem(0, Icons.home_rounded, 'Beranda'),
-              _buildNavItem(1, Icons.person_outline_rounded, 'Profil'),
+              Expanded(
+                child: _buildNavItem(
+                  icon: Icons.home_rounded,
+                  label: 'Beranda',
+                  isSelected: _currentNavIndex == 0,
+                  onTap: () => setState(() => _currentNavIndex = 0),
+                ),
+              ),
+              Expanded(
+                child: _buildNavItem(
+                  icon: Icons.history_rounded,
+                  label: 'Riwayat',
+                  isSelected: _currentNavIndex == 1,
+                  onTap: () => setState(() => _currentNavIndex = 1),
+                ),
+              ),
+              Expanded(
+                child: _buildNavItem(
+                  icon: Icons.notifications_none_rounded,
+                  label: 'Notifikasi',
+                  isSelected: _currentNavIndex == 2,
+                  showDot: _unreadNotifications > 0,
+                  onTap: () {
+                    setState(() => _currentNavIndex = 2);
+                    _checkUnreadNotifications();
+                  },
+                ),
+              ),
+              Expanded(
+                child: _buildNavItem(
+                  icon: Icons.person_outline_rounded,
+                  label: 'Akun saya',
+                  isSelected: _currentNavIndex == 3,
+                  onTap: () => setState(() => _currentNavIndex = 3),
+                ),
+              ),
             ],
           ),
         ),
@@ -898,44 +867,56 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildNavItem(int index, IconData icon, String label) {
-    final isSelected = _currentNavIndex == index;
-    return InkWell(
-      onTap: () {
-        setState(() => _currentNavIndex = index);
-      },
-      child: SizedBox(
-        width: 70,
+  Widget _buildNavItem({
+    required IconData icon,
+    required String label,
+    required bool isSelected,
+    bool showDot = false,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: isSelected ? Colors.white.withOpacity(0.14) : Colors.transparent,
+      borderRadius: BorderRadius.circular(28),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(28),
+        onTap: onTap,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              color: isSelected ? royalBlue : const Color(0xFF64748B),
-              size: 24,
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(
+                  icon,
+                  color: isSelected ? Colors.white : Colors.white.withOpacity(0.72),
+                  size: 21,
+                ),
+                if (showDot)
+                  Positioned(
+                    top: -2,
+                    right: -3,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFEF4444),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 3),
             Text(
               label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 10.5,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? royalBlue : const Color(0xFF64748B),
+                color: isSelected ? Colors.white : Colors.white.withOpacity(0.78),
               ),
             ),
-            if (isSelected) ...[
-              const SizedBox(height: 3),
-              Container(
-                width: 18,
-                height: 2.5,
-                decoration: BoxDecoration(
-                  color: royalBlue,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ] else ...[
-              const SizedBox(height: 5.5),
-            ],
           ],
         ),
       ),
@@ -945,31 +926,33 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class _BannerSlot {
   final int number;
-  final String asset;
-  final List<Color> gradient;
-  const _BannerSlot(this.number, this.asset, this.gradient);
+  final Color cardBgColor;
+  final Color tagColor;
+  const _BannerSlot(this.number, this.cardBgColor, this.tagColor);
 }
 
 const _bannerSlots = [
-  _BannerSlot(1, 'assets/images/banner_promo_1.jpg', [Color(0xFFE8F7F2), Color(0xFFE0F2FE)]),
-  _BannerSlot(2, 'assets/images/banner_promo_2.jpg', [Color(0xFFEBF7F0), Color(0xFFE1F5FE)]),
-  _BannerSlot(3, 'assets/images/banner_promo_3.jpg', [Color(0xFFE8EEF8), Color(0xFFE5F5F0)]),
+  _BannerSlot(1, Color(0xFFDDF7EC), Color(0xFF0F9D76)),
+  _BannerSlot(2, Color(0xFFEAEFFE), Color(0xFF3730A3)),
+  _BannerSlot(3, Color(0xFFE0F2FE), Color(0xFF0369A1)),
 ];
 
 class _PromoBannerData {
-  final String imagePath;
-  final String? imageUrl;
+  final String contentKey;
+  final String tag;
   final String title;
   final String subtitle;
-  final List<Color> gradientColors;
+  final Color cardBgColor;
+  final Color tagColor;
   final VoidCallback onTap;
 
   const _PromoBannerData({
-    required this.imagePath,
-    this.imageUrl,
+    required this.contentKey,
+    required this.tag,
     required this.title,
     required this.subtitle,
-    required this.gradientColors,
+    required this.cardBgColor,
+    required this.tagColor,
     required this.onTap,
   });
 }

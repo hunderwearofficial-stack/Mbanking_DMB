@@ -12,7 +12,6 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// MaxPDFBytes bounds stored documents (also enforced by a CHECK constraint).
 const MaxPDFBytes = 10 << 20
 
 var (
@@ -20,14 +19,11 @@ var (
 	ErrInvalidFile  = errors.New("berkas tidak valid")
 )
 
-// FileStore stores immutable files addressed by their SHA-256. Callers never pass or
-// receive storage paths, so client input can not reach the storage location.
 type FileStore interface {
 	Put(ctx context.Context, tx *gorm.DB, contentType string, data []byte) (string, error)
 	Get(ctx context.Context, sha string) ([]byte, string, error)
 }
 
-// storedFile maps the stored_files table.
 type storedFile struct {
 	SHA256      string `gorm:"column:sha256;primaryKey"`
 	ContentType string `gorm:"column:content_type"`
@@ -37,13 +33,10 @@ type storedFile struct {
 
 func (storedFile) TableName() string { return "stored_files" }
 
-// DBFileStore keeps files in PostgreSQL so that they are backed up together with
-// their metadata and consent records.
 type DBFileStore struct{ db *gorm.DB }
 
 func NewDBFileStore(db *gorm.DB) *DBFileStore { return &DBFileStore{db: db} }
 
-// Put validates and stores a PDF; storing identical bytes twice is a no-op.
 func (s *DBFileStore) Put(ctx context.Context, tx *gorm.DB, contentType string, data []byte) (string, error) {
 	if contentType != "application/pdf" {
 		return "", fmt.Errorf("%w: tipe berkas tidak diizinkan", ErrInvalidFile)
@@ -68,7 +61,6 @@ func (s *DBFileStore) Put(ctx context.Context, tx *gorm.DB, contentType string, 
 	return sha, nil
 }
 
-// Get returns the file and re-verifies its integrity against the address.
 func (s *DBFileStore) Get(ctx context.Context, sha string) ([]byte, string, error) {
 	if len(sha) != 64 {
 		return nil, "", ErrFileNotFound

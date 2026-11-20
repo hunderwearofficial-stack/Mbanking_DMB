@@ -14,21 +14,14 @@ import '../network/api_client.dart';
 import '../security/secure_storage_service.dart';
 import '../utils/app_logger.dart';
 
-/// Background / terminated: FCM "notification" messages are displayed by Android itself
-/// (channel + icon from AndroidManifest), so nothing is shown here — showing a local
-/// notification as well would duplicate it.
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {}
 
-/// What to do when a notification is tapped. Only destinations that exist in the app.
 enum PushDestination { notifications }
 
-/// Pure helpers (unit-tested).
 class PushPayload {
-  /// Data keys sent by the backend: category, ref (delivery id), route.
   static PushDestination destination(Map<String, dynamic> data) => PushDestination.notifications;
 
-  /// Delivery reference to report as "opened"; null when absent or malformed.
   static String? ref(Map<String, dynamic> data) {
     final r = data['ref'];
     return r is String && RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(r) ? r : null;
@@ -47,20 +40,11 @@ class PushPayload {
   }
 }
 
-/// Push notifications through Firebase Cloud Messaging.
-///
-/// * The device token is registered with the backend only for an authenticated customer
-///   (POST /notifications/fcm-token) and detached by the backend on logout.
-/// * Foreground: FCM does not display notification messages on Android, so exactly one
-///   local notification is shown (deduplicated by message id).
-/// * Background / terminated: Android displays the FCM notification itself.
-/// * Tap: opens the in-app inbox when the customer is logged in; otherwise after login.
 class FCMService {
   static final FCMService _instance = FCMService._internal();
   factory FCMService() => _instance;
   FCMService._internal();
 
-  /// Must equal push.AndroidChannelID on the backend and the manifest meta-data.
   static const AndroidNotificationChannel channel = AndroidNotificationChannel(
     'dmb_notification_channel',
     'Notifikasi Bank DMB',
@@ -80,7 +64,6 @@ class FCMService {
   Map<String, dynamic>? _pendingOpen; // tapped before login
   final List<String> _shownIds = [];
 
-  /// null = not asked yet.
   bool? permissionGranted;
 
   Future<void> initialize({ApiClient? apiClient}) async {
@@ -107,7 +90,6 @@ class FCMService {
           .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
           ?.createNotificationChannel(channel);
 
-      // iOS shows foreground notifications itself; Android needs the local notification.
       await _messaging.setForegroundNotificationPresentationOptions(alert: true, badge: true, sound: true);
 
       FirebaseMessaging.onMessage.listen(_onForegroundMessage);
@@ -122,9 +104,15 @@ class FCMService {
       }
       _initialized = true;
     } catch (e) {
-      // Push is optional for using the app; the failure is visible in debug logs and the
-      // device simply is not registered (the back office shows no active device).
       logDebug('FCM init gagal: $e');
+    }
+  }
+
+  Future<bool> _isLoggedIn() async {
+    try {
+      return (await SecureStorageService().getAccessToken())?.isNotEmpty == true;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -155,7 +143,7 @@ class FCMService {
   }
 
   Future<void> _onOpened(Map<String, dynamic> data) async {
-    final loggedIn = (await SecureStorageService().getAccessToken())?.isNotEmpty == true;
+    final loggedIn = await _isLoggedIn();
     if (!loggedIn) {
       _pendingOpen = data; // details are shown only after the customer authenticates
       return;
@@ -175,8 +163,6 @@ class FCMService {
     }
   }
 
-  /// Asks for the notification permission (Android 13+/iOS). A refusal is respected:
-  /// the app keeps working and the in-app inbox still lists notifications.
   Future<bool> _ensurePermission() async {
     try {
       final settings = await _messaging.requestPermission(alert: true, badge: true, sound: true);
@@ -197,7 +183,7 @@ class FCMService {
   Future<void> _register(String token) async {
     final api = _api;
     if (api == null || token.isEmpty || token == _registeredToken) return;
-    final loggedIn = (await SecureStorageService().getAccessToken())?.isNotEmpty == true;
+    final loggedIn = await _isLoggedIn();
     if (!loggedIn) return; // a token is linked to a customer only after authentication
     try {
       await api.post(ApiEndpoints.notificationsFcmToken,
@@ -208,8 +194,6 @@ class FCMService {
     }
   }
 
-  /// Called after login/activation/biometric unlock: permission, token registration,
-  /// and opening a notification that was tapped before login.
   Future<void> syncStoredTokenIfLoggedIn({ApiClient? apiClient}) async {
     await initialize(apiClient: apiClient);
     if (!_initialized) return;
@@ -224,8 +208,6 @@ class FCMService {
     if (pending != null) await _onOpened(pending);
   }
 
-  /// Called on logout: the backend already detached this device; forget local state so
-  /// the next customer on this phone registers again.
   void onLoggedOut() {
     _registeredToken = null;
     _pendingOpen = null;

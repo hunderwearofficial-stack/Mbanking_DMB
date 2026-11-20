@@ -6,15 +6,18 @@ import '../../main.dart';
 import '../../presentation/blocs/auth/auth_cubit.dart';
 import '../../presentation/blocs/auth/auth_state.dart';
 import '../../presentation/screens/auth/login_screen.dart';
-import '../../presentation/widgets/app_validation_feedback.dart';
 
 class SessionInactivityDetector extends StatefulWidget {
   final Widget child;
 
   const SessionInactivityDetector({super.key, required this.child});
 
-  /// Inactivity timeout in seconds (default 180 s). Set per bank policy.
-  static int timeoutSeconds = 180;
+  /// Batas tidak aktif sebelum sesi dikunci. Nilai dapat disesuaikan saat build
+  /// melalui `--dart-define=SESSION_IDLE_TIMEOUT_SECONDS=...` (minimal 60 detik).
+  static const int standardTimeoutSeconds = _configuredTimeout < 60 ? 60 : _configuredTimeout;
+  static const int _configuredTimeout = int.fromEnvironment('SESSION_IDLE_TIMEOUT_SECONDS', defaultValue: 180);
+
+  static int timeoutSeconds = standardTimeoutSeconds;
   static bool isEnabled = true;
   static DateTime lastActive = DateTime.now();
 
@@ -22,15 +25,8 @@ class SessionInactivityDetector extends StatefulWidget {
     lastActive = DateTime.now();
   }
 
-  /// Sets quick test timeout (e.g. 10 or 15 seconds) for real-time device testing
-  static void setQuickTestTimeout(int seconds) {
-    timeoutSeconds = seconds;
-    recordActivity();
-  }
-
-  /// Resets to standard 3-minute banking timeout
   static void resetToStandardTimeout() {
-    timeoutSeconds = 180;
+    timeoutSeconds = standardTimeoutSeconds;
     recordActivity();
   }
 
@@ -56,7 +52,6 @@ class _SessionInactivityDetectorState extends State<SessionInactivityDetector> {
 
   void _startInactivityChecker() {
     _checkTimer?.cancel();
-    // Check every 2 seconds
     _checkTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
       if (!SessionInactivityDetector.isEnabled) return;
 
@@ -68,26 +63,21 @@ class _SessionInactivityDetectorState extends State<SessionInactivityDetector> {
   }
 
   void _triggerSessionTimeout() {
-    // Reset timer and reset timeout to standard 180 seconds immediately so 10s test never persists
     SessionInactivityDetector.resetToStandardTimeout();
 
-    // Check if user is currently authenticated
     final nav = appNavigatorKey.currentState;
     final ctx = appNavigatorKey.currentContext;
 
     if (ctx != null) {
       final authState = ctx.read<AuthCubit>().state;
       if (authState is AuthAuthenticated) {
-        // 1. Lock the session (biometric unlock remains available)
         ctx.read<AuthCubit>().lockSession();
 
-        // 2. Redirect to Login Screen
         nav?.pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const LoginScreen()),
           (route) => false,
         );
 
-        // 3. Show Banking Inactivity Security Alert
         ScaffoldMessenger.of(ctx).showSnackBar(
           SnackBar(
             content: Row(
@@ -96,7 +86,7 @@ class _SessionInactivityDetectorState extends State<SessionInactivityDetector> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Sesi Anda telah berakhir secara otomatis demi keamanan karena tidak ada aktivitas selama ${SessionInactivityDetector.timeoutSeconds} detik.',
+                    'Demi keamanan, sesi Anda berakhir karena tidak ada aktivitas selama ${SessionInactivityDetector.timeoutSeconds ~/ 60} menit. Silakan masuk kembali.',
                     style: GoogleFonts.plusJakartaSans(fontSize: 12.5, fontWeight: FontWeight.w600),
                   ),
                 ),

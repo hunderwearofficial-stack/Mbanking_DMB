@@ -13,36 +13,35 @@ import (
 	"mbanking-bpr/pkg/database"
 )
 
-// seedContent extracts the Terms text migrated by 0008 (the text that was hard-coded in
-// the mobile app) so the tests run against the real document.
 func seedContent(t *testing.T) *legaldoc.Content {
 	t.Helper()
 	migs, err := database.LoadMigrations()
 	if err != nil {
 		t.Fatal(err)
 	}
+	var latest *legaldoc.Content
 	for _, m := range migs {
-		if m.Name != "legal_documents_and_content_revisions" {
+		if m.Name != "legal_documents_and_content_revisions" && m.Name != "schema_cleanup_and_alignment" {
 			continue
 		}
 		parts := strings.Split(m.SQL, "$sk$")
 		if len(parts) != 3 {
-			t.Fatalf("seed SK tidak ditemukan di migrasi (%d bagian)", len(parts))
+			t.Fatalf("seed SK tidak ditemukan di migrasi %s (%d bagian)", m.Name, len(parts))
 		}
 		c, err := legaldoc.ParseContent([]byte(parts[1]))
 		if err != nil {
-			t.Fatalf("seed SK tidak valid: %v", err)
+			t.Fatalf("seed SK pada migrasi %s tidak valid: %v", m.Name, err)
 		}
-		return c
+		latest = c
 	}
-	t.Fatal("migrasi 0008 tidak ditemukan")
-	return nil
+	if latest == nil {
+		t.Fatal("migrasi seed SK tidak ditemukan")
+	}
+	return latest
 }
 
 func norm(s string) string { return strings.Join(strings.Fields(s), " ") }
 
-// assertAllTextRendered checks that every content segment appears, in order, in the
-// laid-out text — no clause lost, truncated or reordered.
 func assertAllTextRendered(t *testing.T, c *legaldoc.Content, res *Result) {
 	t.Helper()
 	joined := norm(strings.Join(res.Text, " "))

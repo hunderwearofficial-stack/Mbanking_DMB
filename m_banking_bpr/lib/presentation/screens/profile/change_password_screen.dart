@@ -1,11 +1,10 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../core/constants/app_colors.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/services/dynamic_config_service.dart';
 import '../../blocs/auth/auth_cubit.dart';
-import '../../blocs/auth/auth_state.dart';
 import '../../widgets/app_validation_feedback.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
@@ -16,60 +15,29 @@ class ChangePasswordScreen extends StatefulWidget {
 }
 
 class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
-  // Executive Brand Palette
-  static const Color primaryNavy = Color(0xFF0B356D);
-  static const Color royalBlue = Color(0xFF0062E3);
-  static const Color dmbGreen = Color(0xFF16984B);
-  static const Color dmbRed = Color(0xFFDC2626);
-  static const Color titleDark = Color(0xFF0B2546);
-  static const Color textMuted = Color(0xFF64748B);
-  static const Color borderLight = Color(0xFFE2E8F0);
-  static const Color bgCanvas = Color(0xFFF8FAFC);
+  static const Color primaryNavy = AppColors.primaryNavy;
+  static const Color royalBlue = AppColors.royalBlue;
+  static const Color dmbGreen = AppColors.dmbGreen;
+  static const Color titleDark = AppColors.titleDark;
+  static const Color textMuted = AppColors.textMuted;
+  static const Color borderLight = AppColors.borderLight;
+  static const Color bgCanvas = AppColors.bgCanvas;
 
-  // Form Controllers
   final _oldPwController = TextEditingController();
   final _newPwController = TextEditingController();
   final _confirmPwController = TextEditingController();
-  final _otpController = TextEditingController();
 
   bool _obscureOld = true;
   bool _obscureNew = true;
   bool _obscureConfirm = true;
-
-  int _currentStep = 1; // 1: Input Form, 2: OTP Verification
   bool _isSubmitting = false;
-
-  // OTP Resend Countdown
-  int _resendCountdown = 60;
-  Timer? _countdownTimer;
 
   @override
   void dispose() {
-    _countdownTimer?.cancel();
     _oldPwController.dispose();
     _newPwController.dispose();
     _confirmPwController.dispose();
-    _otpController.dispose();
     super.dispose();
-  }
-
-  void _startCountdown() {
-    _countdownTimer?.cancel();
-    setState(() => _resendCountdown = 60);
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_resendCountdown > 0) {
-        setState(() => _resendCountdown--);
-      } else {
-        timer.cancel();
-      }
-    });
-  }
-
-  String _maskPhoneNumber(String phone) {
-    if (phone.length < 8) return phone;
-    final prefix = phone.substring(0, 4);
-    final suffix = phone.substring(phone.length - 4);
-    return '$prefix •••• $suffix';
   }
 
   void _showToast(String message, {bool isError = false}) {
@@ -80,48 +48,113 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     }
   }
 
-  void _onProceedToOtp() {
+  bool _hasLettersAndNumbers(String input) {
+    final hasLetter = RegExp(r'[A-Za-z]').hasMatch(input);
+    final hasNumber = RegExp(r'[0-9]').hasMatch(input);
+    return hasLetter && hasNumber;
+  }
+
+  void _onValidateAndConfirm() {
     final oldPw = _oldPwController.text.trim();
     final newPw = _newPwController.text.trim();
     final confPw = _confirmPwController.text.trim();
 
     if (oldPw.isEmpty) {
-      _showToast('Password lama wajib diisi', isError: true);
+      _showToast('Kata sandi saat ini wajib diisi', isError: true);
       return;
     }
     if (newPw.length < 8) {
-      _showToast('Password baru minimal harus 8 karakter', isError: true);
+      _showToast('Kata sandi baru minimal harus 8 karakter', isError: true);
+      return;
+    }
+    if (!_hasLettersAndNumbers(newPw)) {
+      _showToast('Kata sandi baru wajib mengandung kombinasi huruf dan angka', isError: true);
       return;
     }
     if (oldPw == newPw) {
-      _showToast('Password baru tidak boleh sama dengan password lama', isError: true);
+      _showToast('Kata sandi baru tidak boleh sama dengan kata sandi lama', isError: true);
       return;
     }
     if (newPw != confPw) {
-      _showToast('Konfirmasi password baru tidak cocok', isError: true);
+      _showToast('Konfirmasi kata sandi baru tidak cocok', isError: true);
       return;
     }
 
-    // Advance to OTP Step
-    setState(() {
-      _currentStep = 2;
-    });
-    _startCountdown();
-    _showToast('Kode OTP keamanan telah dikirim ke nomor HP terdaftar Anda');
+    _showConfirmationDialog(oldPw, newPw);
   }
 
-  Future<void> _onSubmitChangePassword() async {
-    final otp = _otpController.text.trim();
-    if (otp.length < 6) {
-      _showToast('Masukkan 6 digit kode OTP verifikasi', isError: true);
-      return;
-    }
+  void _showConfirmationDialog(String oldPw, String newPw) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.primaryLight,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.lock_reset_rounded, color: royalBlue, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Konfirmasi Perubahan Sandi',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w800,
+                  color: titleDark,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Apakah Anda yakin ingin memperbarui kata sandi login akun Mobile Banking Anda?',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 13,
+            color: AppColors.textSecondary,
+            height: 1.45,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: Text(
+              'Batal',
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w700,
+                color: textMuted,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryNavy,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(120, 42),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () {
+              Navigator.pop(dialogCtx);
+              _onSubmitChangePassword(oldPw, newPw);
+            },
+            child: Text(
+              'Ya, Simpan',
+              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
+  Future<void> _onSubmitChangePassword(String oldPw, String newPw) async {
     setState(() => _isSubmitting = true);
     try {
-      final oldPw = _oldPwController.text.trim();
-      final newPw = _newPwController.text.trim();
-
       await context.read<AuthCubit>().authRepository.changePassword(
             oldPassword: oldPw,
             newPassword: newPw,
@@ -134,11 +167,17 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
-      _showToast(e.message, isError: true);
+      _showToast(ApiException.humanize(e), isError: true);
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
-      _showToast('Gagal mengubah password: $e', isError: true);
+      _showToast(
+        ApiException.humanize(
+          e,
+          fallback: 'Kata sandi belum dapat diperbarui. Silakan coba kembali.',
+        ),
+        isError: true,
+      );
     }
   }
 
@@ -157,9 +196,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               width: 68,
               height: 68,
               decoration: BoxDecoration(
-                color: const Color(0xFFF0FDF4),
+                color: AppColors.successLight,
                 shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFFBBF7D0), width: 2),
+                border: Border.all(color: AppColors.successBorder, width: 2),
               ),
               child: const Center(
                 child: Icon(Icons.check_circle_rounded, color: dmbGreen, size: 38),
@@ -167,7 +206,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             ),
             const SizedBox(height: 18),
             Text(
-              'Password Berhasil Diubah!',
+              'Kata Sandi Berhasil Diubah!',
               textAlign: TextAlign.center,
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 17,
@@ -177,7 +216,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Kata sandi login Anda telah berhasil diperbarui dengan aman. Silakan gunakan password baru untuk masuk berikutnya.',
+              'Kata sandi login Anda telah berhasil diperbarui dengan aman. Silakan gunakan kata sandi baru untuk masuk berikutnya.',
               textAlign: TextAlign.center,
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 12.5,
@@ -197,8 +236,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   elevation: 0,
                 ),
                 onPressed: () {
-                  Navigator.of(ctx).pop(); // Close dialog
-                  Navigator.of(context).pop(); // Back to Security Screen
+                  Navigator.of(ctx).pop();
+                  Navigator.of(context).pop();
                 },
                 child: Text(
                   'Selesai',
@@ -214,11 +253,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authState = context.watch<AuthCubit>().state;
-    String userPhone = '';
-    if (authState is AuthAuthenticated) {
-      userPhone = authState.user.phoneNumber;
-    }
+    final bankName = DynamicConfigService().config.bankName.toUpperCase();
 
     return Scaffold(
       backgroundColor: bgCanvas,
@@ -229,18 +264,12 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: titleDark),
-          onPressed: () {
-            if (_currentStep == 2) {
-              setState(() => _currentStep = 1);
-            } else {
-              Navigator.of(context).pop();
-            }
-          },
+          onPressed: () => Navigator.of(context).pop(),
         ),
         title: Column(
           children: [
             Text(
-              'Ganti Password Login',
+              'Ganti Kata Sandi Login',
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
@@ -250,7 +279,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             ),
             const SizedBox(height: 1),
             Text(
-              'PT BPR DANA MANDIRI BOGOR',
+              bankName,
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 9.5,
                 fontWeight: FontWeight.w700,
@@ -267,24 +296,22 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-        child: _currentStep == 1 ? _buildStep1Form() : _buildStep2Otp(userPhone),
+        child: _buildForm(),
       ),
     );
   }
 
-  // ==================== STEP 1: INPUT PASSWORD FORM ====================
-  Widget _buildStep1Form() {
+  Widget _buildForm() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Security Info Banner
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFFEFF6FF),
+            color: AppColors.primaryLight,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFBFDBFE)),
+            border: Border.all(color: AppColors.primaryBorder),
           ),
           child: Row(
             children: [
@@ -302,7 +329,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Pembaruan Kata Sandi',
+                      'Pembaruan Kata Sandi Terotorisasi',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
@@ -311,7 +338,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Pastikan password baru minimal 8 karakter dan belum pernah digunakan sebelumnya.',
+                      'Verifikasi kata sandi saat ini dan tanda tangan kriptografis perangkat terdaftar Anda.',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 11.5,
                         color: textMuted,
@@ -327,9 +354,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
         const SizedBox(height: 24),
 
-        // 1. Password Saat Ini
         Text(
-          'Password Saat Ini',
+          'Kata Sandi Saat Ini',
           style: GoogleFonts.plusJakartaSans(
             fontSize: 13,
             fontWeight: FontWeight.w700,
@@ -342,7 +368,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
           obscureText: _obscureOld,
           style: GoogleFonts.plusJakartaSans(fontSize: 13.5),
           decoration: InputDecoration(
-            hintText: 'Masukkan password lama',
+            hintText: 'Masukkan kata sandi saat ini',
             hintStyle: GoogleFonts.plusJakartaSans(fontSize: 13, color: textMuted),
             prefixIcon: const Icon(Icons.lock_outline_rounded, color: royalBlue, size: 20),
             suffixIcon: IconButton(
@@ -373,9 +399,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
         const SizedBox(height: 18),
 
-        // 2. Password Baru
         Text(
-          'Password Baru',
+          'Kata Sandi Baru',
           style: GoogleFonts.plusJakartaSans(
             fontSize: 13,
             fontWeight: FontWeight.w700,
@@ -388,7 +413,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
           obscureText: _obscureNew,
           style: GoogleFonts.plusJakartaSans(fontSize: 13.5),
           decoration: InputDecoration(
-            hintText: 'Minimal 8 karakter kombinasi',
+            hintText: 'Minimal 8 karakter kombinasi huruf & angka',
             hintStyle: GoogleFonts.plusJakartaSans(fontSize: 13, color: textMuted),
             prefixIcon: const Icon(Icons.vpn_key_outlined, color: royalBlue, size: 20),
             suffixIcon: IconButton(
@@ -419,9 +444,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
         const SizedBox(height: 18),
 
-        // 3. Konfirmasi Password Baru
         Text(
-          'Konfirmasi Password Baru',
+          'Konfirmasi Kata Sandi Baru',
           style: GoogleFonts.plusJakartaSans(
             fontSize: 13,
             fontWeight: FontWeight.w700,
@@ -434,7 +458,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
           obscureText: _obscureConfirm,
           style: GoogleFonts.plusJakartaSans(fontSize: 13.5),
           decoration: InputDecoration(
-            hintText: 'Ketik ulang password baru Anda',
+            hintText: 'Ketik ulang kata sandi baru Anda',
             hintStyle: GoogleFonts.plusJakartaSans(fontSize: 13, color: textMuted),
             prefixIcon: const Icon(Icons.verified_user_outlined, color: royalBlue, size: 20),
             suffixIcon: IconButton(
@@ -465,7 +489,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
         const SizedBox(height: 20),
 
-        // Requirements Checklist Card
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
@@ -485,18 +508,17 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              _buildRequirementRow('Minimal 8 karakter huruf dan angka'),
+              _buildRequirementRow('Minimal 8 karakter kombinasi huruf dan angka'),
               const SizedBox(height: 5),
-              _buildRequirementRow('Tidak sama dengan password lama'),
+              _buildRequirementRow('Tidak sama dengan kata sandi saat ini'),
               const SizedBox(height: 5),
-              _buildRequirementRow('Verifikasi OTP wajib di tahap berikutnya'),
+              _buildRequirementRow('Dilindungi tanda tangan keamanan perangkat terdaftar'),
             ],
           ),
         ),
 
         const SizedBox(height: 30),
 
-        // Proceed Button
         SizedBox(
           width: double.infinity,
           height: 50,
@@ -507,199 +529,24 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               elevation: 0,
             ),
-            onPressed: _onProceedToOtp,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'Lanjut ke Verifikasi OTP',
-                  style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(width: 8),
-                const Icon(Icons.arrow_forward_rounded, size: 18),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ==================== STEP 2: SECURITY OTP VERIFICATION ====================
-  Widget _buildStep2Otp(String phoneNumber) {
-    final maskedPhone = _maskPhoneNumber(phoneNumber);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        const SizedBox(height: 10),
-
-        // Security Shield Badge
-        Center(
-          child: Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              color: const Color(0xFFEFF6FF),
-              shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFFBFDBFE), width: 2),
-            ),
-            child: const Center(
-              child: Icon(Icons.security_rounded, color: royalBlue, size: 36),
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 18),
-
-        Text(
-          'Verifikasi Keamanan OTP',
-          textAlign: TextAlign.center,
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: titleDark,
-          ),
-        ),
-
-        const SizedBox(height: 8),
-
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: Text(
-            'Demi menjaga keamanan rekening Anda, silakan masukkan 6 digit kode OTP yang telah dikirim ke nomor HP:',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 12.5,
-              color: textMuted,
-              height: 1.45,
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 6),
-
-        Text(
-          maskedPhone,
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 14,
-            fontWeight: FontWeight.w800,
-            color: titleDark,
-            letterSpacing: 0.5,
-          ),
-        ),
-
-        const SizedBox(height: 26),
-
-        // OTP Input Field
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 20),
-          child: TextField(
-            controller: _otpController,
-            keyboardType: TextInputType.number,
-            maxLength: 6,
-            textAlign: TextAlign.center,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 26,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 14,
-              color: primaryNavy,
-            ),
-            decoration: InputDecoration(
-              counterText: '',
-              hintText: '••••••',
-              hintStyle: GoogleFonts.plusJakartaSans(
-                fontSize: 26,
-                letterSpacing: 14,
-                color: borderLight,
-              ),
-              filled: true,
-              fillColor: Colors.white,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: const BorderSide(color: borderLight),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: const BorderSide(color: borderLight, width: 1.5),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: const BorderSide(color: royalBlue, width: 2),
-              ),
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 24),
-
-        // Resend Timer / Action
-        if (_resendCountdown > 0)
-          Text(
-            'Kirim ulang kode dalam $_resendCountdown detik',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: textMuted,
-            ),
-          )
-        else
-          TextButton(
-            onPressed: () {
-              _startCountdown();
-              _showToast('Kode OTP baru telah dikirimkan ulang');
-            },
-            child: Text(
-              'Kirim Ulang Kode OTP',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                color: royalBlue,
-              ),
-            ),
-          ),
-
-        const SizedBox(height: 32),
-
-        // Submit Button
-        SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryNavy,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              elevation: 0,
-            ),
-            onPressed: _isSubmitting ? null : _onSubmitChangePassword,
+            onPressed: _isSubmitting ? null : _onValidateAndConfirm,
             child: _isSubmitting
                 ? const SizedBox(
                     width: 22,
                     height: 22,
                     child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
                   )
-                : Text(
-                    'Verifikasi & Simpan Password',
-                    style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700),
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.check_circle_outline_rounded, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Simpan Kata Sandi Baru',
+                        style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700),
+                      ),
+                    ],
                   ),
-          ),
-        ),
-
-        const SizedBox(height: 14),
-
-        // Back to form button
-        TextButton(
-          onPressed: () => setState(() => _currentStep = 1),
-          child: Text(
-            'Ubah Password Input',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w600,
-              color: textMuted,
-            ),
           ),
         ),
       ],
@@ -711,12 +558,13 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       children: [
         const Icon(Icons.check_circle_outline_rounded, size: 15, color: dmbGreen),
         const SizedBox(width: 8),
-        Text(
-          text,
-          style: GoogleFonts.plusJakartaSans(fontSize: 11.5, color: textMuted),
+        Expanded(
+          child: Text(
+            text,
+            style: GoogleFonts.plusJakartaSans(fontSize: 11.5, color: textMuted),
+          ),
         ),
       ],
     );
   }
 }
-

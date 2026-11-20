@@ -1,5 +1,3 @@
-// Package session implements server-side customer sessions (audit DMB-014):
-// logout & revocation, refresh-token rotation and refresh-token reuse detection.
 package session
 
 import (
@@ -15,8 +13,6 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// ConcurrentRefreshGrace tolerates a client that refreshes twice with the same
-// token in a short window (parallel requests) without treating it as theft.
 const ConcurrentRefreshGrace = 30 * time.Second
 
 var (
@@ -26,7 +22,6 @@ var (
 	ErrUnavailable       = errors.New("layanan sesi tidak tersedia")
 )
 
-// Revocation reasons
 const (
 	ReasonLogout         = "LOGOUT"
 	ReasonNewLogin       = "NEW_LOGIN"
@@ -39,20 +34,17 @@ const (
 	ReasonAccountBlocked = "ACCOUNT_BLOCKED"
 )
 
-// HashJTI returns the stored fingerprint of a refresh-token id.
 func HashJTI(jti string) string {
 	s := sha256.Sum256([]byte(jti))
 	return hex.EncodeToString(s[:])
 }
 
-// Manager persists sessions in PostgreSQL.
 type Manager struct {
 	db *gorm.DB
 }
 
 func NewManager(db *gorm.DB) *Manager { return &Manager{db: db} }
 
-// Create stores a new session.
 func (m *Manager) Create(ctx context.Context, sessionID, userID, deviceID, ip, refreshJTI string, expiresAt time.Time) error {
 	if m.db == nil {
 		return ErrUnavailable
@@ -67,7 +59,6 @@ func (m *Manager) Create(ctx context.Context, sessionID, userID, deviceID, ip, r
 	}).Error
 }
 
-// IsActive reports whether the session exists, belongs to userID, is not revoked and not expired.
 func (m *Manager) IsActive(ctx context.Context, sessionID, userID string) (bool, error) {
 	if m.db == nil {
 		return false, ErrUnavailable
@@ -84,9 +75,6 @@ func (m *Manager) IsActive(ctx context.Context, sessionID, userID string) (bool,
 	return s.UserID == userID && s.RevokedAt == nil && time.Now().Before(s.ExpiresAt), nil
 }
 
-// Rotate replaces the session's refresh token. presentedJTI must be the current
-// refresh token; if it is the previous one beyond the grace window (or unknown),
-// the token is considered stolen and ALL sessions of the user are revoked.
 func (m *Manager) Rotate(ctx context.Context, sessionID, userID, presentedJTI, newJTI string, newExpiry time.Time) error {
 	if m.db == nil {
 		return ErrUnavailable
@@ -123,7 +111,6 @@ func (m *Manager) Rotate(ctx context.Context, sessionID, userID, presentedJTI, n
 	return err
 }
 
-// Revoke revokes a single session.
 func (m *Manager) Revoke(ctx context.Context, sessionID, reason string) error {
 	if m.db == nil {
 		return ErrUnavailable
@@ -134,7 +121,6 @@ func (m *Manager) Revoke(ctx context.Context, sessionID, reason string) error {
 		Updates(map[string]interface{}{"revoked_at": now, "revoked_reason": reason}).Error
 }
 
-// RevokeAllForUser revokes every active session of the user except exceptSessionID (if not empty).
 func (m *Manager) RevokeAllForUser(ctx context.Context, userID, reason, exceptSessionID string) error {
 	if m.db == nil {
 		return ErrUnavailable

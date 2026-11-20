@@ -22,17 +22,11 @@
 |---|---|---|
 | Liveness | `GET /health` | probe 30–60 detik; alert bila gagal 3× |
 | Readiness | `GET /ready` (database & Redis) | idem |
-| Transfer menggantung | `transfer_requests` berstatus `UNKNOWN`/`PENDING` | alert bila > 10 menit |
 | Integritas audit | `cmd/auditverify` (exit 2 = rusak) | harian; exit 2 = insiden |
 | Lonjakan 401/429 | log aplikasi/proxy | indikasi brute force |
 
 Status: **NOT IMPLEMENTED** sebagai sistem monitoring/alerting — belum ada SIEM, dashboard, atau
-on-call. Query rujukan transfer menggantung:
-
-```sql
-SELECT id, status, created_at FROM transfer_requests
-WHERE status IN ('UNKNOWN','PENDING') AND created_at < now() - interval '10 minutes';
-```
+on-call.
 
 ## 3. Log
 
@@ -47,7 +41,7 @@ WHERE status IN ('UNKNOWN','PENDING') AND created_at < now() - interval '10 minu
 
 | Aset | Perlu backup | Catatan |
 |---|---|---|
-| PostgreSQL aplikasi | Ya | kredensial (hash), binding perangkat, sesi, `transfer_requests`, audit trail, notifikasi, pengajuan. Saldo resmi tetap di CBS |
+| PostgreSQL aplikasi | Ya | kredensial (hash), binding perangkat, sesi, audit trail, notifikasi, pengajuan, serta tabel legacy fitur transfer yang sudah dihapus (`transfer_requests`, `transactions`, `saved_beneficiaries`) sampai diarsipkan. Saldo resmi tetap di CBS |
 | Dokumen SK (PDF per versi), metadata versi, catatan persetujuan nasabah, revisi konten | Ya (berada di PostgreSQL: `stored_files`, `legal_*`, `mobile_content_revisions`) | Bukti hukum persetujuan; retensi mengikuti kebijakan bank (belum ditetapkan). PDF beralamat SHA-256 sehingga integritas dapat diperiksa setelah restore |
 | Kunci `DB_ENCRYPTION_KEY` (+ `_PREVIOUS`) | Ya, **terpisah** dari backup data | tanpa kunci, data pribadi di backup tidak dapat dibaca |
 | Secret lain (JWT, CBS, Redis, gateway) | Tidak wajib | dapat diterbitkan ulang |
@@ -80,10 +74,8 @@ dimodifikasi ditolak):
 2. Restore ke database **baru/kosong** dengan `restore_postgres.sh`; siapkan kunci enkripsi yang sesuai.
 3. Verifikasi: `cmd/auditverify` = "audit chain utuh"; `cmd/rekey` (dry run) = `decrypt_errors=0`;
    jumlah baris tabel utama sesuai. Integritas PDF SK: `SELECT count(*) FROM stored_files WHERE encode(sha256(content),'hex') <> sha256;` harus 0, dan `GET /api/v1/terms/active` mengembalikan versi yang sama seperti sebelum insiden.
-4. Rekonsiliasi `transfer_requests` `PENDING`/`UNKNOWN` dengan CBS — transaksi yang tercatat di CBS
-   setelah titik backup harus ditelusuri.
-5. Bila ada indikasi kompromi: cabut seluruh sesi (rotasi `JWT_SECRET` membatalkan semua token).
-6. Alihkan aplikasi ke database hasil restore, buka layanan bertahap, catat hasil.
+4. Bila ada indikasi kompromi: cabut seluruh sesi (rotasi `JWT_SECRET` membatalkan semua token).
+5. Alihkan aplikasi ke database hasil restore, buka layanan bertahap, catat hasil.
 
 Uji restore dilakukan di lingkungan terisolasi dengan jadwal yang ditetapkan bank.
 
@@ -115,7 +107,6 @@ menghapus data) → pemulihan → pelaporan → review pasca-insiden.
 | Akun petugas disalahgunakan | Nonaktifkan petugas (`/admin/users/:id/status`); tinjau `audit_logs` |
 | Manipulasi audit trail | `auditverify` exit 2 → bekukan akses DB, amankan backup & log, investigasi dari `seq` yang dilaporkan |
 | Brute force | Rate limit aktif; blokir IP di reverse proxy/WAF |
-| Transfer `UNKNOWN` menumpuk | Aktifkan `maintenance_mode`; rekonsiliasi manual dengan CBS |
 
 ## 8. Kebocoran credential
 
@@ -136,5 +127,27 @@ menghapus data) → pemulihan → pelaporan → review pasca-insiden.
 | Gejala | Perilaku sistem | Tindakan operasional |
 |---|---|---|
 | CBS timeout/error | Saldo, mutasi, pinjaman, deposito, katalog → 503 "… belum dapat ditampilkan"; tidak ada data pengganti | Cek `/api/v1/admin/cbs/health`, jaringan keluar 443, kredensial; hubungi vendor CBS |
-| Kepemilikan tidak dapat diperiksa | Transfer ditolak 503 (fail-closed) | idem |
-| Overbooking tanpa kepastian | Status `UNKNOWN`, 202 ke nasabah, tidak di-retry | Rekonsiliasi manual dengan CBS; aktifkan `maintenance_mode` bila menumpuk |
+| Kepemilikan rekening tidak dapat diperiksa | Saldo/mutasi ditolak 503 (fail-closed) | idem |
+
+## Device binding: operasional
+
+* **Purge challenge** (role aplikasi tidak memiliki DELETE): jalankan terjadwal dengan role migrasi
+  `migrate purge-challenges` (`DEVICE_CHALLENGE_RETENTION_DAYS`, default 30). Kunci perangkat tidak
+  pernah dihapus; pencabutan adalah perubahan status yang tetap tercatat.
+* **Daftar status attestation Google**: bila dipakai, perbarui file
+  `DEVICE_ATTESTATION_ANDROID_REVOCATION_FILE` minimal harian lalu restart / rolling deploy backend.
+* **Pembaruan root attestation**: ganti file PEM (gabungkan root lama + baru selama transisi), restart.
+* **Pemantauan**: Backoffice → Nasabah & Perangkat → Kunci Keamanan Perangkat. Lonjakan
+  *attestation gagal*, *tanda tangan ditolak*, atau *replay* adalah indikator serangan atau klien rusak;
+  detail di Audit Trail (`DEVICE_ATTESTATION_FAILED`, `DEVICE_SIGNATURE_REJECTED`, `DEVICE_CHALLENGE_REPLAY`).
+* **HP nasabah hilang / diganti**: petugas CS/SA → *Unbind Device* (mencabut kunci + seluruh sesi);
+  nasabah mengikat ulang melalui Lupa Password (OTP).
+
+### Rollback device binding
+
+1. Rollback perilaku (tanpa database): `DEVICE_BINDING_MODE=off`, restart backend.
+2. Rollback skema (hanya bersama redeploy rilis backend sebelumnya, dengan role migrasi, setelah backup):
+   `psql -f pkg/database/rollback/0015_device_attestation_down.sql` (mencabut kunci App Attest,
+   kolom dibiarkan), lalu bila perlu `0013_0014_device_key_binding_down.sql` (menghapus tabel kunci
+   dan challenge — ekspor `device_keys` terlebih dahulu). Binding `users.device_id` tidak diubah.
+   Prosedur ini diuji oleh `TestIntegration_DeviceBindingRollback` (rollback lalu migrate up ulang).

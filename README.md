@@ -16,7 +16,7 @@
 | Dokumen | Untuk |
 |---|---|
 | [USER_MANUAL.md](docs/USER_MANUAL.md) | Buku panduan nasabah (draf) |
-| [SYSTEM_ARCHITECTURE.md](docs/SYSTEM_ARCHITECTURE.md) | Arsitektur, API, alur login/saldo/mutasi/transfer, CBS, database |
+| [SYSTEM_ARCHITECTURE.md](docs/SYSTEM_ARCHITECTURE.md) | Arsitektur, API, alur login/saldo/mutasi, CBS, database |
 | [SECURITY_AND_OJK.md](docs/SECURITY_AND_OJK.md) | Kontrol keamanan, matriks bukti, dan bahan pemeriksaan OJK |
 | [LOCAL_SETUP.md](docs/LOCAL_SETUP.md) | Instalasi dan pengujian local (Windows + HP Android) |
 | [ENVIRONMENT_SETUP.md](docs/ENVIRONMENT_SETUP.md) | Local/development/staging/production dan seluruh variabel konfigurasi |
@@ -44,7 +44,7 @@ Git. Server memakai environment server atau secret manager.
 ```
 cmd/              api · migrate · localfixture · auditverify · rekey
 config/           loader konfigurasi
-internal/         app · module/{auth,account,transaction,customer,admin} · cbsprovider · ownership
+internal/         app · module/{auth,account,customer,admin} · cbsprovider · ownership
                   otp · notification · audit · session · rekey · domain · model
 pkg/              database (+migrations) · money · security · crypto · middleware · logger · redis · response · reqctx
 test/integration/ integration test

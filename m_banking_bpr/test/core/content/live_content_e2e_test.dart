@@ -31,7 +31,7 @@ void main() {
       builder: (context, child) => ContentRefreshScope(child: child!),
       home: Scaffold(body: Builder(builder: (_) => Text(AppContent.text('onboarding.slide1_title')))),
     ));
-    expect(find.text('Jadi bestie di dunia finansial anak dengan DMB Mobile'), findsOneWidget,
+    expect(find.text('Solusi Finansial Terpercaya untuk Keluarga & UMKM'), findsOneWidget,
         reason: 'sebelum unduhan: nilai bawaan aplikasi');
 
     final ok = await tester.runAsync(() => DynamicConfigService()

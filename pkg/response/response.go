@@ -7,19 +7,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Response Code Constants following standard banking / middleware convention
 const (
-	CodeSuccess             = "00"
-	CodeUnauthorized        = "01"
-	CodeInvalidCredentials  = "02"
-	CodeBadRequest          = "03"
-	CodeNotFound            = "04"
-	CodeInsufficientBalance = "05"
-	CodeRateLimitExceeded   = "06"
-	CodeInternalError       = "99"
+	CodeSuccess            = "00"
+	CodeUnauthorized       = "01"
+	CodeInvalidCredentials = "02"
+	CodeBadRequest         = "03"
+	CodeNotFound           = "04"
+	CodeRateLimitExceeded  = "06"
+	CodeInternalError      = "99"
 )
 
-// StandardBankingResponse is the JSON envelope for all API responses
 type StandardBankingResponse struct {
 	Success      bool        `json:"success"`
 	ResponseCode string      `json:"response_code"`
@@ -29,7 +26,6 @@ type StandardBankingResponse struct {
 	Timestamp    string      `json:"timestamp"`
 }
 
-// Success sends an HTTP 200 response with banking CodeSuccess
 func Success(c *gin.Context, message string, data interface{}) {
 	c.JSON(http.StatusOK, StandardBankingResponse{
 		Success:      true,
@@ -40,7 +36,6 @@ func Success(c *gin.Context, message string, data interface{}) {
 	})
 }
 
-// BadRequest sends an HTTP 400 error response
 func BadRequest(c *gin.Context, message string, errors interface{}) {
 	c.JSON(http.StatusBadRequest, StandardBankingResponse{
 		Success:      false,
@@ -51,7 +46,6 @@ func BadRequest(c *gin.Context, message string, errors interface{}) {
 	})
 }
 
-// Unauthorized sends an HTTP 401 error response
 func Unauthorized(c *gin.Context, responseCode, message string) {
 	if responseCode == "" {
 		responseCode = CodeUnauthorized
@@ -64,7 +58,6 @@ func Unauthorized(c *gin.Context, responseCode, message string) {
 	})
 }
 
-// NotFound sends an HTTP 404 error response
 func NotFound(c *gin.Context, message string) {
 	c.JSON(http.StatusNotFound, StandardBankingResponse{
 		Success:      false,
@@ -74,7 +67,6 @@ func NotFound(c *gin.Context, message string) {
 	})
 }
 
-// TooManyRequests sends an HTTP 429 error response (Rate Limiter)
 func TooManyRequests(c *gin.Context, message string) {
 	c.JSON(http.StatusTooManyRequests, StandardBankingResponse{
 		Success:      false,
@@ -84,12 +76,10 @@ func TooManyRequests(c *gin.Context, message string) {
 	})
 }
 
-// Error sends a customized error response
 func Error(c *gin.Context, httpStatus int, message string, responseCode string, errors interface{}) {
 	ErrorWithCode(c, httpStatus, responseCode, message, errors)
 }
 
-// ErrorWithCode sends a customized error response with specific HTTP status and response code
 func ErrorWithCode(c *gin.Context, httpStatus int, responseCode, message string, errors interface{}) {
 	c.JSON(httpStatus, StandardBankingResponse{
 		Success:      false,

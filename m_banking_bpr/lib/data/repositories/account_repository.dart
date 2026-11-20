@@ -5,9 +5,6 @@ import '../models/mutation_model.dart';
 import '../../core/money/money.dart';
 import '../../core/services/dynamic_config_service.dart';
 
-/// Errors (network, backend or Core Banking unavailable) are propagated as
-/// ApiException so screens can show a retry message — an outage is never
-/// presented as "no data" (audit DMB-026 / DMB-035).
 class AccountRepository {
   final ApiClient apiClient;
 
@@ -55,15 +52,13 @@ class AccountRepository {
     return [];
   }
 
-  Future<Map<String, dynamic>> inquiryAccount(String accountNumber) async {
-    final response = await apiClient.get(
-      ApiEndpoints.accountInquiry,
-      queryParameters: {'account_number': accountNumber},
-    );
+  /// Unmasked identity data, released by the server only after it verified the PIN.
+  Future<Map<String, dynamic>> revealCustomerProfile(String pin) async {
+    final response = await apiClient.post(ApiEndpoints.accountProfileReveal, data: {'pin': pin});
     if (response is Map<String, dynamic>) {
       return response;
     }
-    return {};
+    return <String, dynamic>{};
   }
 
   Future<Map<String, dynamic>> getCustomerProfile({String? cifNumber}) async {
@@ -117,43 +112,6 @@ class AccountRepository {
     } catch (_) {}
     return DynamicConfigService().config.toJson();
   }
-
-  // ==================== SAVED BENEFICIARIES ====================
-
-  Future<List<Map<String, dynamic>>> getBeneficiaries() async {
-    try {
-      final response = await apiClient.get(ApiEndpoints.beneficiaries);
-      if (response is List) {
-        return List<Map<String, dynamic>>.from(response);
-      }
-    } catch (_) {}
-    return [];
-  }
-
-  Future<void> saveBeneficiary({
-    required String bankCode,
-    required String bankName,
-    required String accountNumber,
-    required String accountName,
-    String nickname = '',
-  }) async {
-    await apiClient.post(
-      ApiEndpoints.beneficiaries,
-      data: {
-        'bank_code': bankCode,
-        'bank_name': bankName,
-        'account_number': accountNumber,
-        'account_name': accountName,
-        'nickname': nickname,
-      },
-    );
-  }
-
-  Future<void> deleteBeneficiary(String id) async {
-    await apiClient.delete('${ApiEndpoints.beneficiaries}/$id');
-  }
-
-  // ==================== ONLINE PRODUCT APPLICATIONS ====================
 
   Future<List<Map<String, dynamic>>> getUserApplications() async {
     try {
@@ -273,16 +231,15 @@ class AccountRepository {
     required String productName,
     required Money amount,
     required int tenorMonths,
-    required String interestRate,
-    required Money estimatedReturn,
-    required String purposeOrSource,
+    String interestRate = '',
+    Money estimatedReturn = const Money.zero(),
+    String purposeOrSource = '',
   }) async {
     final response = await apiClient.post(
       ApiEndpoints.applications,
       data: {
         'product_type': productType,
         'product_name': productName,
-        // Exact decimal strings (the backend parses them without floating point).
         'amount': amount.toApiString(),
         'tenor_months': tenorMonths,
         'interest_rate': interestRate,

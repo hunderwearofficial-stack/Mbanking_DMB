@@ -1,19 +1,19 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:pdfx/pdfx.dart';
 
+import '../../../core/constants/app_colors.dart';
 import '../../../core/content/app_content.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../data/models/terms_document.dart';
 import '../../../data/repositories/terms_repository.dart';
 import '../../blocs/auth/auth_cubit.dart';
-import 'login_screen.dart';
 import '../../widgets/app_validation_feedback.dart';
+import 'login_screen.dart';
 
-/// Builds the PDF viewer. [onLoaded] reports the page count once the document is
-/// rendered; [onError] reports a document that can not be opened (corrupt file).
 typedef TermsPdfViewBuilder = Widget Function(
   Uint8List bytes,
   void Function(int pages) onLoaded,
@@ -21,19 +21,19 @@ typedef TermsPdfViewBuilder = Widget Function(
   void Function(int page) onPageChanged,
 );
 
-/// Syarat dan Ketentuan before login. The text is the PDF of the version published by
-/// the bank (back office); consent is valid only once the backend has recorded it.
 class TermsConditionsScreen extends StatefulWidget {
-  const TermsConditionsScreen({super.key, this.repository, this.pdfViewBuilder, this.onAccepted});
+  const TermsConditionsScreen({
+    super.key,
+    this.repository,
+    this.pdfViewBuilder,
+    this.onAccepted,
+    this.readOnly = false,
+  });
 
-  /// Injected in tests; defaults to the app's API client.
   final TermsRepository? repository;
-
-  /// Injected in tests (no native PDF renderer in widget tests); defaults to pdfx.
   final TermsPdfViewBuilder? pdfViewBuilder;
-
-  /// Called after the backend confirmed the consent; defaults to opening the login screen.
   final VoidCallback? onAccepted;
+  final bool readOnly;
 
   @override
   State<TermsConditionsScreen> createState() => _TermsConditionsScreenState();
@@ -104,7 +104,6 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
     final maxScroll = _scrollController.position.maxScrollExtent;
     final currentScroll = _scrollController.offset;
 
-    // Hide floating down button when near the bottom
     final isNearBottom = (maxScroll - currentScroll) <= 80;
 
     if (isNearBottom && _showScrollToBottom) {
@@ -124,11 +123,14 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
   }
 
   Future<void> _onProceed() async {
+    if (widget.readOnly) {
+      Navigator.of(context).maybePop();
+      return;
+    }
     final doc = _doc;
     if (!_canProceed || doc == null) return;
     setState(() => _submitting = true);
     try {
-      // Checking the boxes is not consent until the backend confirms the record.
       await _repo.accept(doc);
       if (!mounted) return;
       if (widget.onAccepted != null) {
@@ -202,7 +204,7 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
           elevation: 0,
           scrolledUnderElevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Color(0xFF0F172A), size: 24),
+            icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary, size: 24),
             onPressed: () => Navigator.of(context).maybePop(),
           ),
         ),
@@ -220,13 +222,12 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 1. Headline Title
                   Text(
                     AppContent.text('terms.headline'),
                     style: const TextStyle(
                       fontSize: 21,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF0F172A),
+                      color: AppColors.titleDark,
                       height: 1.28,
                       letterSpacing: -0.3,
                     ),
@@ -234,101 +235,99 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
 
                   const SizedBox(height: 8),
 
-                  // Version & effective date of the published document
                   Text(
                     _versionLine(),
                     key: const Key('termsVersionLine'),
                     style: const TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w400,
-                      color: Color(0xFF64748B),
+                      color: AppColors.textMuted,
                     ),
                   ),
 
                   const SizedBox(height: 14),
 
-                  // Subtitle Instruction
                   Text(
                     AppContent.text('terms.instruction'),
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w400,
-                      color: Color(0xFF334155),
+                      color: AppColors.textSecondary,
                       height: 1.45,
                     ),
                   ),
 
                   const SizedBox(height: 18),
 
-                  // PDF document (published version)
                   _buildPdfArea(context),
 
                   const SizedBox(height: 28),
 
-                  // Divider Before Agreement Section
-                  Container(
-                    height: 1.5,
-                    color: const Color(0xFFE2E8F0),
-                    margin: const EdgeInsets.only(bottom: 24),
-                  ),
-
-                  if (doc != null) ...[
-                    Text(
-                      doc.consentHeading.isNotEmpty ? doc.consentHeading : 'Persetujuan Layanan Nasabah',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF0F172A),
-                      ),
+                  if (!widget.readOnly) ...[
+                    Container(
+                      height: 1.5,
+                      color: AppColors.borderLight,
+                      margin: const EdgeInsets.only(bottom: 24),
                     ),
-                    if (doc.consentInstruction.isNotEmpty) ...[
-                      const SizedBox(height: 6),
+
+                    if (doc != null) ...[
                       Text(
-                        doc.consentInstruction,
+                        doc.consentHeading.isNotEmpty ? doc.consentHeading : 'Persetujuan Layanan Nasabah',
                         style: const TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w400,
-                          color: Color(0xFF64748B),
-                          height: 1.4,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.titleDark,
                         ),
                       ),
-                    ],
-                    const SizedBox(height: 18),
-                    for (var i = 0; i < doc.consentStatements.length; i++) ...[
-                      _buildCheckboxItem(
-                        key: Key('termsConsent$i'),
-                        value: _checks[i],
-                        enabled: _pdfReady && !_submitting,
-                        onChanged: (val) => setState(() => _checks[i] = val ?? false),
-                        text: doc.consentStatements[i],
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                    if (!_pdfReady)
-                      const Padding(
-                        padding: EdgeInsets.only(bottom: 6),
-                        child: Text(
-                          'Persetujuan dapat diberikan setelah dokumen PDF berhasil ditampilkan.',
-                          style: TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8)),
+                      if (doc.consentInstruction.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          doc.consentInstruction,
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w400,
+                            color: AppColors.textMuted,
+                            height: 1.4,
+                          ),
                         ),
-                      ),
-                    const SizedBox(height: 16),
+                      ],
+                      const SizedBox(height: 18),
+                      for (var i = 0; i < doc.consentStatements.length; i++) ...[
+                        _buildCheckboxItem(
+                          key: Key('termsConsent$i'),
+                          value: _checks[i],
+                          enabled: _pdfReady && !_submitting,
+                          onChanged: (val) => setState(() => _checks[i] = val ?? false),
+                          text: doc.consentStatements[i],
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      if (!_pdfReady)
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 6),
+                          child: Text(
+                            'Persetujuan dapat diberikan setelah dokumen PDF berhasil ditampilkan.',
+                            style: TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8)),
+                          ),
+                        ),
+                      const SizedBox(height: 16),
+                    ],
                   ],
 
-                  // Primary Action Button: active only when the PDF is shown, the version is
-                  // valid and every statement is checked; confirmed by the backend.
                   SizedBox(
                     width: double.infinity,
                     height: 52,
                     child: ElevatedButton(
                       key: const Key('termsProceedButton'),
-                      onPressed: _canProceed ? _onProceed : null,
+                      onPressed: widget.readOnly
+                          ? () => Navigator.of(context).maybePop()
+                          : (_canProceed ? _onProceed : null),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF16984B), // DMB Green
-                        disabledBackgroundColor: const Color(0xFFE2E8F0),
+                        backgroundColor: widget.readOnly ? AppColors.primaryNavy : AppColors.dmbGreen,
+                        disabledBackgroundColor: AppColors.borderLight,
                         foregroundColor: Colors.white,
                         disabledForegroundColor: const Color(0xFF94A3B8),
-                        elevation: _canProceed ? 2 : 0,
+                        elevation: (widget.readOnly || _canProceed) ? 2 : 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(26),
                         ),
@@ -344,13 +343,15 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
                             )
                           else
                             Icon(
-                              _canProceed ? Icons.check_circle_rounded : Icons.lock_outline_rounded,
+                              widget.readOnly
+                                  ? Icons.check_rounded
+                                  : (_canProceed ? Icons.check_circle_rounded : Icons.lock_outline_rounded),
                               size: 18,
                             ),
                           const SizedBox(width: 8),
-                          const Text(
-                            'Setuju & Lanjutkan',
-                            style: TextStyle(
+                          Text(
+                            widget.readOnly ? 'Tutup Dokumen' : 'Setuju & Lanjutkan',
+                            style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.2,
@@ -364,8 +365,7 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
               ),
             ),
 
-            // Floating Scroll-to-Bottom Button (Visible only when not at bottom, to easily reach checkboxes)
-            if (_showScrollToBottom)
+            if (_showScrollToBottom && !widget.readOnly)
               Positioned(
                 right: 20,
                 bottom: 24,
@@ -375,7 +375,7 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0F172A),
+                      color: AppColors.primaryNavy,
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
@@ -400,7 +400,7 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
   }
 
   Widget _buildPdfArea(BuildContext context) {
-    final height = MediaQuery.of(context).size.height * 0.62;
+    final height = (MediaQuery.of(context).size.height * 0.56).clamp(320.0, 520.0);
     Widget body;
     if (_loading) {
       body = const Center(
@@ -408,9 +408,9 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircularProgressIndicator(color: Color(0xFF00897B)),
+            CircularProgressIndicator(color: AppColors.primaryNavy),
             SizedBox(height: 12),
-            Text('Memuat dokumen Syarat dan Ketentuan...', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+            Text('Memuat dokumen Syarat dan Ketentuan...', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
           ],
         ),
       );
@@ -427,7 +427,7 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
               Text(
                 _error ?? 'Dokumen tidak dapat ditampilkan.',
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12.5, color: Color(0xFF475569), height: 1.4),
+                style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary, height: 1.4),
               ),
               const SizedBox(height: 14),
               OutlinedButton.icon(
@@ -464,6 +464,9 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
           ? widget.pdfViewBuilder!(_pdfBytes!, onLoaded, onError, onPage)
           : PdfView(
               controller: _pdfController!,
+              scrollDirection: Axis.horizontal,
+              pageSnapping: true,
+              physics: const BouncingScrollPhysics(),
               onDocumentLoaded: (d) => onLoaded(d.pagesCount),
               onDocumentError: onError,
               onPageChanged: onPage,
@@ -473,9 +476,9 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: AppColors.bgCanvas,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
+        border: Border.all(color: AppColors.borderLight, width: 1.5),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -490,7 +493,7 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
                     color: const Color(0xFFFEE2E2),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.picture_as_pdf_rounded, color: Color(0xFFDC2626), size: 20),
+                  child: const Icon(Icons.picture_as_pdf_rounded, color: AppColors.danger, size: 20),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -498,14 +501,14 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
                     _doc != null ? 'Syarat dan Ketentuan • Versi ${_doc!.versionNumber}' : 'Syarat dan Ketentuan',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.titleDark),
                   ),
                 ),
                 if (_pdfReady)
                   Text(
                     'Halaman $_currentPage dari $_pageCount',
                     key: const Key('termsPageIndicator'),
-                    style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                    style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
                   ),
                 if (_pdfReady && _pdfController != null) ...[
                   IconButton(
@@ -555,10 +558,10 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: value ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
+          color: value ? AppColors.successLight : AppColors.bgCanvas,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: value ? const Color(0xFFBBF7D0) : const Color(0xFFE2E8F0),
+            color: value ? AppColors.successBorder : AppColors.borderLight,
             width: 1,
           ),
         ),
@@ -571,7 +574,7 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
               child: Checkbox(
                 value: value,
                 onChanged: enabled ? onChanged : null,
-                activeColor: const Color(0xFF16984B),
+                activeColor: AppColors.dmbGreen,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
                 side: const BorderSide(color: Color(0xFF94A3B8), width: 1.5),
               ),
@@ -583,7 +586,7 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
                 style: TextStyle(
                   fontSize: 11.5,
                   fontWeight: value ? FontWeight.w600 : FontWeight.w400,
-                  color: value ? const Color(0xFF0F172A) : const Color(0xFF334155),
+                  color: value ? AppColors.textPrimary : AppColors.textSecondary,
                   height: 1.4,
                 ),
               ),

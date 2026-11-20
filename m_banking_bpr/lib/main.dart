@@ -26,15 +26,12 @@ final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 0. Build configuration (flavor + API endpoint). Invalid configuration shows an
-  //    error screen instead of silently talking to another server.
   final configError = AppEnvironment.validate();
   if (configError != null) {
     runApp(ConfigurationErrorApp(message: configError));
     return;
   }
 
-  // Initialize Firebase native bindings before any services run
   try {
     final firebaseOpts = DefaultFirebaseOptions.currentPlatform;
     if (firebaseOpts != null && Firebase.apps.isEmpty) {
@@ -46,7 +43,6 @@ void main() async {
     logDebug('Firebase.initializeApp error: $e');
   }
 
-  // 1. Core Services Initialization
   final secureStorage = SecureStorageService();
   final apiClient = ApiClient(
     secureStorage: secureStorage,
@@ -71,14 +67,11 @@ void main() async {
     },
   );
 
-  // Load persistent branding & config from local disk cache immediately
   await DynamicConfigService().initialize(apiClient: apiClient);
 
-  // 2. Data Repositories
   final authRepository = AuthRepository(apiClient: apiClient, secureStorage: secureStorage);
   final accountRepository = AccountRepository(apiClient: apiClient);
 
-  // 3. Launch UI immediately so the app opens instantly with zero blank screen
   runApp(
     MBankingBPRApp(
       authRepository: authRepository,
@@ -86,7 +79,6 @@ void main() async {
     ),
   );
 
-  // 4. Initialize background services asynchronously AFTER UI is rendered
   WidgetsBinding.instance.addPostFrameCallback((_) async {
     try {
       await SecurityHardeningService.setFlagSecure(true);
@@ -150,7 +142,6 @@ class MBankingBPRApp extends StatelessWidget {
 }
 
 
-/// Shown when the app was built without a valid environment configuration.
 class ConfigurationErrorApp extends StatelessWidget {
   final String message;
   const ConfigurationErrorApp({super.key, required this.message});

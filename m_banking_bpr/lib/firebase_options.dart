@@ -1,12 +1,9 @@
-// File generated for MBanking DMB Firebase integration
 import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 
 class DefaultFirebaseOptions {
   static FirebaseOptions? get currentPlatform {
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
-      // Firebase iOS belum didaftarkan di Firebase Console (baru Android).
-      // Return null agar tidak memicu native Objective-C exception (SIGABRT) di iOS.
       return null;
     }
     return android;

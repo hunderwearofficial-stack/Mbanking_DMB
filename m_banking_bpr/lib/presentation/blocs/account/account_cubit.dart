@@ -5,19 +5,19 @@ import 'account_state.dart';
 
 class AccountCubit extends Cubit<AccountState> {
   final AccountRepository accountRepository;
+  bool _isBalanceVisible = false;
+
+  bool get isBalanceVisible => _isBalanceVisible;
 
   AccountCubit({required this.accountRepository}) : super(AccountInitial());
 
-  /// Loads balance & mutations. Returns null on success, or a user-facing error
-  /// message. On a silent refresh failure the previous state is kept and the
-  /// caller must inform the user that the data could not be updated.
   Future<String?> loadDashboardData({String? accountNumber, bool isSilentRefresh = false}) async {
-    final bool keepVisible = (state is AccountLoaded) ? (state as AccountLoaded).isBalanceVisible : false;
+    final bool keepVisible = (state is AccountLoaded) ? (state as AccountLoaded).isBalanceVisible : _isBalanceVisible;
+    _isBalanceVisible = keepVisible;
     if (!isSilentRefresh) {
       emit(AccountLoading());
     }
     try {
-      // Hit all 3 CBS endpoints (/api/savings-account-balance, /api/nasabah, /api/savings-accounts) + Mutations in parallel
       final results = await Future.wait([
         accountRepository.getBalance(accountNumber: accountNumber),
         accountRepository.getMutations(limit: 10, accountNumber: accountNumber),
@@ -31,11 +31,13 @@ class AccountCubit extends Cubit<AccountState> {
       emit(AccountLoaded(
         account: account,
         mutations: mutations,
-        isBalanceVisible: keepVisible,
+        isBalanceVisible: _isBalanceVisible,
       ));
       return null;
     } catch (e) {
-      final message = e is ApiException ? e.message : 'Saldo belum dapat ditampilkan. Silakan coba kembali.';
+      final message = e is ApiException
+          ? ApiException.humanize(e)
+          : 'Saldo belum dapat ditampilkan. Silakan coba kembali.';
       if (!isSilentRefresh) {
         emit(AccountError(message));
       }
@@ -44,10 +46,11 @@ class AccountCubit extends Cubit<AccountState> {
   }
 
   void toggleBalanceVisibility() {
+    _isBalanceVisible = !_isBalanceVisible;
     if (state is AccountLoaded) {
       final currentState = state as AccountLoaded;
       emit(currentState.copyWith(
-        isBalanceVisible: !currentState.isBalanceVisible,
+        isBalanceVisible: _isBalanceVisible,
       ));
     }
   }
@@ -69,12 +72,10 @@ class AccountCubit extends Cubit<AccountState> {
         );
         emit(currentState.copyWith(mutations: mutations));
       } catch (e) {
-        // keep current state on error
       }
     }
   }
 
-  /// Silent refresh; returns a user-facing error message when the data could not be updated.
   Future<String?> refresh() async {
     if (state is AccountLoaded) {
       final currentAccount = (state as AccountLoaded).account.accountNumber;

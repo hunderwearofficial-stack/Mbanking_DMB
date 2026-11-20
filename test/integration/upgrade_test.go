@@ -2,10 +2,13 @@ package integration
 
 import (
 	"context"
+	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"mbanking-bpr/internal/audit"
+	"mbanking-bpr/internal/devicebind"
 	"mbanking-bpr/internal/model"
 	"mbanking-bpr/internal/rekey"
 	"mbanking-bpr/pkg/crypto"
@@ -123,8 +126,8 @@ func TestIntegration_RekeyLegacyPII(t *testing.T) {
 	}
 
 	id := uuid.NewString()
-	if err := e.db.Exec(`INSERT INTO users (id, cif, full_name, phone_number, password_hash, pin_hash, nik, nama_ibu_kandung, is_active)
-		VALUES (?, '009900000001', 'Legacy', 'P-009900000001', '', '', '3201999999990001', ?, true)`, id, legacyV1).Error; err != nil {
+	if err := e.db.Exec(`INSERT INTO users (id, cif, full_name, phone_number, password_hash, pin_hash, email, nama_ibu_kandung, is_active)
+		VALUES (?, '009900000001', 'Legacy', 'P-009900000001', '', '', 'legacy@example.co.id', ?, true)`, id, legacyV1).Error; err != nil {
 		t.Fatal(err)
 	}
 
@@ -140,17 +143,94 @@ func TestIntegration_RekeyLegacyPII(t *testing.T) {
 	if err := e.db.Where("id = ?", id).First(&u).Error; err != nil {
 		t.Fatal(err)
 	}
-	if string(u.NIK) != "3201999999990001" || string(u.NamaIbuKandung) != "Ibu Lama" {
+	if string(u.Email) != "legacy@example.co.id" || string(u.NamaIbuKandung) != "Ibu Lama" {
 		t.Fatal("plaintext changed by rekey")
 	}
-	var rawNIK, rawIbu string
-	e.db.Raw("SELECT nik FROM users WHERE id = ?", id).Scan(&rawNIK)
+	var rawEmail, rawIbu string
+	e.db.Raw("SELECT email FROM users WHERE id = ?", id).Scan(&rawEmail)
 	e.db.Raw("SELECT nama_ibu_kandung FROM users WHERE id = ?", id).Scan(&rawIbu)
-	if !strings.HasPrefix(rawNIK, crypto.CipherPrefix) || !strings.HasPrefix(rawIbu, crypto.CipherPrefix) {
+	if !strings.HasPrefix(rawEmail, crypto.CipherPrefix) || !strings.HasPrefix(rawIbu, crypto.CipherPrefix) {
 		t.Fatal("values not re-encrypted to v2")
 	}
 	if again, _ := rekey.Run(context.Background(), e.db, false, 100); again.NeedsRekey != 0 {
 		t.Fatal("rekey must be idempotent")
 	}
 	_ = crypto.InitKeys(itEncKeyHex, "")
+}
+
+// TestIntegration_DeviceBindingRollback runs the manual rollback scripts (0015, then
+// 0013/0014): customer bindings survive, 0015 revokes App Attest keys without deleting
+// any key row, and migrating up again restores the schema (re-runnable after rollback).
+func TestIntegration_DeviceBindingRollback(t *testing.T) {
+	e := setupIT(t)
+	ctx := context.Background()
+	u := e.seedCustomer("001000000401", "081200000401", "SAMSUNG-SM-A515F-0000ABCD", "0010100000401", 1000)
+	sqlDB, _ := e.db.DB()
+	run := func(name string) {
+		script, err := os.ReadFile("../../pkg/database/rollback/" + name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := sqlDB.ExecContext(ctx, string(script)); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+	}
+	// An App Attest key and an ES256 key exist before the rollback of 0015.
+	e.db.Exec(`INSERT INTO device_keys (user_id, device_id, platform, algorithm, public_key, key_fingerprint, security_level, enrolled_via, app_attest_key_id, attestation_status)
+		VALUES (?, 'ios-x', 'ios', 'APPATTEST', 'pk', repeat('a', 64), 'SECURE_ENCLAVE', 'OTP_ENROLLMENT', 'kid', 'HARDWARE_VERIFIED')`, u.ID)
+	run("0015_device_attestation_down.sql")
+	var keys, active, maxVersion int64
+	e.db.Raw("SELECT count(*) FROM device_keys").Scan(&keys)
+	e.db.Raw("SELECT count(*) FROM device_keys WHERE status = 'ACTIVE'").Scan(&active)
+	e.db.Raw("SELECT max(version) FROM schema_migrations").Scan(&maxVersion)
+	if keys != 1 || active != 0 || maxVersion != 14 {
+		t.Fatalf("after 0015 rollback: keys=%d active=%d max_version=%d", keys, active, maxVersion)
+	}
+	e.db.Exec("DELETE FROM device_keys") // test fixture cleanup before dropping the tables
+	run("0013_0014_device_key_binding_down.sql")
+	var tables int64
+	e.db.Raw("SELECT count(*) FROM information_schema.tables WHERE table_name IN ('device_keys','device_challenges')").Scan(&tables)
+	e.db.Raw("SELECT max(version) FROM schema_migrations").Scan(&maxVersion)
+	var dev string
+	e.db.Raw("SELECT device_id FROM users WHERE id = ?", u.ID).Scan(&dev)
+	if tables != 0 || maxVersion != 12 || dev != "SAMSUNG-SM-A515F-0000ABCD" {
+		t.Fatalf("after rollback: tables=%d max_version=%d binding=%q", tables, maxVersion, dev)
+	}
+	done, err := database.MigrateUp(ctx, e.db)
+	if err != nil || len(done) != 3 {
+		t.Fatalf("migrate up after rollback: %v (%d applied)", err, len(done))
+	}
+	if err := database.EnsureSchemaCurrent(ctx, e.db); err != nil {
+		t.Fatal(err)
+	}
+	e.db.Raw("SELECT device_id FROM users WHERE id = ?", u.ID).Scan(&dev)
+	if dev != "SAMSUNG-SM-A515F-0000ABCD" {
+		t.Fatal("existing binding must survive migrate up/down/up")
+	}
+}
+
+// TestIntegration_PurgeDeviceChallenges (DB-M3): only challenges expired longer than the
+// retention period are deleted, the retention cannot be shorter than 24 hours, and the
+// application role cannot delete challenges itself (see db_roles_test).
+func TestIntegration_PurgeDeviceChallenges(t *testing.T) {
+	e := setupIT(t)
+	ctx := context.Background()
+	for _, age := range []string{"40 days", "31 days", "2 days", "0 days"} {
+		if err := e.db.Exec(`INSERT INTO device_challenges (id, purpose, device_id, nonce, expires_at)
+			VALUES (gen_random_uuid(), 'LOGIN', 'and-0000000000000001', 'n', now() - ?::interval)`, age).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := devicebind.PurgeChallenges(ctx, e.db, time.Hour); err == nil {
+		t.Fatal("retention below 24 hours must be refused")
+	}
+	n, err := devicebind.PurgeChallenges(ctx, e.db, 30*24*time.Hour)
+	if err != nil || n != 2 {
+		t.Fatalf("purge: deleted=%d err=%v", n, err)
+	}
+	var left int64
+	e.db.Raw("SELECT count(*) FROM device_challenges").Scan(&left)
+	if left != 2 {
+		t.Fatalf("recent challenges must remain, got %d", left)
+	}
 }

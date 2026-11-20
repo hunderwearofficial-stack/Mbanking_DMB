@@ -296,7 +296,7 @@ func TestIntegration_PushNotificationsFCM(t *testing.T) {
 
 	// ---- System event push: generic text only (no amounts / account numbers) ----
 	uA := tokUser(e, "001000000501")
-	notification.CreateAndPush(context.Background(), e.db, uA, "Transfer Berhasil", "Transfer Rp 150.000 ke 9900000000502 berhasil. Saldo Rp 850.000", notification.CategoryTransaction)
+	notification.CreateAndPush(context.Background(), e.db, uA, "Mutasi Rekening", "Dana masuk Rp 150.000 dari 9900000000502. Saldo Rp 850.000", notification.CategoryTransaction)
 	e.deps.Push.Wait()
 	sys := google.sent[len(google.sent)-1]["notification"].(map[string]interface{})["body"].(string)
 	if strings.Contains(sys, "150.000") || strings.Contains(sys, "9900000000502") || strings.Contains(sys, "850.000") {

@@ -31,7 +31,6 @@ type MutationQueryParam struct {
 	Limit         int    `form:"limit,default=20"`
 }
 
-// DMBHealthStatus represents response from Core Banking GET /ping
 type DMBHealthStatus struct {
 	Connected bool   `json:"connected"`
 	Status    string `json:"status"`
@@ -43,7 +42,6 @@ type DMBHealthStatus struct {
 }
 type CBSHealthStatus = DMBHealthStatus
 
-// DMBNasabahData represents customer data from Core Banking POST /api/nasabah
 type DMBNasabahData struct {
 	NIK            string `json:"nik"`
 	CIF            string `json:"cif"`
@@ -60,7 +58,6 @@ type DMBNasabahData struct {
 }
 type CBSNasabahData = DMBNasabahData
 
-// DMBSavingsAccountItem represents savings account item from Core Banking POST /api/savings-accounts
 type DMBSavingsAccountItem struct {
 	NomorRekening            string       `json:"nomor_rekening"`
 	Nama                     string       `json:"nama"`
@@ -73,7 +70,6 @@ type DMBSavingsAccountItem struct {
 }
 type CBSSavingsAccountItem = DMBSavingsAccountItem
 
-// DMBLoanAccountItem represents a loan account item from POST /api/loan-accounts
 type DMBLoanAccountItem struct {
 	NomorRekening            string       `json:"nomor_rekening"`
 	KodeProduk               string       `json:"kode_produk"`
@@ -86,7 +82,6 @@ type DMBLoanAccountItem struct {
 	KolektibilitasKeterangan string       `json:"kolektibilitas_keterangan"`
 }
 
-// DMBLoanAccountDetail represents detailed loan info from POST /api/loan-account-detail
 type DMBLoanAccountDetail struct {
 	NomorRekening            string       `json:"nomor_rekening"`
 	KodeProduk               string       `json:"kode_produk"`
@@ -111,7 +106,6 @@ type DMBLoanAccountDetail struct {
 	NamaKantor               string       `json:"nama_kantor"`
 }
 
-// DMBDepositAccountItem represents a deposit account item from POST /api/deposit-accounts
 type DMBDepositAccountItem struct {
 	NomorRekening            string       `json:"nomor_rekening"`
 	KodeProduk               string       `json:"kode_produk"`
@@ -123,7 +117,6 @@ type DMBDepositAccountItem struct {
 	TanggalJatuhTempo        string       `json:"tanggal_jatuh_tempo"`
 }
 
-// DMBDepositAccountDetail represents detailed deposit info from POST /api/deposit-account-detail
 type DMBDepositAccountDetail struct {
 	NomorRekening            string       `json:"nomor_rekening"`
 	KodeProduk               string       `json:"kode_produk"`
@@ -146,7 +139,6 @@ type DMBDepositAccountDetail struct {
 	NamaKantor               string       `json:"nama_kantor"`
 }
 
-// DMBProductsCatalog represents product catalog from POST /api/products
 type DMBProductsCatalog struct {
 	Tabungan []DMBProductItem `json:"tabungan"`
 	Kredit   []DMBProductItem `json:"kredit"`

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"mbanking-bpr/internal/devicebind"
 	"mbanking-bpr/internal/domain"
 	"mbanking-bpr/internal/model"
 	"mbanking-bpr/pkg/crypto"
@@ -17,22 +18,22 @@ import (
 )
 
 var (
-	// ErrPhoneInUse is returned when a phone number is already bound to another CIF.
-	ErrPhoneInUse = errors.New("nomor handphone sudah terdaftar pada nasabah lain")
-	// ErrAccountOwnedByOther is returned when an account is linked to a different customer.
+	ErrPhoneInUse          = errors.New("nomor handphone sudah terdaftar pada nasabah lain")
 	ErrAccountOwnedByOther = errors.New("rekening terhubung dengan nasabah lain")
 )
 
 type AuthRepository interface {
 	DB() *gorm.DB
 	FindByIdentifier(ctx context.Context, identifier string) (*model.User, error)
+	MaxLoginAttempts(ctx context.Context) int
 	FindByCIF(ctx context.Context, cif string) (*model.User, error)
 	FindByID(ctx context.Context, id string) (*model.User, error)
 	FindPrimaryAccount(ctx context.Context, userID string) (*model.Account, error)
 	EnsurePrimaryAccount(ctx context.Context, user *model.User, preferredAccountNo string) (*model.Account, error)
 	FindAccountWithUser(ctx context.Context, accountNo string) (*model.Account, *model.User, error)
 	PhoneUsedByOtherUser(ctx context.Context, phone, userID string) (bool, error)
-	SetActivationCredentials(ctx context.Context, userID, passwordHash, pinHash, phoneNumber, deviceID string) error
+	IsUsernameTaken(ctx context.Context, username, excludeUserID string) (bool, error)
+	SetActivationCredentials(ctx context.Context, userID, username, passwordHash, pinHash, phoneNumber, deviceID string) error
 	UpdatePasswordHash(ctx context.Context, userID, passwordHash, deviceID string) error
 	UpdateOnlyPINHash(ctx context.Context, userID, pinHash string) error
 	IncrementFailedLogin(ctx context.Context, userID string, maxAttempts int) (int, bool, error)
@@ -54,18 +55,75 @@ func (r *authRepository) DB() *gorm.DB {
 	return r.db
 }
 
-// FindByIdentifier finds a customer by exact phone number or exact CIF.
+// FindByIdentifier resolves a login identifier by its type (audit D-02): a digits-only
+// identifier is a phone number or a CIF and never a username; anything else is a username.
+// An identifier matching more than one customer is refused instead of picking one.
 func (r *authRepository) FindByIdentifier(ctx context.Context, identifier string) (*model.User, error) {
 	if r.db == nil || strings.TrimSpace(identifier) == "" {
 		return nil, gorm.ErrRecordNotFound
 	}
-	var user model.User
-	if err := r.db.WithContext(ctx).
-		Where("phone_number = ? OR cif = ?", identifier, identifier).
-		First(&user).Error; err != nil {
+	clean := strings.TrimSpace(identifier)
+	q := r.db.WithContext(ctx)
+	if isDigits(clean) {
+		q = q.Where("phone_number = ? OR cif = ?", clean, clean)
+	} else {
+		q = q.Where("LOWER(username) = LOWER(?)", clean)
+	}
+	var users []model.User
+	if err := q.Limit(2).Find(&users).Error; err != nil {
 		return nil, err
 	}
-	return &user, nil
+	if len(users) != 1 {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return &users[0], nil
+}
+
+func isDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// MaxLoginAttempts is the backoffice policy (app_configs.max_login_attempts) bounded to
+// 3..10; 3 when not configured or unreadable (audit D-07).
+func (r *authRepository) MaxLoginAttempts(ctx context.Context) int {
+	const def, lo, hi = 3, 3, 10
+	if r.db == nil {
+		return def
+	}
+	var n int
+	if err := r.db.WithContext(ctx).Raw(`SELECT COALESCE(max_login_attempts, 0) FROM app_configs ORDER BY id LIMIT 1`).Scan(&n).Error; err != nil || n <= 0 {
+		return def
+	}
+	if n < lo {
+		return lo
+	}
+	if n > hi {
+		return hi
+	}
+	return n
+}
+
+func (r *authRepository) IsUsernameTaken(ctx context.Context, username, excludeUserID string) (bool, error) {
+	if r.db == nil || strings.TrimSpace(username) == "" {
+		return false, nil
+	}
+	var count int64
+	q := r.db.WithContext(ctx).Model(&model.User{}).Where("LOWER(username) = LOWER(?)", strings.TrimSpace(username))
+	if excludeUserID != "" {
+		q = q.Where("id <> ?", excludeUserID)
+	}
+	if err := q.Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
 
 func (r *authRepository) FindByCIF(ctx context.Context, cif string) (*model.User, error) {
@@ -105,8 +163,6 @@ func (r *authRepository) FindPrimaryAccount(ctx context.Context, userID string) 
 	return &account, nil
 }
 
-// pendingPhonePlaceholder is a non-numeric (never routable) value for the unique
-// phone column of customers that have not completed activation.
 func pendingPhonePlaceholder(cif string) string {
 	p := "P-" + cif
 	if len(p) > 20 {
@@ -115,7 +171,6 @@ func pendingPhonePlaceholder(cif string) string {
 	return p
 }
 
-// IsPendingPhone reports whether phone is an activation placeholder.
 func IsPendingPhone(phone string) bool {
 	return strings.HasPrefix(phone, "P-")
 }
@@ -138,9 +193,6 @@ func truncateString(s string, max int) string {
 	return s
 }
 
-// EnsurePrimaryAccount returns the user's primary account, creating a local
-// placeholder record if none exists. An existing account that belongs to a
-// different customer is NEVER re-assigned (audit DMB-003).
 func (r *authRepository) EnsurePrimaryAccount(ctx context.Context, user *model.User, preferredAccountNo string) (*model.Account, error) {
 	if r.db == nil || user == nil {
 		return nil, gorm.ErrInvalidDB
@@ -192,9 +244,7 @@ func (r *authRepository) PhoneUsedByOtherUser(ctx context.Context, phone, userID
 	return n > 0, err
 }
 
-// SetActivationCredentials stores credentials after a successful OTP verification
-// and binds the verified phone number and device.
-func (r *authRepository) SetActivationCredentials(ctx context.Context, userID, passwordHash, pinHash, phoneNumber, deviceID string) error {
+func (r *authRepository) SetActivationCredentials(ctx context.Context, userID, username, passwordHash, pinHash, phoneNumber, deviceID string) error {
 	if r.db == nil {
 		return gorm.ErrInvalidDB
 	}
@@ -207,10 +257,25 @@ func (r *authRepository) SetActivationCredentials(ctx context.Context, userID, p
 		"is_active":             true,
 		"updated_at":            time.Now(),
 	}
+	if strings.TrimSpace(username) != "" {
+		updates["username"] = strings.TrimSpace(username)
+	}
 	if phoneNumber != "" && phoneNumber != "0" {
 		updates["phone_number"] = phoneNumber
 	}
-	return r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", userID).Updates(updates).Error
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&model.User{}).Where("id = ?", userID).Updates(updates).Error; err != nil {
+			return err
+		}
+		return rebindDevice(tx, userID, "ACTIVATION")
+	})
+}
+
+func rebindDevice(tx *gorm.DB, userID, reason string) error {
+	if _, err := devicebind.RevokeUserKeys(tx, userID, reason); err != nil {
+		return err
+	}
+	return devicebind.OpenEnrollmentWindow(tx, userID)
 }
 
 func (r *authRepository) UpdatePasswordHash(ctx context.Context, userID, passwordHash, deviceID string) error {
@@ -223,10 +288,16 @@ func (r *authRepository) UpdatePasswordHash(ctx context.Context, userID, passwor
 		"is_active":             true,
 		"updated_at":            time.Now(),
 	}
-	if deviceID != "" {
-		updates["device_id"] = deviceID
+	if deviceID == "" {
+		return r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", userID).Updates(updates).Error
 	}
-	return r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", userID).Updates(updates).Error
+	updates["device_id"] = deviceID
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&model.User{}).Where("id = ?", userID).Updates(updates).Error; err != nil {
+			return err
+		}
+		return rebindDevice(tx, userID, "PASSWORD_RESET_REBIND")
+	})
 }
 
 func (r *authRepository) UpdateOnlyPINHash(ctx context.Context, userID, pinHash string) error {
@@ -240,8 +311,6 @@ func (r *authRepository) UpdateOnlyPINHash(ctx context.Context, userID, pinHash 
 	}).Error
 }
 
-// incrementCounter atomically increments a failure counter and blocks the
-// account when the limit is reached (no read-modify-write race, audit DMB-018).
 func incrementCounter(ctx context.Context, db *gorm.DB, userID, column string, maxAttempts int) (int, bool, error) {
 	if db == nil {
 		return 0, false, gorm.ErrInvalidDB
@@ -295,10 +364,6 @@ func (r *authRepository) ResetFailedPIN(ctx context.Context, userID string) erro
 	}).Error
 }
 
-// UpsertCBSUserAndAccount mirrors a CBS customer (looked up strictly by CIF) into the
-// local database. New customers are created WITHOUT credentials: login is impossible
-// until the activation flow (OTP to the CBS-registered phone) sets password and PIN
-// (audit DMB-003). Existing credentials, phone and device bindings are not modified.
 func (r *authRepository) UpsertCBSUserAndAccount(ctx context.Context, nasabah *domain.CBSNasabahData, bal *domain.BalanceResponse) (*model.User, *model.Account, error) {
 	if r.db == nil {
 		return nil, nil, gorm.ErrInvalidDB
@@ -324,12 +389,12 @@ func (r *authRepository) UpsertCBSUserAndAccount(ctx context.Context, nasabah *d
 
 	fullName = truncateString(strings.TrimSpace(fullName), 100)
 	cif = truncateString(strings.TrimSpace(cif), 20)
-	accountNo = truncateString(strings.TrimSpace(accountNo), 30)
-	productCode = truncateString(strings.TrimSpace(productCode), 20)
-	accountType = truncateString(strings.TrimSpace(accountType), 30)
-	kodePos := truncateString(strings.TrimSpace(nasabah.KodePos), 15)
+	accountNo = truncateString(strings.TrimSpace(accountNo), 100)
+	productCode = truncateString(strings.TrimSpace(productCode), 50)
+	accountType = truncateString(strings.TrimSpace(accountType), 255)
+	kodePos := truncateString(strings.TrimSpace(nasabah.KodePos), 50)
 	rawJK := strings.ToUpper(strings.TrimSpace(nasabah.JenisKelamin))
-	jenisKelamin := truncateString(rawJK, 5)
+	jenisKelamin := truncateString(rawJK, 50)
 	if len(rawJK) > 5 {
 		if strings.HasPrefix(rawJK, "L") {
 			jenisKelamin = "L"
@@ -337,36 +402,31 @@ func (r *authRepository) UpsertCBSUserAndAccount(ctx context.Context, nasabah *d
 			jenisKelamin = "P"
 		}
 	}
-	agama := truncateString(strings.TrimSpace(nasabah.Agama), 30)
+	agama := truncateString(strings.TrimSpace(nasabah.Agama), 255)
 
 	var user model.User
 	err := r.db.WithContext(ctx).Where("cif = ?", cif).First(&user).Error
 	switch {
 	case errors.Is(err, gorm.ErrRecordNotFound):
-		// The phone column is unique and not null; until activation completes we store a
-		// non-routable placeholder derived from the CIF (never a customer-supplied number).
 		user = model.User{
-			ID:             uuid.NewString(),
-			NIK:            crypto.EncryptedString(nasabah.NIK),
-			CIF:            cif,
-			FullName:       fullName,
-			PhoneNumber:    pendingPhonePlaceholder(cif),
-			Email:          crypto.EncryptedString(nasabah.Email),
-			Alamat:         crypto.EncryptedString(nasabah.Alamat),
-			KodePos:        kodePos,
-			JenisKelamin:   jenisKelamin,
-			Agama:          agama,
-			TglLahir:       crypto.EncryptedString(nasabah.TglLahir),
-			TempatLahir:    crypto.EncryptedString(nasabah.TempatLahir),
-			NamaIbuKandung: crypto.EncryptedString(nasabah.NamaIbuKandung),
-			PasswordHash:   "", // not activated
-			PINHash:        "", // not activated
-			IsActive:       true,
-			CreatedAt:      time.Now(),
-			UpdatedAt:      time.Now(),
+			ID:           uuid.NewString(),
+			CIF:          cif,
+			FullName:     fullName,
+			PhoneNumber:  pendingPhonePlaceholder(cif),
+			Email:        crypto.EncryptedString(nasabah.Email),
+			KodePos:      kodePos,
+			JenisKelamin: jenisKelamin,
+			Agama:        agama,
+			TglLahir:     crypto.EncryptedString(nasabah.TglLahir),
+			TempatLahir:  crypto.EncryptedString(nasabah.TempatLahir),
+			PasswordHash: "", // not activated
+			PINHash:      "", // not activated
+			IsActive:     true,
+			CreatedAt:    time.Now(),
+			UpdatedAt:    time.Now(),
 		}
 		if err := r.db.WithContext(ctx).Create(&user).Error; err != nil {
-			return nil, nil, fmt.Errorf("create user (cif=%s, agama=%q len=%d, jk=%q len=%d, pos=%q len=%d): %w", user.CIF, user.Agama, len(user.Agama), user.JenisKelamin, len(user.JenisKelamin), user.KodePos, len(user.KodePos), err)
+			return nil, nil, fmt.Errorf("create user (agama len=%d, jk len=%d, pos len=%d): %w", len(user.Agama), len(user.JenisKelamin), len(user.KodePos), err)
 		}
 	case err != nil:
 		return nil, nil, err
@@ -376,8 +436,8 @@ func (r *authRepository) UpsertCBSUserAndAccount(ctx context.Context, nasabah *d
 			updates["full_name"] = fullName
 		}
 		for col, v := range map[string]string{
-			"nik": nasabah.NIK, "email": nasabah.Email, "alamat": nasabah.Alamat, "tgl_lahir": nasabah.TglLahir,
-			"tempat_lahir": nasabah.TempatLahir, "nama_ibu_kandung": nasabah.NamaIbuKandung,
+			"email": nasabah.Email, "tgl_lahir": nasabah.TglLahir,
+			"tempat_lahir": nasabah.TempatLahir,
 		} {
 			if v == "" {
 				continue
@@ -407,7 +467,6 @@ func (r *authRepository) UpsertCBSUserAndAccount(ctx context.Context, nasabah *d
 		return &user, acc, err
 	}
 
-	// The account comes from CBS for this CIF, which is authoritative for ownership.
 	var acc model.Account
 	if err := r.db.WithContext(ctx).Where("account_number = ?", accountNo).First(&acc).Error; err != nil {
 		acc = model.Account{

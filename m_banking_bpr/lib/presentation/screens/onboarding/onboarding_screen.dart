@@ -1,8 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/constants/app_colors.dart';
 import '../../../core/content/app_content.dart';
 import '../auth/terms_conditions_screen.dart';
+import '../splash/splash_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -15,19 +18,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
   Timer? _autoSlideTimer;
+  bool _userInteracted = false;
 
-  // 2 onboarding slides; texts and images are managed content (Backoffice → Tampilan Awal)
   List<Map<String, String>> get _slides => [
         {
           'title': AppContent.text('onboarding.slide1_title'),
           'desc': AppContent.text('onboarding.slide1_desc'),
-          'image': 'assets/images/onboarding_slide_1.png',
           'imageKey': 'onboarding.slide1_image',
         },
         {
           'title': AppContent.text('onboarding.slide2_title'),
           'desc': AppContent.text('onboarding.slide2_desc'),
-          'image': 'assets/images/onboarding_slide_2.png',
           'imageKey': 'onboarding.slide2_image',
         },
       ];
@@ -40,14 +41,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   void _startAutoSlide() {
     _autoSlideTimer?.cancel();
+    if (_userInteracted) return;
     _autoSlideTimer = Timer.periodic(const Duration(milliseconds: 4500), (timer) {
-      if (!mounted) return;
-      final nextPage = (_currentPage + 1) % _slides.length;
-      _pageController.animateToPage(
-        nextPage,
-        duration: const Duration(milliseconds: 600),
-        curve: Curves.easeInOutCubic,
-      );
+      if (!mounted || _userInteracted) {
+        timer.cancel();
+        return;
+      }
+      if (_currentPage < _slides.length - 1) {
+        _pageController.animateToPage(
+          _currentPage + 1,
+          duration: const Duration(milliseconds: 550),
+          curve: Curves.easeInOutCubic,
+        );
+      } else {
+        timer.cancel();
+      }
     });
   }
 
@@ -55,12 +63,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     setState(() {
       _currentPage = index;
     });
-    // Restart auto slide timer after user manual swipe
-    _startAutoSlide();
   }
 
-  void _navigateToTerms() {
+  Future<void> _markOnboardingSeen() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(SplashScreen.hasSeenOnboardingKey, true);
+    } catch (_) {}
+  }
+
+  Future<void> _navigateToTerms() async {
     _autoSlideTimer?.cancel();
+    await _markOnboardingSeen();
+    if (!mounted) return;
     Navigator.of(context).push(
       PageRouteBuilder(
         pageBuilder: (_, __, ___) => const TermsConditionsScreen(),
@@ -75,10 +90,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         },
         transitionDuration: const Duration(milliseconds: 350),
       ),
-    ).then((_) {
-      // Resume auto slide if user returns
-      if (mounted) _startAutoSlide();
-    });
+    );
   }
 
   @override
@@ -93,174 +105,276 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        statusBarBrightness: Brightness.light,
-        systemNavigationBarColor: Colors.white,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+        systemNavigationBarColor: Color(0xFFF6F6F2),
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
       child: Scaffold(
-        backgroundColor: Colors.white,
-        body: Stack(
-          fit: StackFit.expand,
+        backgroundColor: const Color(0xFFF6F6F2),
+        body: Column(
           children: [
-            // 1. Pure Native Vector Background Wave Art (No Background Image!)
-            CustomPaint(
-              size: Size.infinite,
-              painter: OnboardingVectorBackgroundPainter(),
-            ),
-
-            // 2. Foreground Content (Header, Animated Carousel, Button)
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Top Bar: Clean DMB Mobile Official Logo
-                    const ContentImage('app.logo', asset: 'assets/images/bank_logo.png', height: 38, fit: BoxFit.contain, alignment: Alignment.centerLeft),
-
-                    const SizedBox(height: 16),
-
-                    // Segmented Progress Indicator Bar (Syncs with Active Slide)
-                    Row(
-                      children: List.generate(_slides.length, (index) {
-                        final isActive = index == _currentPage;
-                        return Expanded(
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
-                            margin: EdgeInsets.only(right: index < _slides.length - 1 ? 8 : 0),
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: isActive
-                                  ? const Color(0xFF16984B) // Active DMB Green
-                                  : const Color(0xFFE2E8F0), // Inactive Grey
-                              borderRadius: BorderRadius.circular(4),
-                              boxShadow: isActive
-                                  ? [
-                                      BoxShadow(
-                                        color: const Color(0xFF16984B).withOpacity(0.35),
-                                        blurRadius: 6,
-                                      ),
-                                    ]
-                                  : null,
+            // Top Navy Showcase Header
+            Expanded(
+              flex: 5,
+              child: Container(
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF0A2A66), Color(0xFF0D3882)],
+                  ),
+                  borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
+                ),
+                child: SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(22, 10, 22, 22),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const ContentImage(
+                              'app.logo',
+                              height: 44,
+                              fit: BoxFit.contain,
+                              alignment: Alignment.centerLeft,
                             ),
-                          ),
-                        );
-                      }),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // Swipeable Carousel PageView
-                    Expanded(
-                      child: PageView.builder(
-                        controller: _pageController,
-                        onPageChanged: _onPageChanged,
-                        itemCount: _slides.length,
-                        physics: const BouncingScrollPhysics(),
-                        itemBuilder: (context, index) {
-                          final slide = _slides[index];
-
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const SizedBox(height: 12),
-
-                              // Headline Title
-                              Text(
-                                slide['title']!,
-                                style: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w800,
-                                  color: Color(0xFF0F172A), // Dark Navy
-                                  height: 1.25,
-                                  letterSpacing: -0.4,
+                            TextButton(
+                              onPressed: _navigateToTerms,
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                  side: BorderSide(color: Colors.white.withOpacity(0.25)),
                                 ),
+                                backgroundColor: Colors.white.withOpacity(0.12),
                               ),
-
-                              const SizedBox(height: 10),
-
-                              // Subtitle Body Description
-                              Text(
-                                slide['desc']!,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w400,
-                                  color: Color(0xFF64748B),
-                                  height: 1.45,
-                                ),
-                              ),
-
-                              const SizedBox(height: 16),
-
-                              // Center 3D Illustration Card
-                              Expanded(
-                                child: Center(
-                                  child: Container(
-                                    width: double.infinity,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(22),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: const Color(0xFF0F172A).withOpacity(0.08),
-                                          blurRadius: 24,
-                                          offset: const Offset(0, 10),
-                                        ),
-                                      ],
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'Lewati',
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
                                     ),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(22),
-                                      child: AspectRatio(
-                                        aspectRatio: 16 / 10,
-                                        child: ContentImage(slide['imageKey']!, asset: slide['image']!),
+                                  ),
+                                  SizedBox(width: 2),
+                                  Icon(Icons.chevron_right_rounded, size: 16, color: Colors.white),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 18),
+
+                        Expanded(
+                          child: Listener(
+                            onPointerDown: (_) {
+                              _userInteracted = true;
+                              _autoSlideTimer?.cancel();
+                            },
+                            child: PageView.builder(
+                              controller: _pageController,
+                              onPageChanged: _onPageChanged,
+                              itemCount: _slides.length,
+                              physics: const BouncingScrollPhysics(),
+                              itemBuilder: (context, index) {
+                                final slide = _slides[index];
+                                return Center(
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(22),
+                                    child: SizedBox(
+                                      width: double.infinity,
+                                      height: double.infinity,
+                                      child: ContentImage(
+                                        slide['imageKey']!,
+                                        fit: BoxFit.cover,
+                                        placeholder: Container(
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withOpacity(0.08),
+                                            borderRadius: BorderRadius.circular(22),
+                                            border: Border.all(
+                                              color: Colors.white.withOpacity(0.12),
+                                            ),
+                                          ),
+                                          child: Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.all(22),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFF34D399).withOpacity(0.16),
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: Icon(
+                                                  index == 0
+                                                      ? Icons.account_balance_wallet_rounded
+                                                      : Icons.verified_user_rounded,
+                                                  color: const Color(0xFF34D399),
+                                                  size: 54,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 14),
+                                              Text(
+                                                index == 0
+                                                    ? 'SIMPANAN & MUTASI REAL-TIME'
+                                                    : 'KEAMANAN PERBANKAN BERLAPIS',
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: Color(0xFF34D399),
+                                                  letterSpacing: 1.0,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              ),
-
-                              const SizedBox(height: 14),
-                            ],
-                          );
-                        },
-                      ),
-                    ),
-
-                    // Bottom Primary Action Button: "Mulai Sekarang →" (Navigates to Terms & Conditions Screen)
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: _navigateToTerms,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF16984B),
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(26),
+                                );
+                              },
+                            ),
                           ),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
-                        child: Row(
+
+                        const SizedBox(height: 16),
+
+                        Row(
                           mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(_slides.length, (index) {
+                            final isActive = index == _currentPage;
+                            return AnimatedContainer(
+                              duration: const Duration(milliseconds: 260),
+                              margin: const EdgeInsets.symmetric(horizontal: 4),
+                              height: 5,
+                              width: isActive ? 24 : 7,
+                              decoration: BoxDecoration(
+                                color: isActive
+                                    ? const Color(0xFF34D399)
+                                    : Colors.white.withOpacity(0.32),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            );
+                          }),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // Bottom White Content Card
+            Expanded(
+              flex: 4,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 18,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 250),
+                        child: Column(
+                          key: ValueKey(_currentPage),
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              AppContent.text('onboarding.button_text'),
+                              _slides[_currentPage]['title']!,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.2,
+                                fontSize: 21,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.titleDark,
+                                height: 1.25,
+                                letterSpacing: -0.3,
                               ),
                             ),
-                            SizedBox(width: 8),
-                            Icon(Icons.arrow_forward_rounded, size: 18),
+                            const SizedBox(height: 10),
+                            Text(
+                              _slides[_currentPage]['desc']!,
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w400,
+                                color: AppColors.textMuted,
+                                height: 1.5,
+                              ),
+                            ),
                           ],
                         ),
                       ),
-                    ),
 
-                    const SizedBox(height: 8),
-                  ],
+                      const Spacer(),
+
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            if (_currentPage < _slides.length - 1) {
+                              _userInteracted = true;
+                              _autoSlideTimer?.cancel();
+                              _pageController.nextPage(
+                                duration: const Duration(milliseconds: 350),
+                                curve: Curves.easeInOut,
+                              );
+                            } else {
+                              _navigateToTerms();
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0A2A66),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                _currentPage < _slides.length - 1
+                                    ? 'Lanjut'
+                                    : AppContent.text('onboarding.button_text'),
+                                style: const TextStyle(
+                                  fontSize: 15.5,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.2,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Icon(Icons.arrow_forward_rounded, size: 18),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -269,99 +383,4 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       ),
     );
   }
-}
-
-/// 100% Native Vector Graphic Painter (Curved Bezier Wave Ribbons)
-/// No background image used! Sharp at any resolution & 0 overhead.
-class OnboardingVectorBackgroundPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (size.width <= 0 || size.height <= 0) return;
-
-    // 1. TOP-LEFT Soft Sky & Cyan Waves
-    final skyWavePaint1 = Paint()
-      ..color = const Color(0xFFBAE6FD).withOpacity(0.35)
-      ..style = PaintingStyle.fill;
-
-    final pathTL1 = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width * 0.75, 0)
-      ..quadraticBezierTo(
-        size.width * 0.35,
-        size.height * 0.12,
-        0,
-        size.height * 0.16,
-      )
-      ..close();
-    canvas.drawPath(pathTL1, skyWavePaint1);
-
-    final skyWavePaint2 = Paint()
-      ..color = const Color(0xFF93C5FD).withOpacity(0.25)
-      ..style = PaintingStyle.fill;
-
-    final pathTL2 = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width * 0.50, 0)
-      ..quadraticBezierTo(
-        size.width * 0.20,
-        size.height * 0.16,
-        0,
-        size.height * 0.22,
-      )
-      ..close();
-    canvas.drawPath(pathTL2, skyWavePaint2);
-
-    // 2. BOTTOM-RIGHT Soft Emerald & Mint Waves
-    final greenWavePaint1 = Paint()
-      ..color = const Color(0xFF86EFAC).withOpacity(0.22)
-      ..style = PaintingStyle.fill;
-
-    final pathBR1 = Path()
-      ..moveTo(size.width, size.height * 0.78)
-      ..quadraticBezierTo(
-        size.width * 0.65,
-        size.height * 0.88,
-        size.width * 0.40,
-        size.height,
-      )
-      ..lineTo(size.width, size.height)
-      ..close();
-    canvas.drawPath(pathBR1, greenWavePaint1);
-
-    final greenWavePaint2 = Paint()
-      ..color = const Color(0xFF34D399).withOpacity(0.18)
-      ..style = PaintingStyle.fill;
-
-    final pathBR2 = Path()
-      ..moveTo(size.width, size.height * 0.84)
-      ..quadraticBezierTo(
-        size.width * 0.75,
-        size.height * 0.92,
-        size.width * 0.60,
-        size.height,
-      )
-      ..lineTo(size.width, size.height)
-      ..close();
-    canvas.drawPath(pathBR2, greenWavePaint2);
-
-    // 3. BOTTOM-LEFT Very Subtle Cyan Breeze Wave
-    final cyanBreeze = Paint()
-      ..color = const Color(0xFF38BDF8).withOpacity(0.12)
-      ..style = PaintingStyle.fill;
-
-    final pathBL = Path()
-      ..moveTo(0, size.height * 0.90)
-      ..quadraticBezierTo(
-        size.width * 0.25,
-        size.height * 0.94,
-        size.width * 0.45,
-        size.height,
-      )
-      ..lineTo(0, size.height)
-      ..close();
-    canvas.drawPath(pathBL, cyanBreeze);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

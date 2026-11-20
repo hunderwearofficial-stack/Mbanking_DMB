@@ -2,18 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../core/config/app_environment.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/money/money.dart';
+import '../../../core/network/api_exception.dart';
+import '../../../core/services/dynamic_config_service.dart';
 import '../../../core/utils/currency_formatter.dart';
-import '../../blocs/auth/auth_cubit.dart';
-import '../../blocs/auth/auth_state.dart';
 import '../../blocs/account/account_cubit.dart';
 import '../../blocs/account/account_state.dart';
+import '../../blocs/auth/auth_cubit.dart';
+import '../../blocs/auth/auth_state.dart';
+import '../../widgets/app_validation_feedback.dart';
+import '../account/account_info_screen.dart';
+import '../auth/login_screen.dart';
+import '../auth/terms_conditions_screen.dart';
+import '../helpdesk/helpdesk_screen.dart';
 import '../mutation/mutation_screen.dart';
 import '../statement/estatement_screen.dart';
-import '../helpdesk/helpdesk_screen.dart';
-import '../auth/terms_conditions_screen.dart';
-import '../auth/login_screen.dart';
+import 'company_profile_screen.dart';
 import 'security_settings_screen.dart';
-import '../../../core/money/money.dart';
 
 class ProfileScreen extends StatefulWidget {
   final bool isTab;
@@ -24,18 +31,18 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  static const Color primaryNavy = Color(0xFF0B356D);
-  static const Color royalBlue = Color(0xFF0062E3);
-  static const Color dmbGreen = Color(0xFF16984B);
-  static const Color dmbRed = Color(0xFFDC2626);
-  static const Color titleDark = Color(0xFF0B2546);
-  static const Color textMuted = Color(0xFF64748B);
-  static const Color borderLight = Color(0xFFE2E8F0);
-  static const Color bgCanvas = Color(0xFFF8FAFC);
+  static const Color primaryNavy = AppColors.primaryNavy;
+  static const Color royalBlue = AppColors.royalBlue;
+  static const Color dmbGreen = AppColors.dmbGreen;
+  static const Color dmbRed = AppColors.danger;
+  static const Color titleDark = AppColors.titleDark;
+  static const Color textMuted = AppColors.textMuted;
+  static const Color borderLight = AppColors.borderLight;
+  static const Color bgCanvas = AppColors.bgCanvas;
 
   late Future<Map<String, dynamic>> _profileFuture;
   bool _isDataMasked = true;
-  bool _isBalanceVisible = false;
+  Map<String, dynamic>? _revealedProfile;
 
   @override
   void initState() {
@@ -52,27 +59,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
         accountRepo.getSavingsAccounts().catchError((_) => <Map<String, dynamic>>[]),
       ]);
 
-      // 1. Parse Profile
-      final profileRaw = results[0];
+      final profileRaw = results[0] as Map<String, dynamic>;
       Map<String, dynamic> profile = {};
-      if (profileRaw is Map<String, dynamic>) {
-        if (profileRaw['customer'] is Map<String, dynamic>) {
-          profile = profileRaw['customer'] as Map<String, dynamic>;
-        } else if (profileRaw['data'] is Map<String, dynamic>) {
-          profile = profileRaw['data'] as Map<String, dynamic>;
-        } else {
-          profile = profileRaw;
-        }
+      if (profileRaw['customer'] is Map<String, dynamic>) {
+        profile = profileRaw['customer'] as Map<String, dynamic>;
+      } else if (profileRaw['data'] is Map<String, dynamic>) {
+        profile = profileRaw['data'] as Map<String, dynamic>;
+      } else {
+        profile = profileRaw;
       }
 
-      // 2. Parse Accounts
-      final accountsRaw = results[1];
-      List<dynamic> accounts = [];
-      if (accountsRaw is List) {
-        accounts = accountsRaw;
-      } else if (accountsRaw is Map && accountsRaw['accounts'] is List) {
-        accounts = accountsRaw['accounts'] as List;
-      }
+      final accountsRaw = results[1] as List<dynamic>;
+      List<dynamic> accounts = accountsRaw;
 
       return {
         'profile': profile,
@@ -86,14 +84,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  String _maskCIF(String c) {
-    if (c.length < 8) return c;
-    return '${c.substring(0, 4)} **** ${c.substring(c.length - 4)}';
+  String _maskAccount(String a) {
+    if (a.length < 6) return a;
+    return '${a.substring(0, 3)} **** ${a.substring(a.length - 3)}';
   }
 
-  String _maskNIK(String n) {
-    if (n.length < 8) return n;
-    return '${n.substring(0, 6)} ****** ${n.substring(n.length - 4)}';
+  String _maskEmail(String e) {
+    if (!e.contains('@')) return e;
+    final parts = e.split('@');
+    final name = parts[0];
+    if (name.length <= 2) return e;
+    return '${name.substring(0, 2)}****@${parts[1]}';
   }
 
   String _maskPhone(String p) {
@@ -101,19 +102,215 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return '${p.substring(0, 4)} **** ${p.substring(p.length - 3)}';
   }
 
-  String _maskAddress(String a) {
-    if (a.length <= 16) return a;
-    return '${a.substring(0, 16)}... (Detail Terproteksi)';
+  void _showToast(String message) {
+    AppToast.showSuccess(context, message);
   }
 
-  void _showToast(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600, fontSize: 12.5)),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        backgroundColor: primaryNavy,
-        duration: const Duration(seconds: 2),
+  void _showApplicationsSheet(BuildContext context) {
+    final repo = context.read<AccountCubit>().accountRepository;
+    final future = repo.getUserApplications();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => SafeArea(
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(sheetCtx).size.height * 0.78,
+          ),
+          padding: const EdgeInsets.fromLTRB(22, 16, 22, 22),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 5,
+                  decoration: BoxDecoration(color: borderLight, borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Riwayat Pengajuan Produk',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 16.5,
+                          fontWeight: FontWeight.w800,
+                          color: titleDark,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Status pengajuan deposito & pinjaman Anda',
+                        style: GoogleFonts.plusJakartaSans(fontSize: 12, color: textMuted),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(sheetCtx),
+                    icon: const Icon(Icons.close_rounded, color: textMuted),
+                  ),
+                ],
+              ),
+              const Divider(height: 18, color: borderLight),
+              Flexible(
+                child: FutureBuilder<List<Map<String, dynamic>>>(
+                  future: future,
+                  builder: (ctx, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Padding(
+                        padding: EdgeInsets.all(36),
+                        child: Center(child: CircularProgressIndicator(color: primaryNavy)),
+                      );
+                    }
+                    final items = snapshot.data ?? [];
+                    if (items.isEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 16),
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 60,
+                                height: 60,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFF1F5F9),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.assignment_outlined, color: textMuted, size: 30),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'Belum Ada Riwayat Pengajuan',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: titleDark,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Pengajuan pembukaan deposito atau fasilitas pinjaman yang Anda kirim melalui aplikasi akan tampil di sini.',
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.plusJakartaSans(fontSize: 12, color: textMuted, height: 1.4),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+                    return ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: items.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (ctx, index) {
+                        final app = items[index];
+                        final prodName = (app['product_name'] ?? 'Produk Bank DMB').toString();
+                        final prodType = (app['product_type'] ?? '').toString().toUpperCase();
+                        final status = (app['status'] ?? 'PENDING').toString().toUpperCase();
+                        final amount = Money.tryParse(app['amount']);
+                        final tenor = app['tenor_months']?.toString() ?? '-';
+                        final createdAt = (app['created_at'] ?? '').toString();
+                        final isApproved = status == 'APPROVED' || status == 'DISETUJUI';
+                        final isRejected = status == 'REJECTED' || status == 'DITOLAK';
+
+                        return Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: bgCanvas,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: borderLight),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      prodName,
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: titleDark,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: isApproved
+                                          ? AppColors.successLight
+                                          : isRejected
+                                              ? AppColors.dangerLight
+                                              : AppColors.warningLight,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      status,
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                        color: isApproved
+                                            ? dmbGreen
+                                            : isRejected
+                                                ? dmbRed
+                                                : AppColors.warning,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    '$prodType • Tenor $tenor Bulan',
+                                    style: GoogleFonts.plusJakartaSans(fontSize: 11.5, color: textMuted),
+                                  ),
+                                  Text(
+                                    CurrencyFormatter.formatRupiah(amount),
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                      color: primaryNavy,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (createdAt.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Diajukan: ${CurrencyFormatter.formatDateShort(createdAt)}',
+                                  style: GoogleFonts.plusJakartaSans(fontSize: 10.5, color: textMuted),
+                                ),
+                              ],
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -149,9 +346,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   width: 54,
                   height: 54,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEFF6FF),
+                    color: AppColors.primaryLight,
                     shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFFDBEAFE)),
+                    border: Border.all(color: AppColors.primaryBorder),
                   ),
                   child: const Icon(Icons.lock_rounded, color: royalBlue, size: 26),
                 ),
@@ -176,6 +373,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   obscureText: true,
                   keyboardType: TextInputType.number,
                   maxLength: 6,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   textAlign: TextAlign.center,
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 22,
@@ -188,7 +386,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     hintText: '••••••',
                     hintStyle: const TextStyle(letterSpacing: 10, color: Color(0xFF94A3B8)),
                     filled: true,
-                    fillColor: const Color(0xFFF8FAFC),
+                    fillColor: bgCanvas,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
                       borderSide: const BorderSide(color: borderLight, width: 1.5),
@@ -206,13 +404,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       elevation: 0,
                     ),
-                    onPressed: () {
-                      if (pinController.text.trim().length == 6) {
-                        Navigator.pop(sheetCtx);
+                    onPressed: () async {
+                      final pin = pinController.text.trim();
+                      if (pin.length != 6) {
+                        AppToast.showWarning(context, 'PIN harus 6 digit', title: 'Validasi PIN');
+                        return;
+                      }
+                      try {
+                        final revealed = await this.context.read<AccountCubit>().accountRepository.revealCustomerProfile(pin);
+                        if (!mounted) return;
+                        if (sheetCtx.mounted) Navigator.pop(sheetCtx);
+                        _revealedProfile = revealed;
                         onVerified();
                         _showToast('Proteksi data pribadi dibuka');
-                      } else {
-                        _showToast('PIN harus 6 digit');
+                      } on ApiException catch (e) {
+                        if (!mounted) return;
+                        AppToast.showError(context, ApiException.humanize(e), title: 'Verifikasi PIN');
+                      } catch (e) {
+                        if (!mounted) return;
+                        AppToast.showError(
+                          context,
+                          ApiException.humanize(
+                            e,
+                            fallback: 'Verifikasi PIN gagal. Silakan coba beberapa saat lagi.',
+                          ),
+                          title: 'Verifikasi PIN',
+                        );
                       }
                     },
                     child: Text(
@@ -256,9 +473,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 width: 58,
                 height: 58,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFEF2F2),
+                  color: AppColors.dangerLight,
                   shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFFFECACA)),
+                  border: Border.all(color: AppColors.dangerBorder),
                 ),
                 child: const Icon(Icons.logout_rounded, color: dmbRed, size: 28),
               ),
@@ -329,100 +546,99 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  String _versionLabel(DynamicAppConfig config) {
+    final shortName = config.bankShortName.isNotEmpty ? config.bankShortName : 'Bank DMB';
+    final flavor = AppEnvironment.flavor;
+    final envSuffix = (flavor == null || flavor == AppFlavor.production)
+        ? ''
+        : ' (${flavor.name.toUpperCase()})';
+    return '$shortName Mobile v1.0.0$envSuffix';
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = context.watch<AuthCubit>().state;
-    final accountState = context.watch<AccountCubit>().state;
+    final accountCubit = context.watch<AccountCubit>();
+    final accountState = accountCubit.state;
+    final config = DynamicConfigService().config;
 
     return Scaffold(
-      backgroundColor: bgCanvas,
+      backgroundColor: const Color(0xFFF6F6F2),
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: titleDark,
+        backgroundColor: const Color(0xFFF6F6F2),
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: const Color(0xFF0A2A66),
         elevation: 0,
-        centerTitle: true,
-        automaticallyImplyLeading: !widget.isTab,
+        centerTitle: false,
+        automaticallyImplyLeading: false,
+        titleSpacing: widget.isTab ? 18 : 8,
+        leadingWidth: widget.isTab ? 0 : 64,
         leading: widget.isTab
             ? null
-            : IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: titleDark),
-                onPressed: () => Navigator.of(context).pop(),
+            : Padding(
+                padding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
+                child: Material(
+                  color: Colors.white,
+                  shape: const CircleBorder(),
+                  elevation: 0.5,
+                  shadowColor: Colors.black.withOpacity(0.08),
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: () => Navigator.of(context).pop(),
+                    child: const Center(
+                      child: Icon(Icons.chevron_left_rounded, size: 24, color: Color(0xFF0A2A66)),
+                    ),
+                  ),
+                ),
               ),
-        title: Column(
-          children: [
-            Text(
-              'Profil Nasabah',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: titleDark,
-                letterSpacing: -0.2,
-              ),
-            ),
-            const SizedBox(height: 1),
-            Text(
-              'INFORMASI REKENING & IDENTITAS',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 9.5,
-                fontWeight: FontWeight.w700,
-                color: royalBlue,
-                letterSpacing: 0.6,
-              ),
-            ),
-          ],
-        ),
-        bottom: const PreferredSize(
-          preferredSize: Size.fromHeight(1),
-          child: Divider(height: 1, color: borderLight),
+        title: Text(
+          'Akun Saya',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: const Color(0xFF0A2A66),
+            letterSpacing: -0.3,
+          ),
         ),
       ),
       body: FutureBuilder<Map<String, dynamic>>(
         future: _profileFuture,
         builder: (context, snapshot) {
           final data = snapshot.data ?? {};
-          final profile = data['profile'] as Map<String, dynamic>? ?? {};
+          final baseProfile = data['profile'] as Map<String, dynamic>? ?? {};
+          final profile = (!_isDataMasked && _revealedProfile != null) ? {...baseProfile, ..._revealedProfile!} : baseProfile;
 
-          // Extract values dynamically from CBS Profile & Auth Session (NO HARDCODED VALUES)
           String fullName = profile['name']?.toString() ??
               profile['nama']?.toString() ??
               profile['holder_name']?.toString() ??
               '';
-          String cif = profile['cif']?.toString() ??
-              profile['cif_number']?.toString() ??
-              '';
-          String nik = profile['nik']?.toString() ??
-              profile['id_number']?.toString() ??
-              '';
+          String username = profile['username']?.toString() ?? '';
           String phone = profile['phone']?.toString() ??
               profile['phone_number']?.toString() ??
               '';
-          String alamat = profile['address']?.toString() ??
-              profile['alamat']?.toString() ??
-              '';
+          String email = profile['email']?.toString() ?? '';
 
-          // Auth / State Fallbacks
           if (authState is AuthAuthenticated) {
             if (fullName.isEmpty && authState.user.fullName.isNotEmpty) {
               fullName = authState.user.fullName;
             }
+            if (username.isEmpty && authState.user.username.isNotEmpty) {
+              username = authState.user.username;
+            }
             if (phone.isEmpty) phone = authState.user.phoneNumber;
-            if (cif.isEmpty && authState.user.cif.isNotEmpty) {
-              cif = authState.user.cif;
-            }
-            if (nik.isEmpty && authState.user.nik.isNotEmpty) {
-              nik = authState.user.nik;
-            }
-            if (alamat.isEmpty && authState.user.alamat.isNotEmpty) {
-              alamat = authState.user.alamat;
+            if (email.isEmpty && authState.user.email.isNotEmpty) {
+              email = authState.user.email;
             }
           }
 
           String primaryAccountNo = '-';
           String rawAccountNo = '-';
-          // null until the balance has been obtained successfully (shown as "-").
+          String accountType = 'Tabungan Bank DMB';
           Money? balance;
+          bool isBalanceVisible = accountCubit.isBalanceVisible;
 
           if (accountState is AccountLoaded) {
+            isBalanceVisible = accountState.isBalanceVisible;
             if (accountState.account.holderName.isNotEmpty && fullName.isEmpty) {
               fullName = accountState.account.holderName;
             }
@@ -430,11 +646,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
               rawAccountNo = accountState.account.accountNumber;
               primaryAccountNo = _formatAccountNo(rawAccountNo);
             }
+            if (accountState.account.accountType.trim().isNotEmpty &&
+                accountState.account.accountType.trim() != '-') {
+              accountType = accountState.account.accountType.trim();
+            }
             balance = accountState.account.balance;
           }
 
           if (fullName.isEmpty) fullName = 'Nasabah Bank DMB';
           final initial = fullName.isNotEmpty ? fullName[0].toUpperCase() : 'N';
+          final canCopyAccount = rawAccountNo.isNotEmpty && rawAccountNo != '-';
 
           return RefreshIndicator(
             onRefresh: () async {
@@ -446,28 +667,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
             color: primaryNavy,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+              padding: EdgeInsets.fromLTRB(18, 12, 18, widget.isTab ? 110 : 28),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 1. Profile Identity Header Card
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(18),
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(22),
                       gradient: const LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          Color(0xFF0B356D),
-                          Color(0xFF0062E3),
+                          Color(0xFF0A2A66),
+                          Color(0xFF0D3882),
                         ],
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF0062E3).withOpacity(0.24),
-                          blurRadius: 16,
+                          color: const Color(0xFF0A2A66).withOpacity(0.18),
+                          blurRadius: 18,
                           offset: const Offset(0, 8),
                         ),
                       ],
@@ -516,7 +736,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               Text(
                                 phone.isNotEmpty
                                     ? _maskPhone(phone)
-                                    : 'Nasabah Resmi Bank DMB',
+                                    : 'Nasabah Resmi ${config.bankShortName}',
                                 style: GoogleFonts.plusJakartaSans(
                                   fontSize: 12,
                                   color: Colors.white.withOpacity(0.88),
@@ -548,7 +768,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   const SizedBox(height: 22),
 
-                  // 2. Section: Informasi Rekening Tabungan Utama
                   Text(
                     'Informasi Rekening Tabungan',
                     style: GoogleFonts.plusJakartaSans(
@@ -576,7 +795,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Row 1: Nomor Rekening + Copy
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -603,35 +821,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                               ],
                             ),
-                            InkWell(
-                              onTap: () {
-                                Clipboard.setData(ClipboardData(text: rawAccountNo));
-                                _showToast('Nomor rekening disalin: $rawAccountNo');
-                              },
-                              borderRadius: BorderRadius.circular(8),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFEFF6FF),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: const Color(0xFFDBEAFE)),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.copy_rounded, color: royalBlue, size: 13),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      'Salin',
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
-                                        color: royalBlue,
+                            if (canCopyAccount)
+                              InkWell(
+                                onTap: () {
+                                  Clipboard.setData(ClipboardData(text: rawAccountNo));
+                                  _showToast('Nomor rekening disalin: $rawAccountNo');
+                                },
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryLight,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: AppColors.primaryBorder),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.copy_rounded, color: royalBlue, size: 13),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Salin',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: royalBlue,
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ),
                           ],
                         ),
 
@@ -640,7 +859,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: Divider(height: 1, color: Color(0xFFF1F5F9)),
                         ),
 
-                        // Row 2: Saldo Rekening
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -657,7 +875,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  _isBalanceVisible
+                                  isBalanceVisible
                                       ? CurrencyFormatter.formatRupiah(balance)
                                       : 'Rp •••••••••',
                                   style: GoogleFonts.plusJakartaSans(
@@ -670,14 +888,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                             IconButton(
                               icon: Icon(
-                                _isBalanceVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                                isBalanceVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
                                 size: 20,
-                                color: const Color(0xFF64748B),
+                                color: textMuted,
                               ),
                               onPressed: () {
-                                setState(() {
-                                  _isBalanceVisible = !_isBalanceVisible;
-                                });
+                                context.read<AccountCubit>().toggleBalanceVisibility();
+                                setState(() {});
                               },
                             ),
                           ],
@@ -688,7 +905,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: Divider(height: 1, color: Color(0xFFF1F5F9)),
                         ),
 
-                        // Row 3: Detail Produk & Status
                         Row(
                           children: [
                             Expanded(
@@ -701,7 +917,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    'Tabungan Mikro DMB',
+                                    accountType,
                                     style: GoogleFonts.plusJakartaSans(
                                       fontSize: 12.5,
                                       fontWeight: FontWeight.w700,
@@ -714,9 +930,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF0FDF4),
+                                color: AppColors.successLight,
                                 borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: const Color(0xFFBBF7D0)),
+                                border: Border.all(color: AppColors.successBorder),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -742,7 +958,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   const SizedBox(height: 22),
 
-                  // 3. Section: Data Identitas Nasabah (Terproteksi PIN)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -771,7 +986,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               setState(() => _isDataMasked = false);
                             });
                           } else {
-                            setState(() => _isDataMasked = true);
+                            setState(() {
+                              _isDataMasked = true;
+                              _revealedProfile = null;
+                            });
                             _showToast('Data identitas kembali diproteksi');
                           }
                         },
@@ -779,10 +997,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: _isDataMasked ? const Color(0xFFEFF6FF) : const Color(0xFFF0FDF4),
+                            color: _isDataMasked ? AppColors.primaryLight : AppColors.successLight,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: _isDataMasked ? const Color(0xFFDBEAFE) : const Color(0xFFBBF7D0),
+                              color: _isDataMasked ? AppColors.primaryBorder : AppColors.successBorder,
                             ),
                           ),
                           child: Row(
@@ -827,33 +1045,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Column(
                       children: [
                         _buildDataRow(
-                          label: 'Nomor CIF Nasabah',
-                          value: _isDataMasked ? _maskCIF(cif) : cif,
-                          hasCopy: true,
-                          rawCopyText: cif,
+                          label: 'Nomor Rekening Utama',
+                          value: _isDataMasked ? _maskAccount(rawAccountNo) : primaryAccountNo,
+                          hasCopy: canCopyAccount,
+                          rawCopyText: rawAccountNo,
                         ),
-                        const Divider(height: 16, color: Color(0xFFF1F5F9)),
-                        _buildDataRow(
-                          label: 'NIK (Nomor KTP)',
-                          value: _isDataMasked ? _maskNIK(nik) : nik,
-                        ),
+                        if (username.isNotEmpty) ...[
+                          const Divider(height: 16, color: Color(0xFFF1F5F9)),
+                          _buildDataRow(
+                            label: 'Username / ID Pengguna',
+                            value: username,
+                            hasCopy: true,
+                            rawCopyText: username,
+                          ),
+                        ],
                         const Divider(height: 16, color: Color(0xFFF1F5F9)),
                         _buildDataRow(
                           label: 'Nomor Handphone Terdaftar',
                           value: _isDataMasked ? _maskPhone(phone) : phone,
                         ),
-                        const Divider(height: 16, color: Color(0xFFF1F5F9)),
-                        _buildDataRow(
-                          label: 'Alamat Domisili KTP',
-                          value: _isDataMasked ? _maskAddress(alamat) : alamat,
-                        ),
+                        if (email.isNotEmpty) ...[
+                          const Divider(height: 16, color: Color(0xFFF1F5F9)),
+                          _buildDataRow(
+                            label: 'Email Terdaftar',
+                            value: _isDataMasked ? _maskEmail(email) : email,
+                          ),
+                        ],
                       ],
                     ),
                   ),
 
                   const SizedBox(height: 22),
 
-                  // 4. Section: Portofolio & Aktivitas
                   Text(
                     'Portofolio & Aktivitas',
                     style: GoogleFonts.plusJakartaSans(
@@ -866,9 +1089,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildMenuCard(
                     children: [
                       _buildMenuItem(
+                        icon: Icons.account_balance_wallet_outlined,
+                        iconColor: royalBlue,
+                        iconBg: AppColors.primaryLight,
+                        title: 'Informasi Rekening & CIF',
+                        subtitle: 'Detail rekening tabungan & identitas CIF',
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const AccountInfoScreen()),
+                          );
+                        },
+                      ),
+                      const Divider(height: 1, indent: 56, color: Color(0xFFF1F5F9)),
+                      _buildMenuItem(
                         icon: Icons.history_rounded,
                         iconColor: dmbGreen,
-                        iconBg: const Color(0xFFF0FDF4),
+                        iconBg: AppColors.successLight,
                         title: 'Riwayat Transaksi',
                         subtitle: 'Catatan mutasi uang masuk & keluar',
                         onTap: () {
@@ -879,23 +1115,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const Divider(height: 1, indent: 56, color: Color(0xFFF1F5F9)),
                       _buildMenuItem(
-                        icon: Icons.picture_as_pdf_outlined,
+                        icon: Icons.analytics_outlined,
                         iconColor: primaryNavy,
                         iconBg: const Color(0xFFF1F5F9),
                         title: 'e-Statement Rekening',
-                        subtitle: 'Unduh rekening koran digital PDF',
+                        subtitle: 'Ringkasan mutasi bulanan 6 bulan terakhir',
                         onTap: () {
                           Navigator.of(context).push(
                             MaterialPageRoute(builder: (_) => const EStatementScreen()),
                           );
                         },
                       ),
+                      const Divider(height: 1, indent: 56, color: Color(0xFFF1F5F9)),
+                      _buildMenuItem(
+                        icon: Icons.assignment_turned_in_outlined,
+                        iconColor: AppColors.warning,
+                        iconBg: AppColors.warningLight,
+                        title: 'Riwayat Pengajuan Produk',
+                        subtitle: 'Pantau status pengajuan deposito & pinjaman',
+                        onTap: () => _showApplicationsSheet(context),
+                      ),
                     ],
                   ),
 
                   const SizedBox(height: 22),
 
-                  // 5. Section: Pengaturan Aplikasi
                   Text(
                     'Pengaturan Aplikasi',
                     style: GoogleFonts.plusJakartaSans(
@@ -910,7 +1154,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       _buildMenuItem(
                         icon: Icons.settings_outlined,
                         iconColor: royalBlue,
-                        iconBg: const Color(0xFFEFF6FF),
+                        iconBg: AppColors.primaryLight,
                         title: 'Pengaturan & Keamanan Akun',
                         subtitle: 'Ganti kata sandi, PIN transaksi & perangkat',
                         onTap: () {
@@ -924,7 +1168,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   const SizedBox(height: 22),
 
-                  // 6. Section: Layanan & Bantuan
                   Text(
                     'Layanan & Bantuan',
                     style: GoogleFonts.plusJakartaSans(
@@ -937,9 +1180,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildMenuCard(
                     children: [
                       _buildMenuItem(
+                        icon: Icons.apartment_rounded,
+                        iconColor: royalBlue,
+                        iconBg: AppColors.primaryLight,
+                        title: 'Tentang ${config.bankShortName}',
+                        subtitle: 'Profil perusahaan, visi misi & legalitas OJK/LPS',
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const CompanyProfileScreen()),
+                          );
+                        },
+                      ),
+                      const Divider(height: 1, indent: 56, color: Color(0xFFF1F5F9)),
+                      _buildMenuItem(
                         icon: Icons.headset_mic_outlined,
                         iconColor: royalBlue,
-                        iconBg: const Color(0xFFEFF6FF),
+                        iconBg: AppColors.primaryLight,
                         title: 'Pusat Bantuan 24 Jam',
                         subtitle: 'Call Center, WhatsApp & Email resmi',
                         onTap: () {
@@ -952,12 +1208,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       _buildMenuItem(
                         icon: Icons.policy_outlined,
                         iconColor: dmbGreen,
-                        iconBg: const Color(0xFFF0FDF4),
+                        iconBg: AppColors.successLight,
                         title: 'Syarat & Ketentuan',
                         subtitle: 'Kebijakan privasi & aturan perbankan',
                         onTap: () {
                           Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const TermsConditionsScreen()),
+                            MaterialPageRoute(
+                              builder: (_) => const TermsConditionsScreen(readOnly: true),
+                            ),
                           );
                         },
                       ),
@@ -966,14 +1224,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   const SizedBox(height: 26),
 
-                  // 7. Logout Action Button
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
                         foregroundColor: dmbRed,
-                        side: const BorderSide(color: Color(0xFFFECACA), width: 1.5),
-                        backgroundColor: const Color(0xFFFEF2F2),
+                        side: const BorderSide(color: AppColors.dangerBorder, width: 1.5),
+                        backgroundColor: AppColors.dangerLight,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
@@ -991,12 +1248,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   const SizedBox(height: 20),
 
-                  // App Version & Security Note
                   Center(
                     child: Column(
                       children: [
                         Text(
-                          'DMB Mobile v1.0.0 (Production Build)',
+                          _versionLabel(config),
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
@@ -1058,7 +1314,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ),
-              if (hasCopy && rawCopyText != null) ...[
+              if (hasCopy && rawCopyText != null && rawCopyText != '-' && rawCopyText.isNotEmpty) ...[
                 const SizedBox(width: 6),
                 InkWell(
                   onTap: () {
@@ -1079,13 +1335,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: borderLight),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),

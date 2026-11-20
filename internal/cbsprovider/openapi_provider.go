@@ -23,16 +23,11 @@ import (
 	"mbanking-bpr/internal/model"
 	"mbanking-bpr/pkg/crypto"
 	"mbanking-bpr/pkg/logger"
-	"mbanking-bpr/pkg/security"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
-// OpenAPICBSProvider connects directly to the Bank DMB Core Banking System OpenAPI (https://api-dev.bpr-danamandiribogor.co.id)
-// using OAuth 2.0 Bearer JWT tokens (with automatic refresh rotation) and Base64 HMAC-SHA512 payload signing.
-// It also synchronizes live CBS state (balances, account holder names, and overbooking ledger entries)
-// with the local PostgreSQL database for M-Banking authentication, PIN verification, and mutation history.
 type OpenAPICBSProvider struct {
 	cfg        *config.Config
 	db         *gorm.DB
@@ -61,7 +56,6 @@ func NewOpenAPICBSProvider(cfg *config.Config, db *gorm.DB) *OpenAPICBSProvider 
 		productNames: make(map[string]string),
 	}
 
-	// Warm up product catalogue in background
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -70,8 +64,6 @@ func NewOpenAPICBSProvider(cfg *config.Config, db *gorm.DB) *OpenAPICBSProvider 
 
 	return prov
 }
-
-// --- CBS Standard Envelope Structs ---
 
 type cbsEnvelope struct {
 	Status    string          `json:"status"`
@@ -103,17 +95,6 @@ type cbsBalanceData struct {
 	SaldoEfektif             money.Amount `json:"saldo_efektif"`
 }
 
-type cbsOverbookingItem struct {
-	IDTransaksi   string       `json:"id_transaksi"`
-	NoRef         int          `json:"noref"`
-	NomorRekening string       `json:"nomor_rekening"`
-	Nominal       money.Amount `json:"nominal"`
-	TglTransaksi  string       `json:"tgl_transaksi"`
-	SaldoAwal     money.Amount `json:"saldo_awal"`
-	SaldoAkhir    money.Amount `json:"saldo_akhir"`
-	Deskripsi     string       `json:"deskripsi"`
-}
-
 type cbsMutationItem struct {
 	Tanggal      string       `json:"tanggal"`
 	Waktu        string       `json:"waktu"`
@@ -123,8 +104,6 @@ type cbsMutationItem struct {
 	SaldoAkhir   money.Amount `json:"saldo_akhir"`
 }
 
-// computeSignature computes Base64 HMAC-SHA512 with the client secret over:
-// METHOD:PATH:ACCESS_TOKEN:lowercase hex SHA-256 of minified body:X-TIMESTAMP
 func (p *OpenAPICBSProvider) computeSignature(method, path, accessToken string, bodyBytes []byte, timestamp string) string {
 	shaHash := sha256.Sum256(bodyBytes)
 	bodySha256Hex := hex.EncodeToString(shaHash[:])
@@ -135,8 +114,6 @@ func (p *OpenAPICBSProvider) computeSignature(method, path, accessToken string, 
 	return base64.StdEncoding.EncodeToString(mac.Sum(nil))
 }
 
-// productLabel is used only when CBS returned neither a product name nor a catalog
-// entry for the code: it shows the code itself instead of inventing a product name.
 func productLabel(code string) string {
 	if code = strings.TrimSpace(code); code != "" {
 		return "Produk " + code
@@ -144,7 +121,6 @@ func productLabel(code string) string {
 	return "-"
 }
 
-// resolveProductName uses the CBS-provided name, then the /api/products catalog cache.
 func (p *OpenAPICBSProvider) resolveProductName(code, fallbackName string) string {
 	if strings.TrimSpace(fallbackName) != "" {
 		return strings.TrimSpace(fallbackName)
@@ -159,7 +135,6 @@ func (p *OpenAPICBSProvider) resolveProductName(code, fallbackName string) strin
 	return productLabel(code)
 }
 
-// FetchProducts caches product definitions from /api/products
 func (p *OpenAPICBSProvider) FetchProducts(ctx context.Context) error {
 	env, statusCode, err := p.doSignedPost(ctx, "/api/products", map[string]interface{}{})
 	if err != nil || statusCode != http.StatusOK || env == nil || env.Code != 10000 {
@@ -185,8 +160,6 @@ func (p *OpenAPICBSProvider) FetchProducts(ctx context.Context) error {
 	return nil
 }
 
-// ==================== 1. GET /ping (Health Check) ====================
-
 func (p *OpenAPICBSProvider) Ping(ctx context.Context) (*domain.CBSHealthStatus, error) {
 	start := time.Now()
 	url := strings.TrimRight(p.cfg.CBSBaseURL, "/") + "/ping"
@@ -199,10 +172,11 @@ func (p *OpenAPICBSProvider) Ping(ctx context.Context) (*domain.CBSHealthStatus,
 
 	resp, err := p.httpClient.Do(req)
 	if err != nil {
+		logger.GetLogger().Warn("Ping layanan perbankan inti gagal", map[string]interface{}{"error": err.Error()})
 		return &domain.CBSHealthStatus{
 			Connected: false,
 			Status:    "DOWN",
-			Message:   err.Error(),
+			Message:   "Layanan perbankan inti belum dapat dihubungi",
 			LatencyMs: time.Since(start).Milliseconds(),
 		}, err
 	}
@@ -232,8 +206,6 @@ func (p *OpenAPICBSProvider) Ping(ctx context.Context) (*domain.CBSHealthStatus,
 	}, nil
 }
 
-// ==================== 2 & 3. OAuth Access Token & Refresh Token ====================
-
 func (p *OpenAPICBSProvider) getAccessToken(ctx context.Context) (string, error) {
 	p.tokenMu.RLock()
 	if p.accessToken != "" && time.Now().Add(45*time.Second).Before(p.tokenExpiresAt) {
@@ -244,7 +216,6 @@ func (p *OpenAPICBSProvider) getAccessToken(ctx context.Context) (string, error)
 	hasRefresh := p.refreshToken != ""
 	p.tokenMu.RUnlock()
 
-	// Try rotating via /api/oauth/refresh-token first if we have a refresh token
 	if hasRefresh {
 		if err := p.RefreshToken(ctx); err == nil {
 			p.tokenMu.RLock()
@@ -261,7 +232,6 @@ func (p *OpenAPICBSProvider) requestNewAccessToken(ctx context.Context) (string,
 	p.tokenMu.Lock()
 	defer p.tokenMu.Unlock()
 
-	// Double-check after acquiring write lock
 	if p.accessToken != "" && time.Now().Add(45*time.Second).Before(p.tokenExpiresAt) {
 		return p.accessToken, nil
 	}
@@ -317,7 +287,6 @@ func (p *OpenAPICBSProvider) requestNewAccessToken(ctx context.Context) (string,
 	return p.accessToken, nil
 }
 
-// RefreshToken calls POST /api/oauth/refresh-token to rotate the CBS JWT and Refresh Token
 func (p *OpenAPICBSProvider) RefreshToken(ctx context.Context) error {
 	p.tokenMu.Lock()
 	defer p.tokenMu.Unlock()
@@ -383,20 +352,13 @@ func (p *OpenAPICBSProvider) RefreshToken(ctx context.Context) error {
 	return nil
 }
 
-// doSignedPost executes an authenticated & Base64 HMAC-SHA512 signed POST request to CBS OpenAPI
-func (p *OpenAPICBSProvider) doSignedPost(ctx context.Context, path string, payload interface{}) (*cbsEnvelope, int, error) {
-	// Compact JSON marshaling (no spaces/newlines) so SHA-256 matches CBS server canonicalization
-	bodyBytes, err := json.Marshal(payload)
-	if err != nil {
-		return nil, 0, err
-	}
+// errCBSBody: the CBS answered but the body could not be read or parsed.
+var errCBSBody = errors.New("respons CBS tidak dapat dibaca")
 
-	token, err := p.getAccessToken(ctx)
-	if err != nil {
-		return nil, 0, err
-	}
+// maxCBSResponseBytes bounds a CBS response body (inquiry payloads are small).
+const maxCBSResponseBytes = 2 << 20
 
-	// Generate ISO-8601 timestamp with offset (e.g. 2026-11-12T10:30:00+07:00)
+func (p *OpenAPICBSProvider) sendSigned(ctx context.Context, path, token string, bodyBytes []byte) (*cbsEnvelope, int, error) {
 	timestamp := time.Now().Format("2006-01-02T15:04:05-07:00")
 	signature := p.computeSignature(http.MethodPost, path, token, bodyBytes, timestamp)
 
@@ -418,59 +380,62 @@ func (p *OpenAPICBSProvider) doSignedPost(ctx context.Context, path string, payl
 	}
 	defer resp.Body.Close()
 
-	raw, _ := io.ReadAll(resp.Body)
+	// SECURITY: bounded read — a misbehaving upstream cannot exhaust memory.
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxCBSResponseBytes+1))
+	if err != nil {
+		return nil, resp.StatusCode, fmt.Errorf("%w: %v", errCBSBody, err)
+	}
+	if len(raw) > maxCBSResponseBytes {
+		return nil, resp.StatusCode, fmt.Errorf("%w: melebihi %d byte", errCBSBody, maxCBSResponseBytes)
+	}
 	var env cbsEnvelope
-	_ = json.Unmarshal(raw, &env)
+	if len(bytes.TrimSpace(raw)) > 0 {
+		if err := json.Unmarshal(raw, &env); err != nil {
+			return &env, resp.StatusCode, fmt.Errorf("%w: %v", errCBSBody, err)
+		}
+	}
+	return &env, resp.StatusCode, nil
+}
+
+func (p *OpenAPICBSProvider) invalidateTokens() {
+	p.tokenMu.Lock()
+	p.accessToken = ""
+	p.refreshToken = ""
+	p.tokenMu.Unlock()
+}
+
+// doSignedPost sends a signed read-only inquiry to the CBS. On an expired/invalid token
+// it is retried once with a fresh token (inquiries have no side effects).
+func (p *OpenAPICBSProvider) doSignedPost(ctx context.Context, path string, payload interface{}) (*cbsEnvelope, int, error) {
+	bodyBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	token, err := p.getAccessToken(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	env, status, err := p.sendSigned(ctx, path, token, bodyBytes)
+	if err != nil && env == nil {
+		return env, status, err
+	}
 
 	msgLower := strings.ToLower(env.Message)
-	isTokenExpired := resp.StatusCode == http.StatusUnauthorized ||
-		resp.StatusCode == http.StatusForbidden ||
-		(env.Code != 10000 && (strings.Contains(msgLower, "token") || strings.Contains(msgLower, "unauthorized") || strings.Contains(msgLower, "expired") || strings.Contains(msgLower, "signature")))
-	// SECURITY (audit DMB-015): money-moving calls are NOT idempotent. They are only
-	// re-sent when CBS answered HTTP 401 (request rejected before processing), never
-	// based on message text of a response that may belong to an executed transaction.
-	if path == "/api/overbooking" {
-		isTokenExpired = resp.StatusCode == http.StatusUnauthorized
+	isTokenExpired := status == http.StatusUnauthorized || status == http.StatusForbidden ||
+		(env.Code != 10000 && (strings.Contains(msgLower, "token") || strings.Contains(msgLower, "unauthorized") ||
+			strings.Contains(msgLower, "expired") || strings.Contains(msgLower, "signature")))
+	if !isTokenExpired {
+		return env, status, err
 	}
 
-	// If token expired or rejected by CBS, force a brand-new access token once and retry
-	if isTokenExpired {
-		p.tokenMu.Lock()
-		p.accessToken = ""
-		p.refreshToken = ""
-		p.tokenMu.Unlock()
-
-		newToken, tokErr := p.requestNewAccessToken(ctx)
-		if tokErr == nil {
-			newTimestamp := time.Now().Format("2006-01-02T15:04:05-07:00")
-			newSignature := p.computeSignature(http.MethodPost, path, newToken, bodyBytes, newTimestamp)
-
-			retryReq, _ := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(bodyBytes))
-			retryReq.Header.Set("Content-Type", "application/json")
-			retryReq.Header.Set("Accept", "application/json")
-			retryReq.Header.Set("Authorization", "Bearer "+newToken)
-			retryReq.Header.Set("X-Client-ID", p.cfg.CBSClientID)
-			retryReq.Header.Set("X-TIMESTAMP", newTimestamp)
-			retryReq.Header.Set("X-Signature", newSignature)
-
-			retryResp, retryErr := p.httpClient.Do(retryReq)
-			if retryErr == nil {
-				defer retryResp.Body.Close()
-				rawRetry, _ := io.ReadAll(retryResp.Body)
-				var retryEnv cbsEnvelope
-				_ = json.Unmarshal(rawRetry, &retryEnv)
-				return &retryEnv, retryResp.StatusCode, nil
-			}
-		}
+	p.invalidateTokens()
+	newToken, tokErr := p.requestNewAccessToken(ctx)
+	if tokErr != nil {
+		return env, status, err
 	}
-
-	if env.Status == "" && env.Code == 0 && len(raw) > 0 {
-		if err := json.Unmarshal(raw, &env); err != nil {
-			return nil, resp.StatusCode, fmt.Errorf("respons JSON CBS tidak valid: %w", err)
-		}
-	}
-
-	return &env, resp.StatusCode, nil
+	return p.sendSigned(ctx, path, newToken, bodyBytes)
 }
 
 func truncateCBSStr(s string, max int) string {
@@ -480,8 +445,6 @@ func truncateCBSStr(s string, max int) string {
 	}
 	return s
 }
-
-// ==================== 4. POST /api/nasabah (Get Customer Data by CIF) ====================
 
 func (p *OpenAPICBSProvider) GetCustomerByCIF(ctx context.Context, cifNumber string) (*domain.CBSNasabahData, error) {
 	cifClean := strings.TrimSpace(cifNumber)
@@ -506,23 +469,17 @@ func (p *OpenAPICBSProvider) GetCustomerByCIF(ctx context.Context, cifNumber str
 		return nil, err
 	}
 
-	// Sync complete customer profile from CBS /api/nasabah into local PostgreSQL with AES-256-GCM encryption
 	if p.db != nil && data.CIF != "" {
-		// Fail-closed: if any field cannot be encrypted, skip the sync instead of
-		// overwriting stored PII with empty values (audit DMB-008).
-		encNIK, e1 := crypto.EncryptString(data.NIK)
 		encEmail, e2 := crypto.EncryptString(data.Email)
-		encAlamat, e3 := crypto.EncryptString(data.Alamat)
 		encTglLahir, e4 := crypto.EncryptString(data.TglLahir)
 		encTempatLahir, e5 := crypto.EncryptString(data.TempatLahir)
-		encIbuKandung, e6 := crypto.EncryptString(data.NamaIbuKandung)
-		if err := errors.Join(e1, e2, e3, e4, e5, e6); err != nil {
+		if err := errors.Join(e2, e4, e5); err != nil {
 			logger.GetLogger().Error("Sinkronisasi profil CBS dibatalkan: enkripsi PII gagal", map[string]interface{}{"error": err.Error()})
 			return &data, nil
 		}
 
 		rawJK := strings.ToUpper(strings.TrimSpace(data.JenisKelamin))
-		jk := truncateCBSStr(rawJK, 5)
+		jk := truncateCBSStr(rawJK, 50)
 		if len(rawJK) > 5 {
 			if strings.HasPrefix(rawJK, "L") {
 				jk = "L"
@@ -532,30 +489,27 @@ func (p *OpenAPICBSProvider) GetCustomerByCIF(ctx context.Context, cifNumber str
 		}
 
 		updates := map[string]interface{}{
-			"nik":              encNIK,
-			"full_name":        truncateCBSStr(strings.TrimSpace(data.Nama), 100),
-			"email":            encEmail,
-			"alamat":           encAlamat,
-			"kode_pos":         truncateCBSStr(strings.TrimSpace(data.KodePos), 15),
-			"jenis_kelamin":    jk,
-			"agama":            truncateCBSStr(strings.TrimSpace(data.Agama), 30),
-			"tgl_lahir":        encTglLahir,
-			"tempat_lahir":     encTempatLahir,
-			"nama_ibu_kandung": encIbuKandung,
-			"updated_at":       time.Now(),
+			"full_name":     truncateCBSStr(strings.TrimSpace(data.Nama), 100),
+			"email":         encEmail,
+			"kode_pos":      truncateCBSStr(strings.TrimSpace(data.KodePos), 50),
+			"jenis_kelamin": jk,
+			"agama":         truncateCBSStr(strings.TrimSpace(data.Agama), 255),
+			"tgl_lahir":     encTglLahir,
+			"tempat_lahir":  encTempatLahir,
+			"updated_at":    time.Now(),
 		}
-		if data.NoHP != "" && data.NoHP != "0" {
-			updates["phone_number"] = data.NoHP
-		}
-		_ = p.db.WithContext(ctx).Model(&model.User{}).
+		// SECURITY (audit D-03): the login phone number is never overwritten from a CBS read;
+		// it is verified by OTP at activation / Lupa Password. The mother's maiden name is a
+		// verification secret the app does not need and is no longer copied (data minimisation).
+		if err := p.db.WithContext(ctx).Model(&model.User{}).
 			Where("cif = ?", data.CIF).
-			Updates(updates).Error
+			Updates(updates).Error; err != nil {
+			logger.GetLogger().Error("Sinkronisasi profil CBS gagal disimpan", map[string]interface{}{"error": err.Error()})
+		}
 	}
 
 	return &data, nil
 }
-
-// ==================== 5. POST /api/savings-accounts (Get Savings Accounts by CIF) ====================
 
 func (p *OpenAPICBSProvider) GetSavingsAccountsByCIF(ctx context.Context, cifNumber string) ([]domain.CBSSavingsAccountItem, error) {
 	cifClean := strings.TrimSpace(cifNumber)
@@ -580,7 +534,6 @@ func (p *OpenAPICBSProvider) GetSavingsAccountsByCIF(ctx context.Context, cifNum
 		return nil, err
 	}
 
-	// Sync all savings accounts under this CIF into PostgreSQL accounts table
 	if p.db != nil && len(items) > 0 {
 		var user model.User
 		if uErr := p.db.WithContext(ctx).Where("cif = ?", cifClean).First(&user).Error; uErr == nil {
@@ -607,16 +560,20 @@ func (p *OpenAPICBSProvider) GetSavingsAccountsByCIF(ctx context.Context, cifNum
 						CreatedAt:        now,
 						UpdatedAt:        now,
 					}
-					_ = p.db.WithContext(ctx).Create(&newAcc).Error
+					if err := p.db.WithContext(ctx).Create(&newAcc).Error; err != nil {
+						logger.GetLogger().Error("Cache rekening lokal gagal dibuat", map[string]interface{}{"error": err.Error()})
+					}
 				} else {
-					_ = p.db.WithContext(ctx).Model(&acc).Updates(map[string]interface{}{
+					if err := p.db.WithContext(ctx).Model(&acc).Updates(map[string]interface{}{
 						"user_id":      user.ID,
 						"holder_name":  user.FullName,
 						"product_code": prodCode,
 						"account_type": prodName,
 						"balance":      item.Saldo,
 						"updated_at":   now,
-					}).Error
+					}).Error; err != nil {
+						logger.GetLogger().Error("Cache rekening lokal gagal diperbarui", map[string]interface{}{"error": err.Error()})
+					}
 				}
 			}
 		}
@@ -624,8 +581,6 @@ func (p *OpenAPICBSProvider) GetSavingsAccountsByCIF(ctx context.Context, cifNum
 
 	return items, nil
 }
-
-// ==================== 6. POST /api/savings-account-balance (Get Live Balance) ====================
 
 func (p *OpenAPICBSProvider) GetBalance(ctx context.Context, accountNo string) (*domain.BalanceResponse, error) {
 	accNo := strings.TrimSpace(accountNo)
@@ -635,7 +590,6 @@ func (p *OpenAPICBSProvider) GetBalance(ctx context.Context, accountNo string) (
 
 	env, statusCode, err := p.doSignedPost(ctx, "/api/savings-account-balance", payload)
 	if err != nil || env == nil || statusCode >= 500 {
-		// Runtime outage: never substitute a cached/local balance (stale data).
 		logger.GetLogger().Warn("CBS savings-account-balance tidak tersedia", map[string]interface{}{"status": statusCode, "error": fmt.Sprint(err)})
 		return nil, ErrCBSUnavailable
 	}
@@ -652,11 +606,10 @@ func (p *OpenAPICBSProvider) GetBalance(ctx context.Context, accountNo string) (
 			productName := p.resolveProductName(prodCode, balData.NamaProduk)
 			now := time.Now()
 
-			// Synchronize live CBS balance & holder name into PostgreSQL
 			if p.db != nil {
 				var acc model.Account
 				if dbErr := p.db.WithContext(ctx).Where("account_number = ?", accNo).First(&acc).Error; dbErr == nil {
-					_ = p.db.WithContext(ctx).Model(&acc).Updates(map[string]interface{}{
+					if err := p.db.WithContext(ctx).Model(&acc).Updates(map[string]interface{}{
 						"holder_name":       balData.Nama,
 						"product_code":      prodCode,
 						"account_type":      productName,
@@ -665,12 +618,11 @@ func (p *OpenAPICBSProvider) GetBalance(ctx context.Context, accountNo string) (
 						"blocked_balance":   balData.SaldoTertahan,
 						"effective_balance": balData.SaldoEfektif,
 						"updated_at":        now,
-					}).Error
-					if balData.Nama != "" && acc.UserID != "" {
-						_ = p.db.WithContext(ctx).Model(&model.User{}).
-							Where("id = ?", acc.UserID).
-							Update("full_name", balData.Nama).Error
+					}).Error; err != nil {
+						logger.GetLogger().Error("Cache saldo lokal gagal diperbarui", map[string]interface{}{"error": err.Error()})
 					}
+					// The account holder name is not the customer name (joint accounts): the
+					// customer name is synchronised from /api/nasabah only.
 				}
 			}
 
@@ -690,138 +642,9 @@ func (p *OpenAPICBSProvider) GetBalance(ctx context.Context, accountNo string) (
 		}
 	}
 
-	// CBS answered with a business error (e.g. unknown account).
 	return nil, ErrAccountNotFound
 }
 
-// ==================== 7. POST /api/overbooking (Live CBS Overbooking Transfer) ====================
-
-func (p *OpenAPICBSProvider) ProcessTransfer(ctx context.Context, req *domain.TransferRequest, fromAccount string) (*domain.TransferResponse, error) {
-	senderAccNo := strings.TrimSpace(fromAccount)
-	receiverAccNo := strings.TrimSpace(req.ToAccount)
-
-	// 1. Verify User's 6-Digit Transaction PIN in PostgreSQL (Bank Security Standard)
-	var senderAcc model.Account
-	if p.db != nil {
-		if err := p.db.WithContext(ctx).Preload("User").Where("account_number = ?", senderAccNo).First(&senderAcc).Error; err == nil {
-			if senderAcc.User != nil && req.PIN != "" {
-				if !security.CheckPIN(senderAcc.User.PINHash, req.PIN) {
-					return nil, ErrInvalidPIN
-				}
-			}
-		}
-	}
-
-	// 2. Call Live CBS OpenAPI POST /api/overbooking
-	type overbookingPayload struct {
-		DebitAccount  string       `json:"debit_account"`
-		CreditAccount string       `json:"credit_account"`
-		Nominal       money.Amount `json:"nominal"`
-	}
-	payload := overbookingPayload{
-		DebitAccount:  senderAccNo,
-		CreditAccount: receiverAccNo,
-		Nominal:       req.Amount,
-	}
-
-	env, statusCode, err := p.doSignedPost(ctx, "/api/overbooking", payload)
-	if err != nil {
-		// Transport error / timeout: CBS may or may not have executed the debit.
-		return nil, fmt.Errorf("%w: %v", ErrCBSOutcomeUnknown, err)
-	}
-
-	if statusCode >= 500 {
-		return nil, fmt.Errorf("%w: HTTP %d dari CBS", ErrCBSOutcomeUnknown, statusCode)
-	}
-	if statusCode != http.StatusOK || env.Code != 10000 {
-		if strings.Contains(strings.ToLower(env.Message), "saldo") {
-			return nil, ErrInsufficientBalance
-		}
-		return nil, fmt.Errorf("%w: %s (code: %d)", ErrCBSRejected, env.Message, env.Code)
-	}
-
-	var items []cbsOverbookingItem
-	if err := json.Unmarshal(env.Data, &items); err != nil || len(items) == 0 {
-		// CBS reported success but the ledger entries are missing: treat as unknown.
-		return nil, fmt.Errorf("%w: respons transaksi overbooking CBS kosong", ErrCBSOutcomeUnknown)
-	}
-
-	now := time.Now()
-	cbsTxID := items[0].IDTransaksi
-	if cbsTxID == "" {
-		cbsTxID = env.RefID
-	}
-
-	recipientName := req.ToAccountName
-
-	// 3. Synchronize CBS Ledger Entries (Balances + Mutations) into PostgreSQL
-	if p.db != nil {
-		for _, item := range items {
-			// Update cached account balance in PostgreSQL
-			_ = p.db.WithContext(ctx).Model(&model.Account{}).
-				Where("account_number = ?", item.NomorRekening).
-				Update("balance", item.SaldoAkhir).Error
-
-			txType := model.TxTypeDebit
-			if item.NomorRekening == receiverAccNo && item.NomorRekening != senderAccNo {
-				txType = model.TxTypeCredit
-			} else if item.SaldoAkhir > item.SaldoAwal {
-				txType = model.TxTypeCredit
-			}
-
-			// Extract recipient name from CBS description if available (e.g. "Transfer Overbooking Ke BAMBANG TRI LAKSONO")
-			if txType == model.TxTypeDebit && strings.Contains(item.Deskripsi, "Ke ") {
-				parts := strings.SplitN(item.Deskripsi, "Ke ", 2)
-				if len(parts) == 2 && strings.TrimSpace(parts[1]) != "" {
-					recipientName = strings.TrimSpace(parts[1])
-				}
-			}
-
-			desc := item.Deskripsi
-			if req.Note != "" {
-				desc = fmt.Sprintf("%s (%s)", item.Deskripsi, req.Note)
-			}
-
-			refUnique := fmt.Sprintf("%s-%d", cbsTxID, item.NoRef)
-			mut := model.Mutation{
-				ID:              uuid.NewString(),
-				AccountNumber:   item.NomorRekening,
-				TransactionType: txType,
-				Amount:          item.Nominal,
-				BalanceAfter:    item.SaldoAkhir,
-				Description:     desc,
-				ReferenceNumber: refUnique,
-				CreatedAt:       now,
-			}
-			_ = p.db.WithContext(ctx).Create(&mut).Error
-		}
-	}
-
-	if recipientName == "" {
-		recipientName = "Nasabah Bank DMB"
-	}
-
-	return &domain.TransferResponse{
-		TransactionID: cbsTxID,
-		ReferenceNo:   env.RefID,
-		FromAccount:   senderAccNo,
-		ToBankCode:    "DMB",
-		ToBankName:    "PT BPR Dana Mandiri Bogor",
-		ToAccount:     receiverAccNo,
-		ToAccountName: recipientName,
-		Amount:        req.Amount,
-		Fee:           0,
-		TotalAmount:   req.Amount,
-		Note:          req.Note,
-		Status:        model.TxStatusSuccess,
-		Timestamp:     now,
-	}, nil
-}
-
-// ==================== 8. Mutations ====================
-
-// GetMutations fetches mutations first from live CBS /api/savings-account-mutations (if CIF & account known),
-// There is NO local fallback: an outage is reported as ErrCBSUnavailable.
 func (p *OpenAPICBSProvider) GetMutations(ctx context.Context, cifNumber, accountNo string, startDate, endDate string, limit int) ([]domain.Mutation, error) {
 	accNo := strings.TrimSpace(accountNo)
 	cif := strings.TrimSpace(cifNumber)
@@ -829,7 +652,6 @@ func (p *OpenAPICBSProvider) GetMutations(ctx context.Context, cifNumber, accoun
 		limit = 20
 	}
 
-	// 1. Resolve CIF from database if not supplied directly
 	if cif == "" && p.db != nil && accNo != "" {
 		var acc model.Account
 		if err := p.db.WithContext(ctx).Preload("User").Where("account_number = ?", accNo).First(&acc).Error; err == nil {
@@ -891,8 +713,6 @@ func (p *OpenAPICBSProvider) GetMutations(ctx context.Context, cifNumber, accoun
 	return result, nil
 }
 
-// parseCBSTime parses CBS date/time fields. An unparseable value yields the zero time
-// (and a warning) instead of a fabricated "now" timestamp.
 func parseCBSTime(date, clock string) time.Time {
 	if t, err := time.Parse("2006-01-02 15:04:05", date+" "+clock); err == nil {
 		return t
@@ -904,9 +724,6 @@ func parseCBSTime(date, clock string) time.Time {
 	return time.Time{}
 }
 
-// ==================== 9. Loan (Kredit) Endpoints ====================
-
-// GetLoanAccountsByCIF calls POST /api/loan-accounts
 func (p *OpenAPICBSProvider) GetLoanAccountsByCIF(ctx context.Context, cifNumber string) ([]domain.DMBLoanAccountItem, error) {
 	cifClean := strings.TrimSpace(cifNumber)
 	if cifClean == "" {
@@ -919,9 +736,8 @@ func (p *OpenAPICBSProvider) GetLoanAccountsByCIF(ctx context.Context, cifNumber
 
 	env, statusCode, err := p.doSignedPost(ctx, "/api/loan-accounts", payload)
 	if err != nil || statusCode != http.StatusOK || env.Code != 10000 {
-		// SECURITY / consumer protection: never substitute dummy data for live CBS data.
 		logger.GetLogger().Warn("OpenAPI /api/loan-accounts tidak dapat diakses", map[string]interface{}{"code": statusCode})
-		return nil, errors.New("data pinjaman sedang tidak dapat diambil dari Core Banking")
+		return nil, errors.New("data pinjaman sedang tidak dapat diambil dari layanan perbankan")
 	}
 
 	var items []domain.DMBLoanAccountItem
@@ -931,7 +747,6 @@ func (p *OpenAPICBSProvider) GetLoanAccountsByCIF(ctx context.Context, cifNumber
 	return items, nil
 }
 
-// GetLoanAccountDetail calls POST /api/loan-account-detail
 func (p *OpenAPICBSProvider) GetLoanAccountDetail(ctx context.Context, cifNumber, accountNo string) (*domain.DMBLoanAccountDetail, error) {
 	payload := map[string]string{
 		"cif_number":     strings.TrimSpace(cifNumber),
@@ -950,7 +765,6 @@ func (p *OpenAPICBSProvider) GetLoanAccountDetail(ctx context.Context, cifNumber
 	return &detail, nil
 }
 
-// GetLoanMutations calls POST /api/loan-account-mutations
 func (p *OpenAPICBSProvider) GetLoanMutations(ctx context.Context, cifNumber, accountNo, startDate, endDate string, limit int) ([]domain.Mutation, error) {
 	if startDate == "" {
 		startDate = time.Now().AddDate(0, 0, -30).Format("2006-01-02")
@@ -1013,9 +827,6 @@ func (p *OpenAPICBSProvider) GetLoanMutations(ctx context.Context, cifNumber, ac
 	return result, nil
 }
 
-// ==================== 10. Deposit (Deposito) Endpoints ====================
-
-// GetDepositAccountsByCIF calls POST /api/deposit-accounts
 func (p *OpenAPICBSProvider) GetDepositAccountsByCIF(ctx context.Context, cifNumber string) ([]domain.DMBDepositAccountItem, error) {
 	cifClean := strings.TrimSpace(cifNumber)
 	if cifClean == "" {
@@ -1028,9 +839,8 @@ func (p *OpenAPICBSProvider) GetDepositAccountsByCIF(ctx context.Context, cifNum
 
 	env, statusCode, err := p.doSignedPost(ctx, "/api/deposit-accounts", payload)
 	if err != nil || statusCode != http.StatusOK || env.Code != 10000 {
-		// SECURITY / consumer protection: never substitute dummy data for live CBS data.
 		logger.GetLogger().Warn("OpenAPI /api/deposit-accounts tidak dapat diakses", map[string]interface{}{"code": statusCode})
-		return nil, errors.New("data deposito sedang tidak dapat diambil dari Core Banking")
+		return nil, errors.New("data deposito sedang tidak dapat diambil dari layanan perbankan")
 	}
 
 	var items []domain.DMBDepositAccountItem
@@ -1040,7 +850,6 @@ func (p *OpenAPICBSProvider) GetDepositAccountsByCIF(ctx context.Context, cifNum
 	return items, nil
 }
 
-// GetDepositAccountDetail calls POST /api/deposit-account-detail
 func (p *OpenAPICBSProvider) GetDepositAccountDetail(ctx context.Context, cifNumber, accountNo string) (*domain.DMBDepositAccountDetail, error) {
 	payload := map[string]string{
 		"cif_number":     strings.TrimSpace(cifNumber),
@@ -1059,7 +868,6 @@ func (p *OpenAPICBSProvider) GetDepositAccountDetail(ctx context.Context, cifNum
 	return &detail, nil
 }
 
-// GetDepositMutations calls POST /api/deposit-account-mutations
 func (p *OpenAPICBSProvider) GetDepositMutations(ctx context.Context, cifNumber, accountNo, startDate, endDate string, limit int) ([]domain.Mutation, error) {
 	if startDate == "" {
 		startDate = time.Now().AddDate(0, 0, -30).Format("2006-01-02")
@@ -1122,13 +930,9 @@ func (p *OpenAPICBSProvider) GetDepositMutations(ctx context.Context, cifNumber,
 	return result, nil
 }
 
-// ==================== 11. Products Catalog ====================
-
-// GetProductsCatalog calls POST /api/products
 func (p *OpenAPICBSProvider) GetProductsCatalog(ctx context.Context) (*domain.DMBProductsCatalog, error) {
 	env, statusCode, err := p.doSignedPost(ctx, "/api/products", map[string]interface{}{})
 	if err != nil || statusCode != http.StatusOK || env == nil || env.Code != 10000 {
-		// Tanpa fallback: katalog dummy menyesatkan nasabah (audit DMB-035).
 		logger.GetLogger().Warn("OpenAPI /api/products tidak dapat diakses atau error", map[string]interface{}{
 			"error": err,
 			"code":  statusCode,

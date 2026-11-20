@@ -10,18 +10,9 @@ import (
 	"gorm.io/gorm"
 )
 
-// TransactionType enum
 const (
 	TxTypeDebit  = "DEBIT"
 	TxTypeCredit = "CREDIT"
-
-	TxTransferInternal = "TRANSFER_INTERNAL"
-	TxTransferBank     = "TRANSFER_BANK"
-	TxPPOB             = "PPOB"
-
-	TxStatusPending = "PENDING"
-	TxStatusSuccess = "SUCCESS"
-	TxStatusFailed  = "FAILED"
 
 	AccountStatusActive  = "Active"
 	AccountStatusBlocked = "Blocked"
@@ -30,15 +21,8 @@ const (
 	AdminRoleCS         = "CS"
 	AdminRoleMarketing  = "MARKETING"
 	AdminRoleCompliance = "COMPLIANCE" // read-only audit & compliance monitoring
-
-	// Transfer request (idempotency / state machine) statuses
-	TransferReqPending = "PENDING" // reserved, not yet sent to CBS
-	TransferReqSuccess = "SUCCESS"
-	TransferReqFailed  = "FAILED"  // definitively rejected (no funds moved)
-	TransferReqUnknown = "UNKNOWN" // CBS outcome unknown — requires reconciliation, never auto-retried
 )
 
-// IsValidAdminRole reports whether role is a supported backoffice role.
 func IsValidAdminRole(role string) bool {
 	switch role {
 	case AdminRoleSuperAdmin, AdminRoleCS, AdminRoleMarketing, AdminRoleCompliance:
@@ -47,15 +31,13 @@ func IsValidAdminRole(role string) bool {
 	return false
 }
 
-// User represents the customer identity (synced with CBS /api/nasabah) & device binding table
 type User struct {
 	ID                  string                 `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
-	NIK                 crypto.EncryptedString `json:"nik" gorm:"type:text;column:nik"`
 	CIF                 string                 `json:"cif" gorm:"type:varchar(20);uniqueIndex;not null;column:cif"`
 	FullName            string                 `json:"full_name" gorm:"type:varchar(100);not null;column:full_name"`
+	Username            string                 `json:"username" gorm:"type:varchar(50);column:username"`
 	PhoneNumber         string                 `json:"phone_number" gorm:"type:varchar(20);uniqueIndex;not null;column:phone_number"`
 	Email               crypto.EncryptedString `json:"email" gorm:"type:text;column:email"`
-	Alamat              crypto.EncryptedString `json:"alamat" gorm:"type:text;column:alamat"`
 	KodePos             string                 `json:"kode_pos" gorm:"type:varchar(50);column:kode_pos"`
 	JenisKelamin        string                 `json:"jenis_kelamin" gorm:"type:varchar(50);column:jenis_kelamin"`
 	Agama               string                 `json:"agama" gorm:"type:varchar(255);column:agama"`
@@ -64,15 +46,13 @@ type User struct {
 	NamaIbuKandung      crypto.EncryptedString `json:"nama_ibu_kandung" gorm:"type:text;column:nama_ibu_kandung"`
 	PasswordHash        string                 `json:"-" gorm:"type:varchar(255);not null"`
 	PINHash             string                 `json:"-" gorm:"type:varchar(255);not null"`
-	DeviceID            string                 `json:"device_id" gorm:"type:varchar(100);index"`
-	FCMToken            string                 `json:"fcm_token,omitempty" gorm:"type:text;column:fcm_token"`
+	DeviceID            string                 `json:"device_id" gorm:"type:varchar(128);index"`
 	FailedLoginAttempts int                    `json:"failed_login_attempts" gorm:"type:int;default:0;column:failed_login_attempts"`
 	FailedPINAttempts   int                    `json:"failed_pin_attempts" gorm:"type:int;default:0;column:failed_pin_attempts"`
 	IsActive            bool                   `json:"is_active" gorm:"type:boolean;default:true"`
 	CreatedAt           time.Time              `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt           time.Time              `json:"updated_at" gorm:"autoUpdateTime"`
 
-	// Relationships
 	Accounts []Account `json:"accounts,omitempty" gorm:"foreignKey:UserID;references:ID;constraint:OnDelete:CASCADE"`
 }
 
@@ -83,14 +63,13 @@ func (u *User) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-// Account represents customer bank account in BPR (synced with CBS /api/savings-account-balance)
 type Account struct {
 	ID               string       `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
 	UserID           string       `json:"user_id" gorm:"type:uuid;index;not null"`
 	AccountNumber    string       `json:"account_number" gorm:"type:varchar(100);uniqueIndex;not null"`
 	HolderName       string       `json:"holder_name" gorm:"type:varchar(100);column:holder_name"`
-	ProductCode      string       `json:"product_code" gorm:"type:varchar(20);column:product_code"`
-	AccountType      string       `json:"account_type" gorm:"type:varchar(50);default:'Savings'"`
+	ProductCode      string       `json:"product_code" gorm:"type:varchar(50);column:product_code"`
+	AccountType      string       `json:"account_type" gorm:"type:varchar(255);default:'Savings'"`
 	Balance          money.Amount `json:"balance" gorm:"type:decimal(15,2);not null;default:0"`
 	MinimumBalance   money.Amount `json:"minimum_balance" gorm:"type:decimal(15,2);not null;default:0;column:minimum_balance"`
 	BlockedBalance   money.Amount `json:"blocked_balance" gorm:"type:decimal(15,2);not null;default:0;column:blocked_balance"`
@@ -99,7 +78,6 @@ type Account struct {
 	CreatedAt        time.Time    `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt        time.Time    `json:"updated_at" gorm:"autoUpdateTime"`
 
-	// Relationships
 	User      *User      `json:"user,omitempty" gorm:"foreignKey:UserID;references:ID"`
 	Mutations []Mutation `json:"mutations,omitempty" gorm:"foreignKey:AccountNumber;references:AccountNumber"`
 }
@@ -111,10 +89,9 @@ func (a *Account) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-// Mutation records statement history for account
 type Mutation struct {
 	ID              string       `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
-	AccountNumber   string       `json:"account_number" gorm:"type:varchar(30);index;not null"`
+	AccountNumber   string       `json:"account_number" gorm:"type:varchar(100);index;not null"`
 	TransactionType string       `json:"transaction_type" gorm:"type:varchar(10);not null"` // DEBIT, CREDIT
 	Amount          money.Amount `json:"amount" gorm:"type:decimal(15,2);not null"`
 	BalanceAfter    money.Amount `json:"balance_after" gorm:"type:decimal(15,2);not null"`
@@ -130,30 +107,6 @@ func (m *Mutation) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-// Transaction logs all transactions performed via Mobile Banking
-type Transaction struct {
-	ID              string       `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
-	UserID          string       `json:"user_id" gorm:"type:uuid;index;not null"`
-	FromAccount     string       `json:"from_account" gorm:"type:varchar(30);index;not null"`
-	ToAccount       string       `json:"to_account" gorm:"type:varchar(30);not null"`
-	Amount          money.Amount `json:"amount" gorm:"type:decimal(15,2);not null"`
-	TransactionType string       `json:"transaction_type" gorm:"type:varchar(30);not null"` // TRANSFER_INTERNAL, TRANSFER_BANK, PPOB
-	Status          string       `json:"status" gorm:"type:varchar(20);not null"`           // PENDING, SUCCESS, FAILED
-	CBSReferenceNo  string       `json:"cbs_ref_no" gorm:"type:varchar(50);column:cbs_ref_no"`
-	CreatedAt       time.Time    `json:"created_at" gorm:"autoCreateTime"`
-
-	// Relationships
-	User *User `json:"user,omitempty" gorm:"foreignKey:UserID;references:ID"`
-}
-
-func (t *Transaction) BeforeCreate(tx *gorm.DB) error {
-	if t.ID == "" {
-		t.ID = uuid.NewString()
-	}
-	return nil
-}
-
-// AdminUser represents Bank DMB staff/officer managing backoffice
 type AdminUser struct {
 	ID           string    `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
 	Username     string    `json:"username" gorm:"type:varchar(50);uniqueIndex;not null"`
@@ -164,6 +117,14 @@ type AdminUser struct {
 	IsActive     bool      `json:"is_active" gorm:"type:boolean;default:true"`
 	CreatedAt    time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt    time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+
+	// SECURITY (audit E-01): officer MFA (TOTP) and per-account lockout. The TOTP secret is
+	// AES-GCM encrypted (pkg/crypto) and never serialised.
+	TOTPSecret          string     `json:"-" gorm:"column:totp_secret;type:text"`
+	TOTPEnabled         bool       `json:"totp_enabled" gorm:"column:totp_enabled;default:false"`
+	TOTPLastStep        int64      `json:"-" gorm:"column:totp_last_step;default:0"`
+	FailedLoginAttempts int        `json:"failed_login_attempts" gorm:"column:failed_login_attempts;default:0"`
+	LockedUntil         *time.Time `json:"locked_until,omitempty" gorm:"column:locked_until"`
 }
 
 func (a *AdminUser) BeforeCreate(tx *gorm.DB) error {
@@ -173,7 +134,6 @@ func (a *AdminUser) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-// Banner represents dynamic marketing/promotional content on M-Banking home (Image + URL based)
 type Banner struct {
 	ID           string    `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
 	Title        string    `json:"title" gorm:"type:varchar(120);not null"`
@@ -198,84 +158,69 @@ func (b *Banner) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-// AppConfig represents Bank identity, logo, transaction limits, and operational settings
 type AppConfig struct {
-	ID                 string `json:"id" gorm:"primaryKey;type:varchar(50);default:'DEFAULT'"`
-	BankName           string `json:"bank_name" gorm:"type:varchar(120);default:'PT BPR DANA MANDIRI BOGOR'"`
-	BankShortName      string `json:"bank_short_name" gorm:"type:varchar(50);default:'Bank DMB'"`
-	Tagline            string `json:"tagline" gorm:"type:varchar(255);default:'Mitra Terpercaya Menuju Sejahtera'"`
-	LogoURL            string `json:"logo_url" gorm:"type:text"`
-	LoginBgURL         string `json:"login_bg_url" gorm:"type:text;column:login_bg_url"`
-	SplashBgURL        string `json:"splash_bg_url" gorm:"type:text;column:splash_bg_url"`
-	OnboardingBgURL    string `json:"onboarding_bg_url" gorm:"type:text;column:onboarding_bg_url"`
-	WelcomeTitle       string `json:"welcome_title" gorm:"type:varchar(150);default:'Selamat Datang di DMB Mobile';column:welcome_title"`
-	WelcomeSubtitle    string `json:"welcome_subtitle" gorm:"type:varchar(255);default:'Transaksi mudah, aman, dan tepercaya bersama BPR Dana Mandiri Bogor';column:welcome_subtitle"`
-	LoginTitle         string `json:"login_title" gorm:"type:varchar(150);default:'Masuk ke Akun M-Banking';column:login_title"`
-	LoginSubtitle      string `json:"login_subtitle" gorm:"type:varchar(255);default:'Silakan masukkan User ID dan Kata Sandi Anda';column:login_subtitle"`
-	TermsVersion       string `json:"terms_version" gorm:"type:varchar(50);default:'Versi 2.4 - Efektif 2026';column:terms_version"`
-	HomeGreeting       string `json:"home_greeting" gorm:"type:varchar(150);default:'Semoga harimu menyenangkan!';column:home_greeting"`
-	AnnouncementText   string `json:"announcement_text" gorm:"type:text;column:announcement_text"`
-	TermsPdfURL        string `json:"terms_pdf_url" gorm:"type:text;column:terms_pdf_url"`
-	PrivacyPdfURL      string `json:"privacy_pdf_url" gorm:"type:text;column:privacy_pdf_url"`
-	QuickMenuConfig    string `json:"quick_menu_config" gorm:"type:text;column:quick_menu_config"`
-	CallCenter         string `json:"call_center" gorm:"type:varchar(50)"`
-	WhatsAppCS         string `json:"whatsapp_cs" gorm:"type:varchar(50)"`
-	EmailCS            string `json:"email_cs" gorm:"type:varchar(100)"`
-	WebsiteURL         string `json:"website_url" gorm:"type:varchar(255)"`
-	HeadOfficeAddress  string `json:"head_office_address" gorm:"type:text"`
-	MaintenanceMode    bool   `json:"maintenance_mode" gorm:"type:boolean;default:false"`
-	MaintenanceMessage string `json:"maintenance_message" gorm:"type:varchar(255);default:'Sistem sedang dalam peningkatan layanan berkala.'"`
-	// ContentVersion is the published mobile content revision (internal/mobilecontent); the
-	// app uses it to know whether its cached configuration is current.
-	ContentVersion       int          `json:"content_version" gorm:"column:content_version;default:0"`
-	MinTransferAmount    money.Amount `json:"min_transfer_amount" gorm:"type:decimal(15,2);default:10000"`
-	DailyTransferLimit   money.Amount `json:"daily_transfer_limit" gorm:"type:decimal(15,2);default:25000000"`
-	InterbankTransferFee money.Amount `json:"interbank_transfer_fee" gorm:"type:decimal(15,2);default:2500"`
-	EnforceDeviceBinding bool         `json:"enforce_device_binding" gorm:"type:boolean;default:true"`
-	MaxLoginAttempts     int          `json:"max_login_attempts" gorm:"type:int;default:3"`
-	OTPProvider          string       `json:"otp_provider" gorm:"type:varchar(40);default:'SANDBOX'"` // SANDBOX, FONNTE, WABLAS, CUSTOM_WEBHOOK
-	OTPGatewayURL        string       `json:"otp_gateway_url" gorm:"type:varchar(255)"`
-	// SECURITY (audit DMB-006): integration secrets are never serialized to JSON.
-	// They are write-only through the admin config API and should be migrated to
-	// a secret manager (see docs/DEPLOYMENT_AND_CICD.md).
-	OTPGatewayToken string    `json:"-" gorm:"type:varchar(255)"`
-	FCMServerKey    string    `json:"-" gorm:"type:text"`
-	UpdatedAt       time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+	ID                   string    `json:"id" gorm:"primaryKey;type:varchar(50);default:'DEFAULT'"`
+	BankName             string    `json:"bank_name" gorm:"type:varchar(120);default:'PT BPR DANA MANDIRI BOGOR'"`
+	BankShortName        string    `json:"bank_short_name" gorm:"type:varchar(50);default:'Bank DMB'"`
+	Tagline              string    `json:"tagline" gorm:"type:varchar(255);default:'Mitra Terpercaya Menuju Sejahtera'"`
+	LogoURL              string    `json:"logo_url" gorm:"type:text"`
+	LoginBgURL           string    `json:"login_bg_url" gorm:"type:text;column:login_bg_url"`
+	SplashBgURL          string    `json:"splash_bg_url" gorm:"type:text;column:splash_bg_url"`
+	OnboardingBgURL      string    `json:"onboarding_bg_url" gorm:"type:text;column:onboarding_bg_url"`
+	WelcomeTitle         string    `json:"welcome_title" gorm:"type:varchar(150);default:'Selamat Datang di DMB Mobile';column:welcome_title"`
+	WelcomeSubtitle      string    `json:"welcome_subtitle" gorm:"type:varchar(255);default:'Transaksi mudah, aman, dan tepercaya bersama BPR Dana Mandiri Bogor';column:welcome_subtitle"`
+	LoginTitle           string    `json:"login_title" gorm:"type:varchar(150);default:'Masuk ke Akun M-Banking';column:login_title"`
+	LoginSubtitle        string    `json:"login_subtitle" gorm:"type:varchar(255);default:'Silakan masukkan User ID dan Kata Sandi Anda';column:login_subtitle"`
+	TermsVersion         string    `json:"terms_version" gorm:"type:varchar(50);default:'Versi 2.4 - Efektif 2026';column:terms_version"`
+	HomeGreeting         string    `json:"home_greeting" gorm:"type:varchar(150);default:'Semoga harimu menyenangkan!';column:home_greeting"`
+	AnnouncementText     string    `json:"announcement_text" gorm:"type:text;column:announcement_text"`
+	TermsPdfURL          string    `json:"terms_pdf_url" gorm:"type:text;column:terms_pdf_url"`
+	PrivacyPdfURL        string    `json:"privacy_pdf_url" gorm:"type:text;column:privacy_pdf_url"`
+	QuickMenuConfig      string    `json:"quick_menu_config" gorm:"type:text;column:quick_menu_config"`
+	CallCenter           string    `json:"call_center" gorm:"type:varchar(50)"`
+	WhatsAppCS           string    `json:"whatsapp_cs" gorm:"type:varchar(50)"`
+	EmailCS              string    `json:"email_cs" gorm:"type:varchar(100)"`
+	WebsiteURL           string    `json:"website_url" gorm:"type:varchar(255)"`
+	HeadOfficeAddress    string    `json:"head_office_address" gorm:"type:text"`
+	MaintenanceMode      bool      `json:"maintenance_mode" gorm:"type:boolean;default:false"`
+	MaintenanceMessage   string    `json:"maintenance_message" gorm:"type:varchar(255);default:'Sistem sedang dalam peningkatan layanan berkala.'"`
+	ContentVersion       int       `json:"content_version" gorm:"column:content_version;default:0"`
+	EnforceDeviceBinding bool      `json:"enforce_device_binding" gorm:"type:boolean;default:true"`
+	MaxLoginAttempts     int       `json:"max_login_attempts" gorm:"type:int;default:3"`
+	OTPProvider          string    `json:"otp_provider" gorm:"type:varchar(40);default:'SANDBOX'"` // SANDBOX, JATIS, SMS_GATEWAY
+	OTPGatewayURL        string    `json:"otp_gateway_url" gorm:"type:varchar(255)"`
+	OTPGatewayToken      string    `json:"-" gorm:"type:text"` // AES-GCM encrypted (audit E-08); legacy plaintext still readable
+	UpdatedAt            time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
-// PublicAppConfig is the subset of AppConfig exposed to unauthenticated clients.
 type PublicAppConfig struct {
-	ContentVersion       int          `json:"content_version"`
-	BankName             string       `json:"bank_name"`
-	BankShortName        string       `json:"bank_short_name"`
-	Tagline              string       `json:"tagline"`
-	LogoURL              string       `json:"logo_url"`
-	LoginBgURL           string       `json:"login_bg_url"`
-	SplashBgURL          string       `json:"splash_bg_url"`
-	OnboardingBgURL      string       `json:"onboarding_bg_url"`
-	WelcomeTitle         string       `json:"welcome_title"`
-	WelcomeSubtitle      string       `json:"welcome_subtitle"`
-	LoginTitle           string       `json:"login_title"`
-	LoginSubtitle        string       `json:"login_subtitle"`
-	TermsVersion         string       `json:"terms_version"`
-	HomeGreeting         string       `json:"home_greeting"`
-	AnnouncementText     string       `json:"announcement_text"`
-	TermsPdfURL          string       `json:"terms_pdf_url"`
-	PrivacyPdfURL        string       `json:"privacy_pdf_url"`
-	QuickMenuConfig      string       `json:"quick_menu_config"`
-	CallCenter           string       `json:"call_center"`
-	WhatsAppCS           string       `json:"whatsapp_cs"`
-	EmailCS              string       `json:"email_cs"`
-	WebsiteURL           string       `json:"website_url"`
-	HeadOfficeAddress    string       `json:"head_office_address"`
-	MaintenanceMode      bool         `json:"maintenance_mode"`
-	MaintenanceMessage   string       `json:"maintenance_message"`
-	MinTransferAmount    money.Amount `json:"min_transfer_amount"`
-	DailyTransferLimit   money.Amount `json:"daily_transfer_limit"`
-	InterbankTransferFee money.Amount `json:"interbank_transfer_fee"`
+	ContentVersion     int    `json:"content_version"`
+	BankName           string `json:"bank_name"`
+	BankShortName      string `json:"bank_short_name"`
+	Tagline            string `json:"tagline"`
+	LogoURL            string `json:"logo_url"`
+	LoginBgURL         string `json:"login_bg_url"`
+	SplashBgURL        string `json:"splash_bg_url"`
+	OnboardingBgURL    string `json:"onboarding_bg_url"`
+	WelcomeTitle       string `json:"welcome_title"`
+	WelcomeSubtitle    string `json:"welcome_subtitle"`
+	LoginTitle         string `json:"login_title"`
+	LoginSubtitle      string `json:"login_subtitle"`
+	TermsVersion       string `json:"terms_version"`
+	HomeGreeting       string `json:"home_greeting"`
+	AnnouncementText   string `json:"announcement_text"`
+	TermsPdfURL        string `json:"terms_pdf_url"`
+	PrivacyPdfURL      string `json:"privacy_pdf_url"`
+	QuickMenuConfig    string `json:"quick_menu_config"`
+	CallCenter         string `json:"call_center"`
+	WhatsAppCS         string `json:"whatsapp_cs"`
+	EmailCS            string `json:"email_cs"`
+	WebsiteURL         string `json:"website_url"`
+	HeadOfficeAddress  string `json:"head_office_address"`
+	MaintenanceMode    bool   `json:"maintenance_mode"`
+	MaintenanceMessage string `json:"maintenance_message"`
 }
 
-// Public returns the client-safe projection of the configuration.
 func (c *AppConfig) Public() PublicAppConfig {
 	return PublicAppConfig{
 		ContentVersion: c.ContentVersion,
@@ -288,17 +233,14 @@ func (c *AppConfig) Public() PublicAppConfig {
 		QuickMenuConfig: c.QuickMenuConfig,
 		CallCenter:      c.CallCenter, WhatsAppCS: c.WhatsAppCS, EmailCS: c.EmailCS, WebsiteURL: c.WebsiteURL,
 		HeadOfficeAddress: c.HeadOfficeAddress, MaintenanceMode: c.MaintenanceMode, MaintenanceMessage: c.MaintenanceMessage,
-		MinTransferAmount: c.MinTransferAmount, DailyTransferLimit: c.DailyTransferLimit, InterbankTransferFee: c.InterbankTransferFee,
 	}
 }
 
-// AdminAppConfigView is returned to backoffice users: secrets are reported only as "configured" flags.
 type AdminAppConfigView struct {
 	AppConfig
 	OTPGatewayTokenSet bool `json:"otp_gateway_token_set"`
 }
 
-// AdminView returns the backoffice projection with masked secrets.
 func (c *AppConfig) AdminView() AdminAppConfigView {
 	return AdminAppConfigView{
 		AppConfig:          *c,
@@ -306,13 +248,10 @@ func (c *AppConfig) AdminView() AdminAppConfigView {
 	}
 }
 
-// UserSession is a server-side customer session (audit DMB-014).
-// The refresh token's jti is stored as a SHA-256 hash; rotating the refresh
-// token replaces the hash. Revoked sessions invalidate access tokens immediately.
 type UserSession struct {
 	ID               string     `json:"id" gorm:"primaryKey;type:uuid"`
 	UserID           string     `json:"user_id" gorm:"type:uuid;index;not null"`
-	DeviceID         string     `json:"device_id" gorm:"type:varchar(120)"`
+	DeviceID         string     `json:"device_id" gorm:"type:varchar(128)"`
 	RefreshTokenHash string     `json:"-" gorm:"type:varchar(64);index;not null"`
 	PrevRefreshHash  string     `json:"-" gorm:"type:varchar(64);index"`
 	RotatedAt        *time.Time `json:"rotated_at"`
@@ -324,39 +263,18 @@ type UserSession struct {
 	UpdatedAt        time.Time  `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
-// TransferRequest records every transfer attempt for idempotency, atomic limit
-// enforcement and reconciliation (audit DMB-015).
-type TransferRequest struct {
-	ID             string       `json:"id" gorm:"primaryKey;type:uuid"`
-	UserID         string       `json:"user_id" gorm:"type:uuid;not null;uniqueIndex:idx_transfer_idem"`
-	IdempotencyKey string       `json:"idempotency_key" gorm:"type:varchar(80);not null;uniqueIndex:idx_transfer_idem"`
-	RequestHash    string       `json:"-" gorm:"type:varchar(64);not null"`
-	FromAccount    string       `json:"from_account" gorm:"type:varchar(30);index;not null"`
-	ToAccount      string       `json:"to_account" gorm:"type:varchar(30);not null"`
-	ToBankCode     string       `json:"to_bank_code" gorm:"type:varchar(20)"`
-	Amount         money.Amount `json:"amount" gorm:"type:decimal(15,2);not null"`
-	Status         string       `json:"status" gorm:"type:varchar(20);index;not null"`
-	CBSReferenceNo string       `json:"cbs_ref_no" gorm:"type:varchar(60)"`
-	ResponseJSON   string       `json:"-" gorm:"type:text"`
-	FailureReason  string       `json:"failure_reason" gorm:"type:varchar(255)"`
-	CreatedAt      time.Time    `json:"created_at" gorm:"autoCreateTime;index"`
-	UpdatedAt      time.Time    `json:"updated_at" gorm:"autoUpdateTime"`
-}
-
-// AuditLog records security and operational events for OJK compliance & internal audit
 type AuditLog struct {
-	ID        string `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
-	ActorType string `json:"actor_type" gorm:"type:varchar(20);index;not null"` // NASABAH, ADMIN, SYSTEM
-	ActorID   string `json:"actor_id" gorm:"type:varchar(60);index"`
-	ActorName string `json:"actor_name" gorm:"type:varchar(100)"`
-	Action    string `json:"action" gorm:"type:varchar(60);index;not null"`
-	Target    string `json:"target" gorm:"type:varchar(100)"`
-	Status    string `json:"status" gorm:"type:varchar(20);default:'SUCCESS'"` // SUCCESS, WARNING, DANGER
-	IPAddress string `json:"ip_address" gorm:"type:varchar(50)"`
-	UserAgent string `json:"user_agent" gorm:"type:varchar(255)"`
-	DeviceID  string `json:"device_id" gorm:"type:varchar(120)"`
-	Details   string `json:"details" gorm:"type:text"`
-	// Tamper-evidence hash chain (audit DMB-016): Hash = SHA-256(PrevHash || canonical entry).
+	ID        string    `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
+	ActorType string    `json:"actor_type" gorm:"type:varchar(20);index;not null"` // NASABAH, ADMIN, SYSTEM
+	ActorID   string    `json:"actor_id" gorm:"type:varchar(60);index"`
+	ActorName string    `json:"actor_name" gorm:"type:varchar(100)"`
+	Action    string    `json:"action" gorm:"type:varchar(60);index;not null"`
+	Target    string    `json:"target" gorm:"type:varchar(100)"`
+	Status    string    `json:"status" gorm:"type:varchar(20);default:'SUCCESS'"` // SUCCESS, WARNING, DANGER
+	IPAddress string    `json:"ip_address" gorm:"type:varchar(50)"`
+	UserAgent string    `json:"user_agent" gorm:"type:varchar(255)"`
+	DeviceID  string    `json:"device_id" gorm:"type:varchar(128)"`
+	Details   string    `json:"details" gorm:"type:text"`
 	Seq       int64     `json:"seq" gorm:"autoIncrement;uniqueIndex;not null"`
 	PrevHash  string    `json:"prev_hash" gorm:"type:varchar(64)"`
 	Hash      string    `json:"hash" gorm:"type:varchar(64);index"`
@@ -370,7 +288,6 @@ func (a *AuditLog) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-// Notification represents in-app inbox & push notifications for customers
 type Notification struct {
 	ID        string    `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
 	UserID    string    `json:"user_id" gorm:"type:varchar(60);index;not null"` // User UUID or "ALL" for broadcast
@@ -388,26 +305,6 @@ func (n *Notification) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-// SavedBeneficiary stores favorite destination accounts for quick transfers
-type SavedBeneficiary struct {
-	ID            string    `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
-	UserID        string    `json:"user_id" gorm:"type:varchar(60);index;not null"`
-	BankCode      string    `json:"bank_code" gorm:"type:varchar(20);default:'BPR'"`
-	BankName      string    `json:"bank_name" gorm:"type:varchar(100);default:'Bank DMB'"`
-	AccountNumber string    `json:"account_number" gorm:"type:varchar(30);not null"`
-	AccountName   string    `json:"account_name" gorm:"type:varchar(100);not null"`
-	Nickname      string    `json:"nickname" gorm:"type:varchar(60)"`
-	CreatedAt     time.Time `json:"created_at" gorm:"autoCreateTime"`
-}
-
-func (s *SavedBeneficiary) BeforeCreate(tx *gorm.DB) error {
-	if s.ID == "" {
-		s.ID = uuid.NewString()
-	}
-	return nil
-}
-
-// ProductApplication stores online Deposito & Loan (Kredit) applications from Mobile DMB
 type ProductApplication struct {
 	ID              string       `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
 	UserID          string       `json:"user_id" gorm:"type:varchar(60);index;not null"`
@@ -432,4 +329,37 @@ func (p *ProductApplication) BeforeCreate(tx *gorm.DB) error {
 		p.ID = uuid.NewString()
 	}
 	return nil
+}
+
+// Maker-checker request kinds and statuses (audit E-03, E-07, G).
+const (
+	ApprovalConfigSecurity  = "CONFIG_SECURITY"
+	ApprovalDeviceReset     = "DEVICE_RESET"
+	ApprovalCustomerUnblock = "CUSTOMER_UNBLOCK"
+	ApprovalBannerPublish   = "BANNER_PUBLISH"
+
+	ApprovalPending   = "PENDING"
+	ApprovalApproved  = "APPROVED"
+	ApprovalRejected  = "REJECTED"
+	ApprovalCancelled = "CANCELLED"
+	ApprovalFailed    = "FAILED"
+)
+
+// ApprovalRequest is a sensitive backoffice action waiting for a second officer. The maker
+// can never be the checker. Payload is AES-GCM encrypted (it may carry the OTP gateway token).
+type ApprovalRequest struct {
+	ID              string     `json:"id" gorm:"primaryKey;type:uuid"`
+	Kind            string     `json:"kind" gorm:"type:varchar(40);not null"`
+	TargetID        string     `json:"target_id" gorm:"type:varchar(64);not null"`
+	Summary         string     `json:"summary" gorm:"type:text"`
+	Payload         string     `json:"-" gorm:"type:text"`
+	Status          string     `json:"status" gorm:"type:varchar(20);not null"`
+	RequestedBy     string     `json:"requested_by" gorm:"type:varchar(64);not null"`
+	RequestedByName string     `json:"requested_by_name" gorm:"type:varchar(120)"`
+	RequestedByRole string     `json:"requested_by_role" gorm:"type:varchar(30)"`
+	RequestedAt     time.Time  `json:"requested_at"`
+	DecidedBy       *string    `json:"decided_by,omitempty" gorm:"type:varchar(64)"`
+	DecidedByName   *string    `json:"decided_by_name,omitempty" gorm:"type:varchar(120)"`
+	DecidedAt       *time.Time `json:"decided_at,omitempty"`
+	DecisionNote    *string    `json:"decision_note,omitempty" gorm:"type:text"`
 }

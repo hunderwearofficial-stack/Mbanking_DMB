@@ -29,7 +29,6 @@ var (
 	ErrDisabled     = errors.New("integrasi Firebase belum aktif. Aktifkan di menu Notifikasi → Integrasi Firebase")
 )
 
-// Delivery statuses.
 const (
 	StatusQueued       = "QUEUED"
 	StatusAccepted     = "ACCEPTED" // accepted by FCM — not proof that the phone displayed it
@@ -37,7 +36,6 @@ const (
 	StatusInvalidToken = "INVALID_TOKEN"
 )
 
-// Campaign statuses.
 const (
 	CampaignDraft       = "DRAFT"
 	CampaignPending     = "PENDING_APPROVAL"
@@ -51,7 +49,6 @@ const (
 
 const maxAttempts = 3
 
-// Settings maps push_settings.
 type Settings struct {
 	ID                    string     `gorm:"column:id;primaryKey"`
 	Enabled               bool       `gorm:"column:enabled"`
@@ -71,7 +68,6 @@ type Settings struct {
 
 func (Settings) TableName() string { return "push_settings" }
 
-// Device maps push_devices.
 type Device struct {
 	ID                string     `gorm:"column:id;primaryKey;default:gen_random_uuid()"`
 	UserID            string     `gorm:"column:user_id"`
@@ -88,7 +84,6 @@ type Device struct {
 
 func (Device) TableName() string { return "push_devices" }
 
-// Campaign maps notification_campaigns.
 type Campaign struct {
 	ID                string     `json:"id" gorm:"column:id;primaryKey;default:gen_random_uuid()"`
 	Title             string     `json:"title" gorm:"column:title"`
@@ -116,7 +111,6 @@ type Campaign struct {
 
 func (Campaign) TableName() string { return "notification_campaigns" }
 
-// Delivery maps push_deliveries.
 type Delivery struct {
 	ID             string     `json:"id" gorm:"column:id;primaryKey;default:gen_random_uuid()"`
 	CampaignID     *string    `json:"campaign_id" gorm:"column:campaign_id"`
@@ -136,7 +130,6 @@ type Delivery struct {
 
 func (Delivery) TableName() string { return "push_deliveries" }
 
-// Service implements settings, device registration, sending and campaigns.
 type Service struct {
 	db       *gorm.DB
 	tokenURL string
@@ -153,7 +146,6 @@ func NewService(db *gorm.DB) *Service {
 	return &Service{db: db, backoff: func(a int) time.Duration { return time.Duration(a*a) * 500 * time.Millisecond }}
 }
 
-// SetEndpoints overrides the Google endpoints and retry backoff (tests only).
 func (s *Service) SetEndpoints(tokenURL, fcmBase string, backoff func(int) time.Duration) {
 	s.tokenURL, s.fcmBase = tokenURL, fcmBase
 	if backoff != nil {
@@ -161,7 +153,6 @@ func (s *Service) SetEndpoints(tokenURL, fcmBase string, backoff func(int) time.
 	}
 }
 
-// Wait blocks until background sends finish (tests, graceful shutdown).
 func (s *Service) Wait() { s.wg.Wait() }
 
 func adminName(ctx context.Context) (id, name string, ok bool) {
@@ -181,11 +172,6 @@ func hashToken(t string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// ---------------------------------------------------------------------------------
-// Firebase settings
-// ---------------------------------------------------------------------------------
-
-// SettingsView is shown in the back office: never contains the credential.
 type SettingsView struct {
 	Enabled               bool       `json:"enabled"`
 	CredentialConfigured  bool       `json:"credential_configured"`
@@ -224,7 +210,6 @@ func (s *Service) settings(ctx context.Context) (*Settings, error) {
 	return &st, nil
 }
 
-// GetSettings returns the integration status.
 func (s *Service) GetSettings(ctx context.Context) (*SettingsView, error) {
 	st, err := s.settings(ctx)
 	if err != nil {
@@ -250,7 +235,6 @@ func (s *Service) GetSettings(ctx context.Context) (*SettingsView, error) {
 	return v, nil
 }
 
-// credential decrypts and parses the stored service account.
 func (s *Service) credential(st *Settings) (*Credential, error) {
 	if st.CredentialEnc == nil {
 		return nil, fmt.Errorf("%w: credential Firebase Admin belum diunggah", ErrState)
@@ -277,10 +261,6 @@ func (s *Service) clientFor(st *Settings) (*Client, error) {
 	return s.client, nil
 }
 
-// testCredential proves that Google accepts the service account for this project: an
-// access token is issued and FCM answers a validate-only request. With a placeholder
-// token FCM answers INVALID_ARGUMENT/UNREGISTERED — that still proves authentication and
-// project access; 401/403 mean the credential or project is wrong.
 func (s *Service) testCredential(ctx context.Context, c *Client, realToken string) error {
 	tok := realToken
 	if tok == "" {
@@ -298,9 +278,6 @@ func (s *Service) testCredential(ctx context.Context, c *Client, realToken strin
 	return err
 }
 
-// ReplaceCredential validates a new service account against Google and stores it
-// encrypted. The integration is switched off until the new credential passes a
-// connection test and an officer enables it again.
 func (s *Service) ReplaceCredential(ctx context.Context, raw []byte) (*SettingsView, error) {
 	_, name, ok := adminName(ctx)
 	if !ok {
@@ -347,7 +324,6 @@ func safeErr(err error) string {
 	return "kesalahan internal"
 }
 
-// TestConnection re-tests the stored credential and records the outcome.
 func (s *Service) TestConnection(ctx context.Context) (*SettingsView, error) {
 	_, name, ok := adminName(ctx)
 	if !ok {
@@ -379,8 +355,6 @@ func (s *Service) TestConnection(ctx context.Context) (*SettingsView, error) {
 	return s.GetSettings(ctx)
 }
 
-// SetEnabled switches the integration. Enabling requires that the CURRENT credential
-// passed a connection test.
 func (s *Service) SetEnabled(ctx context.Context, enabled bool) (*SettingsView, error) {
 	_, name, ok := adminName(ctx)
 	if !ok {
@@ -407,17 +381,10 @@ func (s *Service) SetEnabled(ctx context.Context, enabled bool) (*SettingsView, 
 	return s.GetSettings(ctx)
 }
 
-// ---------------------------------------------------------------------------------
-// Device tokens
-// ---------------------------------------------------------------------------------
-
-// RegisterDevice links an FCM registration token to the authenticated customer and
-// device. A token belongs to one app installation: if it was linked to another
-// customer (same phone, different login) it moves to the customer who is logged in now.
 func (s *Service) RegisterDevice(ctx context.Context, userID, deviceID, token, platform string) error {
 	token = strings.TrimSpace(token)
 	if len(token) < 20 || len(token) > 4096 || strings.ContainsAny(token, " \n\r\t") {
-		return fmt.Errorf("%w: FCM token tidak valid", ErrValidation)
+		return fmt.Errorf("%w: token notifikasi perangkat tidak valid", ErrValidation)
 	}
 	if userID == "" || len(deviceID) < 8 || len(deviceID) > 128 {
 		return fmt.Errorf("%w: identitas perangkat tidak valid", ErrValidation)
@@ -433,7 +400,6 @@ func (s *Service) RegisterDevice(ctx context.Context, userID, deviceID, token, p
 	now := time.Now()
 	hash := hashToken(token)
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// One active token per (customer, physical device): older tokens of this install are retired.
 		if err := tx.Model(&Device{}).Where("user_id = ? AND device_id = ? AND is_active AND token_sha256 <> ?", userID, deviceID, hash).
 			Updates(map[string]interface{}{"is_active": false, "deactivated_reason": "TOKEN_REFRESHED", "deactivated_at": now}).Error; err != nil {
 			return err
@@ -447,7 +413,6 @@ func (s *Service) RegisterDevice(ctx context.Context, userID, deviceID, token, p
 	})
 }
 
-// UnregisterDevice stops pushes to this customer's device (logout).
 func (s *Service) UnregisterDevice(ctx context.Context, userID, deviceID, reason string) error {
 	if s.db == nil || userID == "" || deviceID == "" {
 		return nil
@@ -456,7 +421,6 @@ func (s *Service) UnregisterDevice(ctx context.Context, userID, deviceID, reason
 		Updates(map[string]interface{}{"is_active": false, "deactivated_reason": reason, "deactivated_at": time.Now()}).Error
 }
 
-// MarkOpened records that the app reported the notification was tapped by its owner.
 func (s *Service) MarkOpened(ctx context.Context, userID, deliveryID string) error {
 	if len(deliveryID) != 36 {
 		return ErrNotFound
@@ -469,12 +433,6 @@ func (s *Service) MarkOpened(ctx context.Context, userID, deliveryID string) err
 	return nil
 }
 
-// ---------------------------------------------------------------------------------
-// Sending
-// ---------------------------------------------------------------------------------
-
-// sendToDevices creates one delivery row per device (duplicates are skipped by the
-// unique indexes) and sends with bounded retries. It returns accepted/failed/invalid counts.
 func (s *Service) sendToDevices(ctx context.Context, c *Client, devices []Device, title, body, category string, campaignID, notificationID *string) (acc, failed, invalid int, lastErr string) {
 	for _, d := range devices {
 		del := Delivery{CampaignID: campaignID, NotificationID: notificationID, UserID: d.UserID, DeviceID: d.ID,
@@ -547,7 +505,6 @@ func (s *Service) finish(ctx context.Context, id, status string, attempts int, m
 	}
 }
 
-// ready returns the FCM client when the integration is enabled.
 func (s *Service) ready(ctx context.Context) (*Client, error) {
 	st, err := s.settings(ctx)
 	if err != nil {
@@ -559,8 +516,6 @@ func (s *Service) ready(ctx context.Context) (*Client, error) {
 	return s.clientFor(st)
 }
 
-// PushToUser sends a system notification (transaction/security event) to every active
-// device of one customer, in the background. The text must already be generic.
 func (s *Service) PushToUser(userID, notificationID, title, body, category string) {
 	if s == nil || s.db == nil || userID == "" || notificationID == "" {
 		return
@@ -589,11 +544,6 @@ func (s *Service) PushToUser(userID, notificationID, title, body, category strin
 	}()
 }
 
-// ---------------------------------------------------------------------------------
-// Campaigns (officer-created notifications, maker-checker)
-// ---------------------------------------------------------------------------------
-
-// CampaignInput is the editable part of a campaign.
 type CampaignInput struct {
 	Title        string `json:"title"`
 	Body         string `json:"body"`
@@ -633,7 +583,6 @@ func (s *Service) validateCampaign(ctx context.Context, in *CampaignInput) error
 	return nil
 }
 
-// CreateCampaign stores a draft.
 func (s *Service) CreateCampaign(ctx context.Context, in CampaignInput) (*Campaign, error) {
 	id, name, ok := adminName(ctx)
 	if !ok {
@@ -677,7 +626,6 @@ func (s *Service) transition(ctx context.Context, id string, fn func(tx *gorm.DB
 	return &out, nil
 }
 
-// SubmitCampaign sends a draft for approval.
 func (s *Service) SubmitCampaign(ctx context.Context, id string) (*Campaign, error) {
 	c, err := s.transition(ctx, id, func(tx *gorm.DB, c *Campaign) error {
 		if c.Status != CampaignDraft && c.Status != CampaignRejected {
@@ -691,7 +639,6 @@ func (s *Service) SubmitCampaign(ctx context.Context, id string) (*Campaign, err
 	return c, err
 }
 
-// RejectCampaign returns a pending campaign to its creator.
 func (s *Service) RejectCampaign(ctx context.Context, id, reason string) (*Campaign, error) {
 	reason = strings.TrimSpace(reason)
 	if reason == "" || utf8.RuneCountInString(reason) > 300 {
@@ -709,8 +656,6 @@ func (s *Service) RejectCampaign(ctx context.Context, id, reason string) (*Campa
 	return c, err
 }
 
-// ApproveCampaign approves (checker ≠ maker) and starts sending in the background. The
-// notification is also stored in the in-app inbox.
 func (s *Service) ApproveCampaign(ctx context.Context, id string) (*Campaign, error) {
 	adminID, name, ok := adminName(ctx)
 	if !ok {
@@ -791,7 +736,6 @@ func (s *Service) runCampaign(client *Client, c Campaign) {
 		fmt.Sprintf("Hasil pengiriman: status %s; perangkat %d; diterima FCM %d; gagal %d; token tidak valid %d", status, len(devices), acc, failed, invalid))
 }
 
-// ListCampaigns returns the newest campaigns.
 func (s *Service) ListCampaigns(ctx context.Context, limit int) ([]Campaign, error) {
 	if limit <= 0 || limit > 200 {
 		limit = 50
@@ -801,13 +745,11 @@ func (s *Service) ListCampaigns(ctx context.Context, limit int) ([]Campaign, err
 	return out, err
 }
 
-// DeliveryView is a delivery without token data.
 type DeliveryView struct {
 	Delivery
 	Platform string `json:"platform"`
 }
 
-// CampaignDeliveries returns per-device results of one campaign.
 func (s *Service) CampaignDeliveries(ctx context.Context, id string, limit int) ([]DeliveryView, error) {
 	if len(id) != 36 {
 		return nil, ErrNotFound

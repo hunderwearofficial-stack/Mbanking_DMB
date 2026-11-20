@@ -1,5 +1,4 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../data/models/user_model.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/services/fcm_service.dart';
@@ -14,43 +13,18 @@ class AuthCubit extends Cubit<AuthState> {
     try {
       final isLoggedIn = await authRepository.isLoggedIn();
       if (isLoggedIn) {
-        // Attempt to refresh & validate session token with the server so expired tokens never get stuck on HomeScreen
         try {
           final refreshed = await authRepository.refreshSession();
           if (refreshed != null) {
             emit(AuthAuthenticated(refreshed.user));
+            FCMService().syncStoredTokenIfLoggedIn(apiClient: authRepository.apiClient);
             return;
           }
-        } catch (e) {
-          // If server explicitly rejected refresh token (401), require clean re-login
-          final errStr = e.toString().toLowerCase();
-          if (errStr.contains('berakhir') ||
-              errStr.contains('kadaluarsa') ||
-              errStr.contains('tidak valid') ||
-              errStr.contains('401')) {
-            await authRepository.secureStorage.clearSessionTokens();
-            emit(AuthUnauthenticated());
-            return;
-          }
+        } catch (_) {
+          // Do not bypass authentication into HomeScreen when token refresh fails
         }
-
-        final phone = await authRepository.secureStorage.getPhoneNumber() ?? '';
-        final cif = await authRepository.secureStorage.getCIF() ?? '';
-        final fullName = await authRepository.secureStorage.getFullName() ?? '';
-        final primaryAccount = await authRepository.secureStorage.getPrimaryAccount() ?? '';
-        final deviceId = await authRepository.secureStorage.getDeviceID();
-
-        emit(AuthAuthenticated(UserModel(
-          id: '',
-          cif: cif,
-          fullName: fullName.isNotEmpty ? fullName : 'Nasabah',
-          phoneNumber: phone,
-          email: '',
-          deviceId: deviceId,
-          primaryAccount: primaryAccount,
-          isActive: true,
-        )));
-        FCMService().syncStoredTokenIfLoggedIn(apiClient: authRepository.apiClient);
+        await authRepository.secureStorage.clearSessionTokens();
+        emit(AuthUnauthenticated());
       } else {
         emit(AuthUnauthenticated());
       }
@@ -62,21 +36,22 @@ class AuthCubit extends Cubit<AuthState> {
   Future<void> login({
     required String identifier,
     required String password,
-    String? deviceId,
   }) async {
     emit(AuthLoading());
     try {
       final authResponse = await authRepository.login(
         identifier: identifier,
         password: password,
-        deviceId: deviceId,
       );
       emit(AuthAuthenticated(authResponse.user));
       FCMService().syncStoredTokenIfLoggedIn(apiClient: authRepository.apiClient);
     } on ApiException catch (e) {
-      emit(AuthError(e.message, code: e.responseCode));
+      emit(AuthError(ApiException.humanize(e), code: e.responseCode));
     } catch (e) {
-      emit(AuthError(e.toString()));
+      emit(AuthError(ApiException.humanize(
+        e,
+        fallback: 'Login belum dapat diproses. Periksa kembali koneksi internet Anda.',
+      )));
     }
   }
 
@@ -87,20 +62,21 @@ class AuthCubit extends Cubit<AuthState> {
       emit(AuthAuthenticated(user));
       FCMService().syncStoredTokenIfLoggedIn(apiClient: authRepository.apiClient);
     } on ApiException catch (e) {
-      emit(AuthError(e.message, code: e.responseCode));
+      emit(AuthError(ApiException.humanize(e), code: e.responseCode));
     } catch (e) {
-      emit(AuthError(e.toString().replaceAll('Exception: ', '')));
+      emit(AuthError(ApiException.humanize(
+        e,
+        fallback: 'Autentikasi biometrik belum dapat diproses. Silakan masuk menggunakan kata sandi.',
+      )));
     }
   }
 
-  /// Explicit logout: revokes the server-side session (audit DMB-014).
   Future<void> logout() async {
     await authRepository.logout();
     FCMService().onLoggedOut();
     emit(AuthUnauthenticated());
   }
 
-  /// Inactivity lock: ends the on-screen session but keeps the biometric unlock path.
   Future<void> lockSession() async {
     await authRepository.lockSession();
     emit(AuthUnauthenticated());

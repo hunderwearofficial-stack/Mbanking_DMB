@@ -1,7 +1,3 @@
-// Package mobilecontent manages the content that the Flutter app renders from the
-// server (registry.go): versioned revisions with draft → pending approval → published
-// (maker-checker), history and rollback. The app keeps full control of widgets, layout
-// and navigation; only validated plain values (text, image URL, boolean, enum) are served.
 package mobilecontent
 
 import (
@@ -24,7 +20,6 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// Values maps registry keys to values.
 type Values map[string]string
 
 const (
@@ -41,7 +36,6 @@ var (
 	ErrMakerChecker = errors.New("persetujuan harus dilakukan petugas yang berbeda dari pembuat dan pengaju (maker-checker)")
 )
 
-// Revision maps mobile_content_revisions.
 type Revision struct {
 	ID               string     `json:"id" gorm:"column:id;primaryKey;default:gen_random_uuid()"`
 	VersionNumber    int        `json:"version_number" gorm:"column:version_number"`
@@ -63,7 +57,6 @@ type Revision struct {
 
 func (Revision) TableName() string { return "mobile_content_revisions" }
 
-// View is a revision with its decoded values.
 type View struct {
 	Revision
 	Values Values `json:"values"`
@@ -72,8 +65,6 @@ type View struct {
 func (r *Revision) view() (*View, error) {
 	v := Values{}
 	if err := json.Unmarshal([]byte(r.Content), &v); err != nil {
-		// Revisions written before the registry (fixed fields) are objects of strings too;
-		// anything else is reported, never silently replaced.
 		return nil, fmt.Errorf("isi revisi %d tidak dapat dibaca: %w", r.VersionNumber, err)
 	}
 	return &View{Revision: *r, Values: v}, nil
@@ -84,7 +75,6 @@ var (
 	uploadPath   = regexp.MustCompile(`^/admin/(uploads|images)/[A-Za-z0-9_\-]+\.(png|jpg|jpeg|webp)$`)
 )
 
-// ValidImage reports whether v is "" (bundled image), an https URL, or a console upload.
 func ValidImage(v string) bool {
 	if v == "" {
 		return true
@@ -96,7 +86,6 @@ func ValidImage(v string) bool {
 	return err == nil && u.Scheme == "https" && u.Host != "" && !strings.ContainsAny(v, "\"'<> \\")
 }
 
-// ValidateValue checks one value against its registry entry.
 func ValidateValue(f *Field, v string) error {
 	bad := func(msg string) error { return fmt.Errorf("%w: %s (%s): %s", ErrInvalid, f.Label, f.Key, msg) }
 	if !utf8.ValidString(v) {
@@ -145,8 +134,6 @@ func ValidateValue(f *Field, v string) error {
 	return nil
 }
 
-// Normalize trims values, rejects unknown keys and validates every registry field.
-// Missing keys are taken from base.
 func Normalize(in, base Values) (Values, error) {
 	out := Values{}
 	for k, v := range in {
@@ -172,7 +159,6 @@ func Normalize(in, base Values) (Values, error) {
 	return out, nil
 }
 
-// Service implements the content workflow.
 type Service struct {
 	db  *gorm.DB
 	now func() time.Time
@@ -191,9 +177,6 @@ func actorOf(ctx context.Context) (actor, error) {
 	return actor{}, fmt.Errorf("%w: petugas tidak dikenal", ErrInvalid)
 }
 
-// baseline is what the app shows when nothing has been published through this module:
-// the values still stored in app_configs (from the previous console) or, if empty, the
-// registry default (the text built into the app).
 func (s *Service) baseline(ctx context.Context, db *gorm.DB) (Values, error) {
 	var row map[string]interface{}
 	if err := db.WithContext(ctx).Table("app_configs").Where("id = ?", "DEFAULT").Take(&row).Error; err != nil {
@@ -241,7 +224,6 @@ func (s *Service) published(ctx context.Context, db *gorm.DB) (*View, error) {
 	return r.view()
 }
 
-// Live returns the values served to the app and their version.
 func (s *Service) Live(ctx context.Context) (Values, int, *time.Time, error) {
 	if s.db == nil {
 		return nil, 0, nil, errors.New("database tidak tersedia")
@@ -257,8 +239,6 @@ func (s *Service) Live(ctx context.Context) (Values, int, *time.Time, error) {
 	out := Values{}
 	for _, f := range Fields {
 		v, ok := pub.Values[f.Key]
-		// a key added to the registry after this revision was published keeps the
-		// baseline until a new version is published
 		if !ok || ValidateValue(&f, v) != nil {
 			v = base[f.Key]
 		}
@@ -267,7 +247,6 @@ func (s *Service) Live(ctx context.Context) (Values, int, *time.Time, error) {
 	return out, pub.VersionNumber, pub.PublishedAt, nil
 }
 
-// State is what the back office shows.
 type State struct {
 	Live        Values     `json:"live"`
 	LiveVersion int        `json:"live_version"`
@@ -288,7 +267,6 @@ func (s *Service) open(ctx context.Context, db *gorm.DB) (*View, error) {
 	return r.view()
 }
 
-// Current returns the content state.
 func (s *Service) Current(ctx context.Context) (*State, error) {
 	live, ver, at, err := s.Live(ctx)
 	if err != nil {
@@ -304,7 +282,6 @@ func (s *Service) Current(ctx context.Context) (*State, error) {
 	return st, nil
 }
 
-// History lists revisions (newest first).
 func (s *Service) History(ctx context.Context, limit int) ([]View, error) {
 	if limit <= 0 || limit > 200 {
 		limit = 50
@@ -339,12 +316,31 @@ func changedKeys(a, b Values) []string {
 	return out
 }
 
+func changedDiffs(a, b Values) string {
+	var out []string
+	for _, f := range Fields {
+		oldVal, newVal := a[f.Key], b[f.Key]
+		if oldVal != newVal {
+			if len(oldVal) > 40 {
+				oldVal = oldVal[:40] + "..."
+			}
+			if len(newVal) > 40 {
+				newVal = newVal[:40] + "..."
+			}
+			out = append(out, fmt.Sprintf("%s: %q -> %q", f.Key, oldVal, newVal))
+		}
+	}
+	sort.Strings(out)
+	if len(out) == 0 {
+		return "tidak ada perubahan"
+	}
+	return strings.Join(out, "; ")
+}
+
 func (s *Service) auditTx(ctx context.Context, tx *gorm.DB, action string, ver int, details string) {
 	audit.Record(ctx, tx, "ADMIN", "", "", action, fmt.Sprintf("konten aplikasi v%d", ver), "SUCCESS", "WEB-BACKOFFICE", details)
 }
 
-// SaveDraft creates or updates the single open draft (values not sent keep the value
-// currently served to the app).
 func (s *Service) SaveDraft(ctx context.Context, in Values, note string, source *string) (*View, error) {
 	a, err := actorOf(ctx)
 	if err != nil {
@@ -399,7 +395,7 @@ func (s *Service) SaveDraft(ctx context.Context, in Values, note string, source 
 			}
 		}
 		s.auditTx(ctx, tx, "MOBILE_CONTENT_DRAFT_SAVED", r.VersionNumber,
-			fmt.Sprintf("Draf konten v%d disimpan (%s): berubah dari tampilan aplikasi: %s", r.VersionNumber, a.name, strings.Join(changedKeys(base, vals), ", ")))
+			fmt.Sprintf("Draf konten v%d disimpan (%s): %s", r.VersionNumber, a.name, changedDiffs(base, vals)))
 		out, err = r.view()
 		return err
 	})
@@ -418,7 +414,6 @@ func (s *Service) lockRevision(ctx context.Context, tx *gorm.DB, id string) (*Re
 	return &r, err
 }
 
-// Submit sends the draft for approval.
 func (s *Service) Submit(ctx context.Context, id string) (*View, error) {
 	a, err := actorOf(ctx)
 	if err != nil {
@@ -459,7 +454,6 @@ func (s *Service) Submit(ctx context.Context, id string) (*View, error) {
 	return out, err
 }
 
-// Reject returns a pending revision to draft.
 func (s *Service) Reject(ctx context.Context, id, reason string) (*View, error) {
 	a, err := actorOf(ctx)
 	if err != nil {
@@ -496,9 +490,6 @@ func (s *Service) Reject(ctx context.Context, id, reason string) (*View, error) 
 	return out, err
 }
 
-// Approve publishes a pending revision: checker ≠ maker and ≠ submitter. The previous
-// published revision is archived (never overwritten) and the legacy configuration
-// columns are mirrored for older app builds.
 func (s *Service) Approve(ctx context.Context, id string) (*View, error) {
 	a, err := actorOf(ctx)
 	if err != nil {
@@ -527,6 +518,7 @@ func (s *Service) Approve(ctx context.Context, id string) (*View, error) {
 		if err != nil {
 			return err
 		}
+		prevLive, _, _, _ := s.Live(ctx)
 		now := s.now()
 		if err := tx.Model(&Revision{}).Where("status = ?", StatusPublished).Updates(map[string]interface{}{"status": StatusArchived, "updated_at": now}).Error; err != nil {
 			return err
@@ -543,7 +535,8 @@ func (s *Service) Approve(ctx context.Context, id string) (*View, error) {
 		if res := tx.Table("app_configs").Where("id = ?", "DEFAULT").Updates(upd); res.Error != nil {
 			return res.Error
 		}
-		s.auditTx(ctx, tx, "MOBILE_CONTENT_PUBLISHED", r.VersionNumber, fmt.Sprintf("Konten v%d dipublikasikan oleh %s (dibuat %s)", r.VersionNumber, a.name, r.CreatedByName))
+		s.auditTx(ctx, tx, "MOBILE_CONTENT_PUBLISHED", r.VersionNumber,
+			fmt.Sprintf("Konten v%d dipublikasikan oleh %s (dibuat %s): %s", r.VersionNumber, a.name, r.CreatedByName, changedDiffs(prevLive, vals)))
 		if err := tx.Where("id = ?", r.ID).First(r).Error; err != nil {
 			return err
 		}
@@ -553,8 +546,6 @@ func (s *Service) Approve(ctx context.Context, id string) (*View, error) {
 	return out, err
 }
 
-// Rollback copies an earlier revision into the open draft; it goes through approval
-// again and becomes a new version (history is never rewritten).
 func (s *Service) Rollback(ctx context.Context, revisionID string) (*View, error) {
 	var src Revision
 	if err := s.db.WithContext(ctx).Where("id = ?", revisionID).First(&src).Error; err != nil {
@@ -580,7 +571,6 @@ func (s *Service) Rollback(ctx context.Context, revisionID string) (*View, error
 	return s.SaveDraft(ctx, keep, fmt.Sprintf("Rollback ke versi %d", src.VersionNumber), &id)
 }
 
-// DiscardDraft deletes the open draft (published history is untouched).
 func (s *Service) DiscardDraft(ctx context.Context, draftID string) error {
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		res := tx.Where("id = ? AND status = ?", draftID, StatusDraft).Delete(&Revision{})

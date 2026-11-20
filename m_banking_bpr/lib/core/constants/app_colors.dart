@@ -1,55 +1,61 @@
 import 'package:flutter/material.dart';
 
-/// Bank DMB Official Design Palette
-/// 100% Uniform with Web Admin Backoffice & wondr by BNI modern style
 class AppColors {
-  // Official Backoffice Primary Teal Palette
-  static const Color primary = Color(0xFF00897B); // Executive Teal (Backoffice Active Theme)
-  static const Color primaryDark = Color(0xFF004D40); // Deep Midnight Teal (Card Luxury)
-  static const Color primaryMedium = Color(0xFF00796B);
-  static const Color primaryLight = Color(0xFFE0F2F1); // Soft Teal 50
-  static const Color primaryMint = Color(0xFFF0FDFA); // Subtle Mint tint
+  AppColors._();
 
-  // Corporate DMB Identity Colors
-  static const Color dmbNavy = Color(0xFF0A3B66); // DMB Corporate Logo Blue
-  static const Color dmbNavyDark = Color(0xFF062440);
-  static const Color accentGreen = Color(0xFF16984B); // DMB Vibrant Green
+  // Primary Executive Navy & Royal Blue Palette
+  static const Color primaryNavy = Color(0xFF0B356D);
+  static const Color primaryDark = Color(0xFF071A3E);
+  static const Color royalBlue = Color(0xFF0062E3);
+  static const Color dmbGreen = Color(0xFF16984B);
+  static const Color titleDark = Color(0xFF0B2546);
 
-  // Surfaces & Backgrounds (Clean Modern Canvas khas wondr)
-  static const Color background = Color(0xFFF8FAFC); // Slate-50 Crisp Off-White
+  // Typography & Neutral Palette
+  static const Color textPrimary = Color(0xFF0F172A);
+  static const Color textSecondary = Color(0xFF475569);
+  static const Color textMuted = Color(0xFF64748B);
+  static const Color borderLight = Color(0xFFE2E8F0);
+  static const Color bgCanvas = Color(0xFFF8FAFC);
   static const Color surface = Colors.white;
-  static const Color card = Colors.white;
-  static const Color inputBackground = Color(0xFFF8FAFC);
 
-  // Status & Financial Indicators
-  static const Color income = Color(0xFF00897B); // Uang Masuk (Teal)
-  static const Color incomeLight = Color(0xFFE0F2F1);
-  static const Color expense = Color(0xFFE11D48); // Uang Keluar (Rose Red)
-  static const Color expenseLight = Color(0xFFFFE4E6);
-  static const Color success = Color(0xFF00897B);
-  static const Color successLight = Color(0xFFE0F2F1);
-  static const Color danger = Color(0xFFE11D48);
-  static const Color dangerLight = Color(0xFFFFE4E6);
+  // Semantic Status Colors
+  static const Color danger = Color(0xFFDC2626);
   static const Color warning = Color(0xFFD97706);
-  static const Color warningLight = Color(0xFFFEF3C7);
+  static const Color success = Color(0xFF16A34A);
 
-  // Typography & Neutral Colors (Slate Scale)
-  static const Color textPrimary = Color(0xFF0F172A); // Slate 900
-  static const Color textSecondary = Color(0xFF475569); // Slate 600
-  static const Color textMuted = Color(0xFF94A3B8); // Slate 400
-  static const Color border = Color(0xFFE2E8F0); // Slate 200 Hairline
+  // Extended Surface & Tinted Badges
+  static const Color primaryLight = Color(0xFFEFF6FF);
+  static const Color primaryBorder = Color(0xFFBFDBFE);
+  static const Color successLight = Color(0xFFF0FDF4);
+  static const Color successBorder = Color(0xFFBBF7D0);
+  static const Color dangerLight = Color(0xFFFEF2F2);
+  static const Color dangerBorder = Color(0xFFFECACA);
+  static const Color warningLight = Color(0xFFFFFBEB);
+  static const Color warningBorder = Color(0xFFFDE68A);
+
+  // Backward-compatible semantic aliases
+  static const Color primary = primaryNavy;
+  static const Color primaryMedium = royalBlue;
+  static const Color primaryMint = successLight;
+  static const Color dmbNavy = primaryNavy;
+  static const Color dmbNavyDark = primaryDark;
+  static const Color accentGreen = dmbGreen;
+  static const Color accentGreenLight = successLight;
+  static const Color background = bgCanvas;
+  static const Color card = surface;
+  static const Color inputBackground = bgCanvas;
+  static const Color income = dmbGreen;
+  static const Color incomeLight = successLight;
+  static const Color expense = danger;
+  static const Color expenseLight = dangerLight;
+  static const Color border = borderLight;
   static const Color borderSubtle = Color(0xFFF1F5F9);
-  static const Color borderFocused = Color(0xFF00897B);
-  static const Color divider = Color(0xFFE2E8F0);
-
-  // Button States
-  static const Color buttonDisabled = Color(0xFFE2E8F0);
+  static const Color borderFocused = royalBlue;
+  static const Color divider = borderLight;
+  static const Color buttonDisabled = borderLight;
   static const Color buttonDisabledText = Color(0xFF94A3B8);
-
-  // Aliases for compatibility with existing codebase
-  static const Color secondary = primary;
+  static const Color secondary = royalBlue;
   static const Color secondaryLight = primaryLight;
-  static const Color accentGreenLight = primaryLight;
   static const Color accentOrange = warning;
   static const Color accentOrangeLight = warningLight;
   static const Color accentGold = warning;

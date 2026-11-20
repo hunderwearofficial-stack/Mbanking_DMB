@@ -8,7 +8,6 @@ import (
 	"testing"
 )
 
-// Test-only random keys (NOT production keys).
 const (
 	testActiveKeyHex   = "0f1e2d3c4b5a69788796a5b4c3d2e1f00112233445566778899aabbccddeeff0"
 	testPreviousKeyHex = "a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0"
@@ -89,7 +88,6 @@ func TestTamperedCiphertextRejected(t *testing.T) {
 	}
 }
 
-// legacyEncrypt reproduces the old enc:v1 format with a given raw key.
 func legacyEncrypt(t *testing.T, key []byte, plaintext string) string {
 	t.Helper()
 	block, _ := aes.NewCipher(key)

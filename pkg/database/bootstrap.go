@@ -11,9 +11,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// BootstrapAdmin creates (or resets the password of) a SUPER_ADMIN account using
-// credentials supplied out-of-band (ADMIN_BOOTSTRAP_USERNAME / ADMIN_BOOTSTRAP_PASSWORD).
-// The password is never logged. Operators should unset the variables after use.
 func BootstrapAdmin(db *gorm.DB, username, password string) error {
 	if db == nil || username == "" || password == "" {
 		return nil

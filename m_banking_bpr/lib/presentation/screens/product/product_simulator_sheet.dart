@@ -2,24 +2,36 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/product_rates.dart';
+import '../../../core/money/money.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../blocs/account/account_cubit.dart';
-import '../../../core/constants/product_rates.dart';
-import '../../../core/money/money.dart';
 import '../../widgets/app_validation_feedback.dart';
 
 class ProductSimulatorSheet extends StatefulWidget {
   final String initialType; // 'DEPOSITO' or 'PINJAMAN'
+  final String? initialProductName;
 
-  const ProductSimulatorSheet({super.key, this.initialType = 'DEPOSITO'});
+  const ProductSimulatorSheet({
+    super.key,
+    this.initialType = 'DEPOSITO',
+    this.initialProductName,
+  });
 
-  static void show(BuildContext context, {String initialType = 'DEPOSITO'}) {
+  static void show(
+    BuildContext context, {
+    String initialType = 'DEPOSITO',
+    String? initialProductName,
+  }) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => ProductSimulatorSheet(initialType: initialType),
+      builder: (_) => ProductSimulatorSheet(
+        initialType: initialType,
+        initialProductName: initialProductName,
+      ),
     );
   }
 
@@ -28,14 +40,13 @@ class ProductSimulatorSheet extends StatefulWidget {
 }
 
 class _ProductSimulatorSheetState extends State<ProductSimulatorSheet> {
-  static const Color primaryNavy = Color(0xFF0B356D);
-  static const Color royalBlue = Color(0xFF0062E3);
-  static const Color titleDark = Color(0xFF0B2546);
-  static const Color textMuted = Color(0xFF64748B);
-  static const Color borderLight = Color(0xFFE2E8F0);
+  static const Color primaryNavy = AppColors.primaryNavy;
+  static const Color royalBlue = AppColors.royalBlue;
+  static const Color titleDark = AppColors.titleDark;
+  static const Color textMuted = AppColors.textMuted;
+  static const Color borderLight = AppColors.borderLight;
 
   late String _selectedType;
-  // Nominal in whole rupiah (integer). The slider uses a double only for its UI position.
   int _amountRupiah = 25000000;
   Money get _amount => Money.rupiah(_amountRupiah);
   int _tenorMonths = 6;
@@ -55,19 +66,22 @@ class _ProductSimulatorSheetState extends State<ProductSimulatorSheet> {
     super.dispose();
   }
 
-  // Illustrative rates only (see ProductRates); results are estimates, not offers.
-  int get _annualRateBps => _selectedType == 'DEPOSITO' ? ProductRates.depositoAnnualBps : ProductRates.kreditAnnualBps;
+  int get _annualRateBps =>
+      _selectedType == 'DEPOSITO' ? ProductRates.depositoAnnualBps : ProductRates.kreditAnnualBps;
 
-  /// Integer division rounded half up (amounts are non-negative).
   static int _divRound(int numerator, int denominator) => (numerator + denominator ~/ 2) ~/ denominator;
 
-  /// Estimate in exact integer sen: deposit = net interest for the tenor (after 20% tax);
-  /// loan = monthly installment (principal + flat interest).
+  bool get _isDepositoTaxable => _amountRupiah > ProductRates.depositoTaxThreshold;
+
   Money get _estimatedCalculation {
     final sen = _amount.sen;
     if (_selectedType == 'DEPOSITO') {
       final gross = _divRound(sen * _annualRateBps * _tenorMonths, 12 * 10000);
-      return Money.sen(_divRound(gross * 80, 100));
+      if (!_isDepositoTaxable) {
+        return Money.sen(gross);
+      }
+      final netFactor = (100 - ProductRates.depositoTaxPercent).clamp(0, 100);
+      return Money.sen(_divRound(gross * netFactor, 100));
     }
     final principalPerMonth = _divRound(sen, _tenorMonths);
     final interestPerMonth = _divRound(sen * _annualRateBps, 12 * 10000);
@@ -79,9 +93,12 @@ class _ProductSimulatorSheetState extends State<ProductSimulatorSheet> {
     try {
       final accountRepo = context.read<AccountCubit>().accountRepository;
       final isDeposito = _selectedType == 'DEPOSITO';
+      final productName = (widget.initialProductName != null && widget.initialProductName!.isNotEmpty)
+          ? widget.initialProductName!
+          : (isDeposito ? 'Deposito Berjangka DMB' : 'Kredit Modal Kerja / Multiguna DMB');
       await accountRepo.submitProductApplication(
         productType: _selectedType,
-        productName: isDeposito ? 'Deposito Berjangka DMB' : 'Kredit Modal Kerja / Multiguna DMB',
+        productName: productName,
         amount: _amount,
         tenorMonths: _tenorMonths,
         interestRate: isDeposito ? ProductRates.depositoLabel : ProductRates.kreditLabel,
@@ -100,11 +117,18 @@ class _ProductSimulatorSheetState extends State<ProductSimulatorSheet> {
     } on ApiException catch (e) {
       setState(() => _submitting = false);
       if (!mounted) return;
-      AppToast.showError(context, e.message, title: 'Validasi Pengajuan');
+      AppToast.showError(context, ApiException.humanize(e), title: 'Validasi Pengajuan');
     } catch (e) {
       setState(() => _submitting = false);
       if (!mounted) return;
-      AppToast.showError(context, 'Gagal mengirim pengajuan: $e', title: 'Gagal Memproses');
+      AppToast.showError(
+        context,
+        ApiException.humanize(
+          e,
+          fallback: 'Pengajuan belum dapat dikirim. Silakan coba kembali.',
+        ),
+        title: 'Gagal Memproses',
+      );
     }
   }
 
@@ -114,6 +138,16 @@ class _ProductSimulatorSheetState extends State<ProductSimulatorSheet> {
     final tenors = isDeposito ? [1, 3, 6, 12] : [6, 12, 24, 36];
     if (!tenors.contains(_tenorMonths)) {
       _tenorMonths = tenors.first;
+    }
+
+    final minSlider = isDeposito
+        ? ProductRates.depositoMinAmount.clamp(1000000, 10000000).toDouble()
+        : ProductRates.kreditMinAmount.clamp(1000000, 10000000).toDouble();
+    const maxSlider = 250000000.0;
+    if (_amountRupiah < minSlider.round()) {
+      _amountRupiah = minSlider.round();
+    } else if (_amountRupiah > maxSlider.round()) {
+      _amountRupiah = maxSlider.round();
     }
 
     return Padding(
@@ -141,7 +175,6 @@ class _ProductSimulatorSheetState extends State<ProductSimulatorSheet> {
               ),
               const SizedBox(height: 18),
 
-              // Segmented Switcher (Deposito vs Pinjaman)
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
@@ -239,7 +272,6 @@ class _ProductSimulatorSheetState extends State<ProductSimulatorSheet> {
               ),
               const SizedBox(height: 20),
 
-              // Nominal Slider (with Expanded to prevent overflow)
               Row(
                 crossAxisAlignment: CrossAxisAlignment.baseline,
                 textBaseline: TextBaseline.alphabetic,
@@ -268,23 +300,21 @@ class _ProductSimulatorSheetState extends State<ProductSimulatorSheet> {
               SliderTheme(
                 data: SliderTheme.of(context).copyWith(
                   activeTrackColor: royalBlue,
-                  inactiveTrackColor: const Color(0xFFE2E8F0),
+                  inactiveTrackColor: borderLight,
                   thumbColor: royalBlue,
                   overlayColor: royalBlue.withOpacity(0.15),
                   trackHeight: 4,
                 ),
                 child: Slider(
-                  value: _amountRupiah.toDouble(),
-                  min: 5000000,
-                  max: 250000000,
+                  value: _amountRupiah.toDouble().clamp(minSlider, maxSlider),
+                  min: minSlider,
+                  max: maxSlider,
                   divisions: 49,
-                  // Slider positions are multiples of Rp 5.000.000; store as integer rupiah.
-                  onChanged: (val) => setState(() => _amountRupiah = (val / 5000000).round() * 5000000),
+                  onChanged: (val) => setState(() => _amountRupiah = (val / 1000000).round() * 1000000),
                 ),
               ),
               const SizedBox(height: 8),
 
-              // Tenor Selection Chips
               Text(
                 'Pilih Jangka Waktu (Tenor)',
                 style: GoogleFonts.plusJakartaSans(
@@ -312,7 +342,7 @@ class _ProductSimulatorSheetState extends State<ProductSimulatorSheet> {
                           ),
                         ),
                         selected: active,
-                        selectedColor: const Color(0xFFEFF6FF),
+                        selectedColor: AppColors.primaryLight,
                         backgroundColor: Colors.white,
                         side: BorderSide(
                           color: active ? royalBlue : borderLight,
@@ -328,15 +358,14 @@ class _ProductSimulatorSheetState extends State<ProductSimulatorSheet> {
               ),
               const SizedBox(height: 18),
 
-              // Live Calculation Result Card (Royal Navy Blue Gradient - Unified Theme)
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     colors: [
-                      Color(0xFF0B356D),
-                      Color(0xFF0062E3),
+                      primaryNavy,
+                      royalBlue,
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -358,9 +387,13 @@ class _ProductSimulatorSheetState extends State<ProductSimulatorSheet> {
                       children: [
                         Expanded(
                           child: Text(
-                            isDeposito ? 'Estimasi Bunga Bersih (Net)' : 'Estimasi Angsuran / Bulan',
+                            isDeposito
+                                ? (_isDepositoTaxable
+                                    ? 'Estimasi Bunga Bersih (Net setelah Pajak ${ProductRates.depositoTaxPercent}%)'
+                                    : 'Estimasi Bunga Deposito (Bebas Pajak ≤ Rp 7,5 Jt)')
+                                : 'Estimasi Angsuran / Bulan (Pokok + Bunga)',
                             style: GoogleFonts.plusJakartaSans(
-                              fontSize: 12,
+                              fontSize: 11.5,
                               color: Colors.white.withOpacity(0.9),
                               fontWeight: FontWeight.w700,
                             ),
@@ -398,7 +431,7 @@ class _ProductSimulatorSheetState extends State<ProductSimulatorSheet> {
                     Text(
                       isDeposito
                           ? 'Total Dana + Bunga saat jatuh tempo ($_tenorMonths bln): ${CurrencyFormatter.formatRupiah(_amount + _estimatedCalculation)}'
-                          : 'Plafon ${CurrencyFormatter.formatRupiah(_amount)} selama $_tenorMonths bulan',
+                          : 'Plafon ${CurrencyFormatter.formatRupiah(_amount)} selama $_tenorMonths bulan • Estimasi bersifat indikatif',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 11.5,
                         color: Colors.white.withOpacity(0.85),
@@ -419,7 +452,7 @@ class _ProductSimulatorSheetState extends State<ProductSimulatorSheet> {
                   hintStyle: GoogleFonts.plusJakartaSans(fontSize: 12, color: textMuted.withOpacity(0.6)),
                   prefixIcon: const Icon(Icons.edit_note_rounded, color: royalBlue),
                   filled: true,
-                  fillColor: const Color(0xFFF8FAFC),
+                  fillColor: AppColors.bgCanvas,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),

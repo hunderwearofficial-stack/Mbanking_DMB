@@ -9,11 +9,14 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="true"
-        android:networkSecurityConfig="@xml/network_security_config"
+        android:usesCleartextTraffic="${usesCleartextTraffic}"
+        android:networkSecurityConfig="@xml/${networkSecurityConfig}"
         android:allowBackup="false"
         android:fullBackupContent="false"
         android:dataExtractionRules="@xml/data_extraction_rules">
+        <!-- Build identity checked by scripts/ci/verify_android_release.sh -->
+        <meta-data android:name="id.bprdmb.app_flavor" android:value="${dmbAppFlavor}" />
+        <meta-data android:name="id.bprdmb.api_https" android:value="${dmbApiHttps}" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="dmb_notification_channel" />

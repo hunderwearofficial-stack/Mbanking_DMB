@@ -17,8 +17,8 @@ void main() {
   });
 
   test('physical phone cannot use localhost', () {
-    expect(check('local', 'http://localhost:8080'), contains('IP LAN'));
-    expect(check('local', 'http://127.0.0.1:8080'), contains('IP LAN'));
+    expect(check('local', 'http://localhost:8080'), contains('IP server/VPS'));
+    expect(check('local', 'http://127.0.0.1:8080'), contains('IP server/VPS'));
   });
 
   test('local and development allow release testing over HTTP', () {

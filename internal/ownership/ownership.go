@@ -1,13 +1,3 @@
-// Package ownership answers "does this customer own this account?" (audit DMB-004, DMB-005).
-//
-// Rules:
-//   - The customer identity (user id + CIF) always comes from the verified token,
-//     never from request parameters.
-//   - Savings accounts: the authoritative list is CBS /api/savings-accounts for the
-//     customer's CIF. With a live CBS, failure to obtain the list denies access.
-//     Only in mock/local-database mode (non-production) are local account links used.
-//   - Loan / deposit accounts: membership in the CBS list for the CIF.
-//   - Any lookup error results in "not owned" (fail-closed).
 package ownership
 
 import (
@@ -24,21 +14,16 @@ import (
 
 var ErrNotOwned = errors.New("rekening tidak terdaftar atas nama nasabah ini")
 
-// Resolver resolves account ownership.
 type Resolver struct {
 	cbs     cbsprovider.CBSProvider
 	db      *gorm.DB
 	liveCBS bool
 }
 
-// NewResolver creates a resolver. When liveCBS is true, the CBS list is the only
-// accepted source: if CBS cannot be reached, ownership is denied (fail-closed),
-// because the local database may contain placeholder account records.
 func NewResolver(cbs cbsprovider.CBSProvider, db *gorm.DB, liveCBS bool) *Resolver {
 	return &Resolver{cbs: cbs, db: db, liveCBS: liveCBS}
 }
 
-// SavingsAccounts returns the customer's savings account numbers (first = primary).
 func (r *Resolver) SavingsAccounts(ctx context.Context, userID, cif string) ([]string, error) {
 	seen := map[string]bool{}
 	var out []string
@@ -60,7 +45,6 @@ func (r *Resolver) SavingsAccounts(ctx context.Context, userID, cif string) ([]s
 			return out, nil
 		}
 		if err != nil && r.liveCBS {
-			// Fail closed, but report the real cause: Core Banking could not be reached.
 			return nil, fmt.Errorf("%w: %v", cbsprovider.ErrCBSUnavailable, err)
 		}
 	}
@@ -85,8 +69,6 @@ func (r *Resolver) SavingsAccounts(ctx context.Context, userID, cif string) ([]s
 	return out, nil
 }
 
-// ResolveSavingsAccount returns requested if owned; if requested is empty, returns
-// the customer's primary account (preferring the token's account when owned).
 func (r *Resolver) ResolveSavingsAccount(ctx context.Context, userID, cif, tokenAccount, requested string) (string, error) {
 	owned, err := r.SavingsAccounts(ctx, userID, cif)
 	if err != nil {
@@ -116,8 +98,6 @@ func (r *Resolver) ResolveSavingsAccount(ctx context.Context, userID, cif, token
 	return owned[0], nil
 }
 
-// OwnsLoan returns nil when the loan account belongs to the CIF, ErrNotOwned when it
-// does not, or ErrCBSUnavailable when Core Banking could not be asked (fail closed).
 func (r *Resolver) OwnsLoan(ctx context.Context, cif, accountNo string) error {
 	if r.cbs == nil || strings.TrimSpace(cif) == "" || strings.TrimSpace(accountNo) == "" {
 		return ErrNotOwned
@@ -134,8 +114,6 @@ func (r *Resolver) OwnsLoan(ctx context.Context, cif, accountNo string) error {
 	return ErrNotOwned
 }
 
-// OwnsDeposit returns nil when the deposit account belongs to the CIF, ErrNotOwned when
-// it does not, or ErrCBSUnavailable when Core Banking could not be asked (fail closed).
 func (r *Resolver) OwnsDeposit(ctx context.Context, cif, accountNo string) error {
 	if r.cbs == nil || strings.TrimSpace(cif) == "" || strings.TrimSpace(accountNo) == "" {
 		return ErrNotOwned

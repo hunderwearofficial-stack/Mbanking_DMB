@@ -2,7 +2,6 @@ package money
 
 import (
 	"encoding/json"
-	"errors"
 	"math"
 	"testing"
 )
@@ -11,7 +10,6 @@ func TestParseExact(t *testing.T) {
 	cases := map[string]Amount{
 		"0": 0, "15000": 1_500_000, "15000.5": 1_500_050, "15000.50": 1_500_050,
 		"0.01": 1, "1.5e4": 1_500_000, "-25.10": -2510,
-		// classic float trap: 0.1 + 0.2 must be exact when parsed from decimal text
 		"0.30": 30,
 	}
 	for in, want := range cases {
@@ -69,25 +67,6 @@ func TestDBValueScan(t *testing.T) {
 	}
 	if err := b.Scan(int64(7)); err != nil || b != Rupiah(7) {
 		t.Fatalf("Scan(int64) = %d, %v", b, err)
-	}
-}
-
-func TestValidateTransferAmount(t *testing.T) {
-	min, max := Rupiah(10_000), Rupiah(25_000_000)
-	if err := ValidateTransferAmount(Rupiah(50_000), min, max); err != nil {
-		t.Fatal(err)
-	}
-	checks := []struct {
-		a    Amount
-		want error
-	}{
-		{-1, ErrNegativeAmount}, {0, ErrZeroAmount}, {Rupiah(50_000) + 50, ErrInvalidFraction},
-		{Rupiah(9_999), ErrAmountTooLow}, {Rupiah(25_000_001), ErrAmountTooHigh},
-	}
-	for _, c := range checks {
-		if err := ValidateTransferAmount(c.a, min, max); !errors.Is(err, c.want) {
-			t.Errorf("ValidateTransferAmount(%d) = %v, want %v", c.a, err, c.want)
-		}
 	}
 }
 

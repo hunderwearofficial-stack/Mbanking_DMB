@@ -3,7 +3,6 @@ package com.example.m_banking_bpr
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
 import android.view.WindowManager
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -17,35 +16,23 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Hardening FLAG_SECURE: Blocks screenshots, screen recordings, and hides app preview in recent apps
+        // SECURITY: FLAG_SECURE blocks screenshots, screen recording and the recent-apps preview.
         window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        // Device identity + hardware-backed device key (DeviceIdentityChannel.kt).
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, DeviceIdentityChannel.CHANNEL)
+            .setMethodCallHandler(DeviceIdentityChannel(applicationContext))
+
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
-                "getHardwareDeviceId" -> {
-                    try {
-                        val androidId = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID) ?: "UNKNOWN"
-                        val brand = (Build.MANUFACTURER ?: "ANDROID").uppercase().replace(" ", "")
-                        val model = (Build.MODEL ?: "DEVICE").uppercase().replace(" ", "-")
-                        val shortId = if (androidId.length > 8) androidId.takeLast(8).uppercase() else androidId.uppercase()
-                        val deviceIdentifier = if (model.startsWith(brand)) {
-                            "$model-$shortId"
-                        } else {
-                            "$brand-$model-$shortId"
-                        }
-                        result.success(deviceIdentifier)
-                    } catch (e: Exception) {
-                        result.error("DEVICE_ID_ERROR", e.message, null)
-                    }
-                }
                 "setFlagSecure" -> {
                     try {
                         val enable = call.argument<Boolean>("enable") ?: true
-                        // SECURITY: screenshot/screen-recording protection cannot be disabled
-                        // in non-debuggable (release) builds.
+                        // SECURITY: screenshot / screen-recording protection cannot be disabled in
+                        // non-debuggable (release) builds.
                         val debuggable = (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
                         if (!enable && !debuggable) {
                             result.success(false)

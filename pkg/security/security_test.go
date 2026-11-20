@@ -41,7 +41,6 @@ func TestPasswordPolicy(t *testing.T) {
 }
 
 func TestCompromisedCredentialFingerprints(t *testing.T) {
-	// The fingerprint list must be non-empty and must not flag ordinary passwords.
 	if len(compromisedCredentialHashes) == 0 {
 		t.Fatal("compromised credential list empty")
 	}
@@ -113,7 +112,6 @@ func TestCustomerTokenPair(t *testing.T) {
 	}
 }
 
-// DMB-001 regression: a customer token must never be accepted as a backoffice token, and vice versa.
 func TestCustomerAndAdminTokensAreNotInterchangeable(t *testing.T) {
 	tokens, _ := GenerateTokenPair(testInput(), testCustomerSecret, 15*time.Minute, time.Hour)
 	if _, err := ValidateAdminToken(tokens.AccessToken, testAdminSecret); err == nil {

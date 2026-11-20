@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../../data/repositories/account_repository.dart';
-import 'product_simulator_sheet.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/product_rates.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/services/dynamic_config_service.dart';
+import '../../../data/repositories/account_repository.dart';
+import '../../widgets/app_validation_feedback.dart';
+import 'product_simulator_sheet.dart';
 
 class ProductCatalogScreen extends StatefulWidget {
   final int initialTabIndex;
@@ -15,13 +19,13 @@ class ProductCatalogScreen extends StatefulWidget {
 }
 
 class _ProductCatalogScreenState extends State<ProductCatalogScreen> with SingleTickerProviderStateMixin {
-  static const Color primaryNavy = Color(0xFF0B356D);
-  static const Color royalBlue = Color(0xFF0062E3);
-  static const Color dmbGreen = Color(0xFF16984B);
-  static const Color titleDark = Color(0xFF0B2546);
-  static const Color textMuted = Color(0xFF64748B);
-  static const Color borderLight = Color(0xFFE2E8F0);
-  static const Color bgCanvas = Color(0xFFF8FAFC);
+  static const Color primaryNavy = AppColors.primaryNavy;
+  static const Color royalBlue = AppColors.royalBlue;
+  static const Color dmbGreen = AppColors.dmbGreen;
+  static const Color titleDark = AppColors.titleDark;
+  static const Color textMuted = AppColors.textMuted;
+  static const Color borderLight = AppColors.borderLight;
+  static const Color bgCanvas = AppColors.bgCanvas;
 
   late TabController _tabController;
   bool _isLoading = true;
@@ -63,7 +67,10 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> with Single
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e is ApiException ? e.message : 'Layanan sedang mengalami gangguan. Silakan coba kembali beberapa saat lagi.';
+          _errorMessage = ApiException.humanize(
+            e,
+            fallback: 'Layanan sedang mengalami gangguan. Silakan coba kembali beberapa saat lagi.',
+          );
           _isLoading = false;
         });
       }
@@ -73,11 +80,19 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> with Single
   void _showProductDetail(Map<String, dynamic> item, String category) {
     final code = item['kode_produk']?.toString() ?? '-';
     final name = item['nama_produk']?.toString() ?? 'Produk Bank DMB';
-    final desc = item['deskripsi']?.toString() ??
-        'Produk perbankan PT BPR Dana Mandiri Bogor (diawasi OJK). Simpanan dijamin LPS sesuai ketentuan yang berlaku.';
-
     final bool isDeposito = category.toLowerCase() == 'deposito';
     final bool isKredit = category.toLowerCase() == 'kredit' || category.toLowerCase() == 'pinjaman';
+
+    final defaultDesc = isKredit
+        ? 'Fasilitas pembiayaan resmi ${DynamicConfigService().config.bankName} yang berizin dan diawasi oleh Otoritas Jasa Keuangan (OJK).'
+        : 'Produk simpanan perbankan ${DynamicConfigService().config.bankName} (diawasi OJK). Simpanan dijamin LPS sesuai ketentuan yang berlaku.';
+    final desc = item['deskripsi']?.toString() ?? defaultDesc;
+
+    final rateInfo = isDeposito
+        ? ProductRates.depositoLabel
+        : isKredit
+            ? ProductRates.kreditLabel
+            : 'Sesuai ketentuan bank (hubungi CS)';
 
     showModalBottomSheet(
       context: context,
@@ -147,15 +162,17 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> with Single
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFDCFCE7),
+                            color: isKredit ? AppColors.primaryLight : const Color(0xFFDCFCE7),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            'Produk Resmi Bank DMB • Dijamin LPS',
+                            isKredit
+                                ? 'Produk Resmi Bank DMB • Diawasi OJK'
+                                : 'Produk Resmi Bank DMB • Dijamin LPS',
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 10.5,
                               fontWeight: FontWeight.w700,
-                              color: dmbGreen,
+                              color: isKredit ? royalBlue : dmbGreen,
                             ),
                           ),
                         ),
@@ -189,7 +206,7 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> with Single
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: bgCanvas,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: borderLight),
                 ),
@@ -204,11 +221,10 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> with Single
                               ? 'Fasilitas Pembiayaan / Pinjaman'
                               : 'Tabungan Perorangan',
                     ),
-                    // Suku bunga tidak tersedia dari CBS (/api/products); jangan menampilkan angka
-                    // yang belum dikonfirmasi bank (audit DMB-035).
-                    _buildModalRow('Suku Bunga / Imbal Hasil', 'Sesuai ketentuan bank (hubungi CS)', isHighlight: true),
+                    _buildModalRow('Suku Bunga / Imbal Hasil', rateInfo, isHighlight: true),
                     _buildModalRow('Lembaga Pengawas', 'Otoritas Jasa Keuangan (OJK)'),
-                    _buildModalRow('Penjaminan Simpanan', 'Lembaga Penjamin Simpanan (LPS)'),
+                    if (!isKredit)
+                      _buildModalRow('Penjaminan Simpanan', 'Lembaga Penjamin Simpanan (LPS)'),
                   ],
                 ),
               ),
@@ -222,6 +238,7 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> with Single
                       ProductSimulatorSheet.show(
                         context,
                         initialType: isDeposito ? 'DEPOSITO' : 'PINJAMAN',
+                        initialProductName: name,
                       );
                     },
                     icon: Icon(
@@ -250,15 +267,10 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> with Single
                   child: ElevatedButton.icon(
                     onPressed: () {
                       Navigator.pop(sheetCtx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Untuk pembukaan rekening $name, silakan kunjungi kantor operasional Bank DMB terdekat atau hubungi Petugas CS.',
-                            style: GoogleFonts.plusJakartaSans(fontSize: 12.5),
-                          ),
-                          behavior: SnackBarBehavior.floating,
-                          backgroundColor: primaryNavy,
-                        ),
+                      AppToast.showInfo(
+                        context,
+                        'Untuk pembukaan rekening $name, silakan kunjungi kantor operasional Bank DMB terdekat atau hubungi Petugas CS.',
+                        title: 'Pembukaan Tabungan',
                       );
                     },
                     icon: const Icon(Icons.info_outline_rounded, size: 18),
@@ -317,53 +329,76 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> with Single
   @override
   Widget build(BuildContext context) {
     final List tabunganList = _catalog?['tabungan'] as List? ?? [];
-    final List kreditList = _catalog?['kredit'] as List? ?? [];
     final List depositoList = _catalog?['deposito'] as List? ?? [];
+    final List kreditList = _catalog?['kredit'] as List? ?? [];
+
+    final List<({Map<String, dynamic> item, String category, int index})> allProducts = [
+      for (int i = 0; i < tabunganList.length; i++)
+        if (tabunganList[i] is Map<String, dynamic>)
+          (item: tabunganList[i] as Map<String, dynamic>, category: 'tabungan', index: i),
+      for (int i = 0; i < depositoList.length; i++)
+        if (depositoList[i] is Map<String, dynamic>)
+          (item: depositoList[i] as Map<String, dynamic>, category: 'deposito', index: i),
+      for (int i = 0; i < kreditList.length; i++)
+        if (kreditList[i] is Map<String, dynamic>)
+          (item: kreditList[i] as Map<String, dynamic>, category: 'kredit', index: i),
+    ];
 
     return Scaffold(
-      backgroundColor: bgCanvas,
+      backgroundColor: const Color(0xFFF6F6F2),
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFF6F6F2),
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: const Color(0xFF0A2A66),
         elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 19, color: titleDark),
-          onPressed: () => Navigator.of(context).pop(),
+        centerTitle: false,
+        titleSpacing: 8,
+        leadingWidth: 64,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
+          child: Material(
+            color: Colors.white,
+            shape: const CircleBorder(),
+            elevation: 0.5,
+            shadowColor: Colors.black.withOpacity(0.08),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: () => Navigator.of(context).pop(),
+              child: const Center(
+                child: Icon(Icons.chevron_left_rounded, size: 24, color: Color(0xFF0A2A66)),
+              ),
+            ),
+          ),
         ),
-        title: Column(
-          children: [
-            Text(
-              'Katalog Produk Resmi',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: titleDark,
-                letterSpacing: -0.2,
-              ),
-            ),
-            const SizedBox(height: 1),
-            Text(
-              'PORTOFOLIO PERBANKAN RESMI',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 9.5,
-                fontWeight: FontWeight.w700,
-                color: royalBlue,
-                letterSpacing: 0.6,
-              ),
-            ),
-          ],
+        title: Text(
+          'Katalog Produk',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 19,
+            fontWeight: FontWeight.w800,
+            color: const Color(0xFF0A2A66),
+            letterSpacing: -0.3,
+          ),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, size: 22, color: titleDark),
-            onPressed: _loadProducts,
-            tooltip: 'Perbarui Katalog',
+          Padding(
+            padding: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
+            child: Material(
+              color: Colors.white,
+              shape: const CircleBorder(),
+              elevation: 0.5,
+              shadowColor: Colors.black.withOpacity(0.08),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: _loadProducts,
+                child: const SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Icon(Icons.refresh_rounded, size: 20, color: Color(0xFF0A2A66)),
+                ),
+              ),
+            ),
           ),
         ],
-        bottom: const PreferredSize(
-          preferredSize: Size.fromHeight(1),
-          child: Divider(height: 1, color: borderLight),
-        ),
       ),
       body: RefreshIndicator(
         onRefresh: _loadProducts,
@@ -411,460 +446,142 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> with Single
                       ),
                     ),
                   )
-                : ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-                    children: [
-                      // Banner Eksekutif Katalog Produk Bank DMB
-                      _buildSummaryBanner(
-                        tabunganCount: tabunganList.length,
-                        kreditCount: kreditList.length,
-                        depositoCount: depositoList.length,
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Tab Filter Kategori Produk
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: TabBar(
-                          controller: _tabController,
-                          labelColor: Colors.white,
-                          unselectedLabelColor: textMuted,
-                          indicatorSize: TabBarIndicatorSize.tab,
-                          indicator: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [primaryNavy, royalBlue],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
+                : allProducts.isEmpty
+                    ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.all(32),
+                        children: [
+                          const SizedBox(height: 60),
+                          const Icon(Icons.inventory_2_outlined, size: 48, color: textMuted),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Belum ada produk tersedia',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: textMuted,
                             ),
-                            borderRadius: BorderRadius.circular(10),
-                            boxShadow: [
-                              BoxShadow(
-                                color: royalBlue.withOpacity(0.3),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
                           ),
-                          labelStyle: GoogleFonts.plusJakartaSans(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w800,
-                          ),
-                          unselectedLabelStyle: GoogleFonts.plusJakartaSans(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          tabs: [
-                            Tab(text: 'Tabungan (${tabunganList.length})'),
-                            Tab(text: 'Pinjaman (${kreditList.length})'),
-                            Tab(text: 'Deposito (${depositoList.length})'),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Daftar Produk Berdasarkan Tab yang Aktif
-                      AnimatedBuilder(
-                        animation: _tabController,
-                        builder: (context, _) {
-                          switch (_tabController.index) {
-                            case 1:
-                              return _buildCategoryView(
-                                title: 'Fasilitas Pinjaman & Pembiayaan',
-                                badge: 'Fasilitas Kredit',
-                                items: kreditList,
-                                category: 'kredit',
-                              );
-                            case 2:
-                              return _buildCategoryView(
-                                title: 'Portofolio Deposito Berjangka',
-                                badge: 'Deposito Berjangka',
-                                items: depositoList,
-                                category: 'deposito',
-                              );
-                            case 0:
-                            default:
-                              return _buildCategoryView(
-                                title: 'Portofolio Tabungan Perorangan',
-                                badge: 'Dijamin LPS',
-                                items: tabunganList,
-                                category: 'tabungan',
-                              );
-                          }
+                        ],
+                      )
+                    : ListView.separated(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+                        itemCount: allProducts.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 14),
+                        itemBuilder: (context, idx) {
+                          final entry = allProducts[idx];
+                          return _buildProductCard(entry.item, entry.category, entry.index);
                         },
                       ),
-                    ],
-                  ),
       ),
     );
   }
 
-  Widget _buildSummaryBanner({
-    required int tabunganCount,
-    required int kreditCount,
-    required int depositoCount,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF0B356D),
-            Color(0xFF0062E3),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: royalBlue.withOpacity(0.25),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.18),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.account_balance_rounded, color: Colors.white, size: 18),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    'PT BPR DANA MANDIRI BOGOR',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white.withOpacity(0.95),
-                      letterSpacing: 0.6,
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  'RESMI LPS',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Text(
-            'KATALOG PRODUK BANK DMB',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: Colors.white.withOpacity(0.8),
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Simpanan & Pembiayaan Terpercaya',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-              letterSpacing: -0.3,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Produk perbankan PT BPR Dana Mandiri Bogor. Simpanan dijamin LPS sesuai ketentuan yang berlaku.',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 11.5,
-              color: Colors.white.withOpacity(0.85),
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildBannerStatItem(Icons.savings_rounded, '$tabunganCount Produk', 'Tabungan'),
-                Container(width: 1, height: 26, color: Colors.white.withOpacity(0.25)),
-                _buildBannerStatItem(Icons.payments_rounded, '$kreditCount Produk', 'Pinjaman'),
-                Container(width: 1, height: 26, color: Colors.white.withOpacity(0.25)),
-                _buildBannerStatItem(Icons.inventory_2_rounded, '$depositoCount Produk', 'Deposito'),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBannerStatItem(IconData icon, String title, String subtitle) {
-    return Column(
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: Colors.white, size: 13),
-            const SizedBox(width: 4),
-            Text(
-              title,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w800,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 1),
-        Text(
-          subtitle,
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 10,
-            color: Colors.white.withOpacity(0.75),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCategoryView({
-    required String title,
-    required String badge,
-    required List items,
-    required String category,
-  }) {
-    if (items.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(32),
-        alignment: Alignment.center,
-        child: Column(
-          children: [
-            const Icon(Icons.inventory_2_outlined, size: 40, color: textMuted),
-            const SizedBox(height: 10),
-            Text(
-              'Belum ada produk dalam kategori ini',
-              style: GoogleFonts.plusJakartaSans(fontSize: 13, color: textMuted),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              title,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-                color: titleDark,
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEFF6FF),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: const Color(0xFFBFDBFE)),
-              ),
-              child: Text(
-                badge,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w700,
-                  color: royalBlue,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        ...items.map((item) {
-          final map = item is Map<String, dynamic> ? item : <String, dynamic>{};
-          return _buildProductCard(map, category);
-        }),
-      ],
-    );
-  }
-
-  Widget _buildProductCard(Map<String, dynamic> item, String category) {
-    final code = item['kode_produk']?.toString() ?? '-';
+  Widget _buildProductCard(Map<String, dynamic> item, String category, int categoryIndex) {
     final name = item['nama_produk']?.toString() ?? 'Produk DMB';
     final desc = item['deskripsi']?.toString() ??
-        'Produk resmi PT BPR Dana Mandiri Bogor berizin Otoritas Jasa Keuangan.';
+        'Produk resmi ${DynamicConfigService().config.bankName} berizin Otoritas Jasa Keuangan.';
 
     final bool isDeposito = category.toLowerCase() == 'deposito';
     final bool isKredit = category.toLowerCase() == 'kredit' || category.toLowerCase() == 'pinjaman';
 
+    final Color iconBg;
+    final Color iconColor;
+    final IconData iconData;
+    if (isDeposito) {
+      iconBg = const Color(0xFFE6F7F1);
+      iconColor = const Color(0xFF0F9D76);
+      iconData = Icons.lock_outline_rounded;
+    } else if (isKredit) {
+      iconBg = const Color(0xFFE0F2FE);
+      iconColor = const Color(0xFF0369A1);
+      iconData = categoryIndex.isEven ? Icons.person_outline_rounded : Icons.format_list_bulleted_rounded;
+    } else {
+      iconBg = const Color(0xFFEFF6FF);
+      iconColor = const Color(0xFF0A2A66);
+      iconData = Icons.account_balance_wallet_outlined;
+    }
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderLight),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
+            blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           onTap: () => _showProductDetail(item, category),
           child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
+            padding: const EdgeInsets.all(20),
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEFF6FF),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFDBEAFE)),
-                      ),
-                      child: Center(
-                        child: Text(
-                          code,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            color: royalBlue,
-                          ),
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: iconBg,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(iconData, color: iconColor, size: 22),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF0A2A66),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      const SizedBox(height: 4),
+                      Text(
+                        desc,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13,
+                          color: textMuted,
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            name,
+                            'Pelajari',
                             style: GoogleFonts.plusJakartaSans(
-                              fontSize: 14,
+                              fontSize: 13.5,
                               fontWeight: FontWeight.w800,
-                              color: titleDark,
+                              color: const Color(0xFF0A2A66),
                             ),
                           ),
-                          const SizedBox(height: 3),
-                          Row(
-                            children: [
-                              const Icon(Icons.verified_rounded, size: 12, color: dmbGreen),
-                              const SizedBox(width: 4),
-                              Text(
-                                isDeposito
-                                    ? 'Deposito Berjangka'
-                                    : isKredit
-                                        ? 'Fasilitas Pinjaman'
-                                        : 'Tabungan',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: dmbGreen,
-                                ),
-                              ),
-                            ],
+                          const SizedBox(width: 2),
+                          const Icon(
+                            Icons.chevron_right_rounded,
+                            size: 18,
+                            color: Color(0xFF0A2A66),
                           ),
                         ],
                       ),
-                    ),
-                    const Icon(Icons.chevron_right_rounded, color: textMuted, size: 20),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  desc,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 12,
-                    color: textMuted,
-                    height: 1.4,
+                    ],
                   ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    InkWell(
-                      onTap: () => _showProductDetail(item, category),
-                      child: Text(
-                        'Lihat Detail & Ketentuan',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w700,
-                          color: royalBlue,
-                        ),
-                      ),
-                    ),
-                    if (isDeposito || isKredit)
-                      ElevatedButton(
-                        onPressed: () {
-                          ProductSimulatorSheet.show(
-                            context,
-                            initialType: isDeposito ? 'DEPOSITO' : 'PINJAMAN',
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryNavy,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          elevation: 0,
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          isDeposito ? 'Simulasi' : 'Ajukan',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                  ],
                 ),
               ],
             ),
@@ -874,4 +591,3 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> with Single
     );
   }
 }
-

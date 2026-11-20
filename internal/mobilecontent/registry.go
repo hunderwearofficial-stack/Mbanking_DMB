@@ -1,12 +1,5 @@
 package mobilecontent
 
-// Registry of the content elements that exist in the Flutter app and are managed from
-// the back office. Every key is read by a specific widget (see "Used" on each field);
-// defaults are the exact values the app showed before the element became dynamic, so
-// version 0 (nothing published yet) renders the app as-is. Layout, navigation, business
-// rules, security and transaction logic are NOT in this registry.
-
-// FieldType decides validation (server and app) and the back-office input.
 type FieldType string
 
 const (
@@ -19,7 +12,6 @@ const (
 	TypeEnum      FieldType = "enum" // one of Options
 )
 
-// Field is one manageable element.
 type Field struct {
 	Key      string    `json:"key"`
 	Page     string    `json:"page"`
@@ -34,13 +26,11 @@ type Field struct {
 	Options  []Option  `json:"options,omitempty"`
 }
 
-// Option is an allowed value of an enum field.
 type Option struct {
 	Value string `json:"value"`
 	Label string `json:"label"`
 }
 
-// Page groups fields by the Flutter screen they belong to.
 type Page struct {
 	ID          string   `json:"id"`
 	Name        string   `json:"name"`
@@ -55,7 +45,6 @@ var bannerActions = []Option{
 	{Value: "none", Label: "Tidak ada aksi"},
 }
 
-// Pages lists the Flutter screens with managed content (in app order).
 var Pages = []Page{
 	{ID: "umum", Name: "Umum (beberapa layar)", Screen: "lib/core/services/dynamic_config_service.dart",
 		Description: "Elemen yang dipakai di lebih dari satu layar.",
@@ -79,7 +68,7 @@ var Pages = []Page{
 		Description: "Sapaan dan carousel banner (3 slot yang ada di aplikasi).",
 		Static: []string{
 			"Kartu rekening, saldo, nomor rekening — data nasabah dari Core Banking.",
-			"Menu utama (Transfer, Mutasi, Pinjaman, Deposito, Katalog) dan navigasi bawah — navigasi fitur.",
+			"Menu utama (Mutasi, Pinjaman, Deposito, Katalog) dan navigasi bawah — navigasi fitur.",
 			"Gambar template kartu rekening — teks saldo ditempatkan di atasnya; mengganti gambar dapat membuat saldo tidak terbaca.",
 		}},
 	{ID: "helpdesk", Name: "Pusat Bantuan", Screen: "lib/presentation/screens/helpdesk/helpdesk_screen.dart",
@@ -88,9 +77,11 @@ var Pages = []Page{
 	{ID: "kontak", Name: "Kontak Layanan", Screen: "lib/core/constants/bank_contact.dart",
 		Description: "Dipakai panel bantuan Login, Pusat Bantuan, dan kapsul keamanan Beranda. Wajib berisi kontak resmi bank.",
 		Static:      []string{}},
+	{ID: "produk", Name: "Parameter Produk & Profil", Screen: "lib/presentation/screens/products/products_catalog_screen.dart",
+		Description: "Parameter simulasi deposito/pinjaman dan profil perusahaan yang ditampilkan pada aplikasi.",
+		Static:      []string{"Data rekening aktif dan produk riil berasal dari layanan perbankan inti."}},
 }
 
-// Fields is the registry (keys are stable identifiers shared with the Flutter app).
 var Fields = []Field{
 	{Key: "app.logo", Page: "umum", Group: "Identitas", Label: "Logo bank", Used: "Splash, Onboarding, Login", Type: TypeImage, Max: 300,
 		Help: "Kosong = logo bawaan aplikasi. PNG/JPG/WebP maks. 5 MB."},
@@ -108,15 +99,15 @@ var Fields = []Field{
 		Default: "PT BPR Dana Mandiri Bogor berizin dan diawasi oleh Otoritas Jasa Keuangan (OJK) serta merupakan peserta penjaminan Lembaga Penjamin Simpanan (LPS)."},
 
 	{Key: "onboarding.slide1_title", Page: "onboarding", Group: "Slide 1", Label: "Judul", Used: "OnboardingScreen", Type: TypeText, Max: 120, Required: true,
-		Default: "Jadi bestie di dunia finansial anak dengan DMB Mobile"},
+		Default: "Solusi Finansial Terpercaya untuk Keluarga & UMKM"},
 	{Key: "onboarding.slide1_desc", Page: "onboarding", Group: "Slide 1", Label: "Deskripsi", Used: "OnboardingScreen", Type: TypeMultiline, Max: 250, Required: true,
-		Default: "Dari uang jajan sampai target impian anak, semua bisa didampingi bersama orang tua secara transparan dan mudah."},
+		Default: "Pantau saldo tabungan, mutasi rekening, portofolio deposito, dan fasilitas pinjaman Anda secara aman dan real-time."},
 	{Key: "onboarding.slide1_image", Page: "onboarding", Group: "Slide 1", Label: "Gambar", Used: "OnboardingScreen", Type: TypeImage, Max: 300,
 		Help: "Kosong = ilustrasi bawaan aplikasi."},
 	{Key: "onboarding.slide2_title", Page: "onboarding", Group: "Slide 2", Label: "Judul", Used: "OnboardingScreen", Type: TypeText, Max: 120, Required: true,
 		Default: "Wujudkan masa depan keluarga dengan tabungan cerdas"},
 	{Key: "onboarding.slide2_desc", Page: "onboarding", Group: "Slide 2", Label: "Deskripsi", Used: "OnboardingScreen", Type: TypeMultiline, Max: 250, Required: true,
-		Default: "Bebas biaya transfer, bunga deposito menguntungkan, dan proteksi transaksi berlapis dalam genggaman Anda."},
+		Default: "Pantau saldo dan mutasi rekening, bunga deposito menguntungkan, dan proteksi keamanan berlapis dalam genggaman Anda."},
 	{Key: "onboarding.slide2_image", Page: "onboarding", Group: "Slide 2", Label: "Gambar", Used: "OnboardingScreen", Type: TypeImage, Max: 300,
 		Help: "Kosong = ilustrasi bawaan aplikasi."},
 	{Key: "onboarding.button_text", Page: "onboarding", Group: "Tombol", Label: "Teks tombol", Used: "OnboardingScreen", Type: TypeText, Max: 30, Required: true,
@@ -127,48 +118,53 @@ var Fields = []Field{
 	{Key: "terms.instruction", Page: "terms", Group: "Teks", Label: "Instruksi", Used: "TermsConditionsScreen", Type: TypeMultiline, Max: 300, Required: true,
 		Default: "Baca dan setujui Ringkasan Informasi serta Syarat dan Ketentuan DMB Mobile by PT BPR Dana Mandiri Bogor."},
 
-	{Key: "login.background", Page: "login", Group: "Gambar", Label: "Gambar latar", Used: "LoginScreen", Type: TypeImage, Max: 300,
-		Help: "Kosong = artwork bawaan aplikasi."},
-	{Key: "login.title", Page: "login", Group: "Teks", Label: "Judul", Used: "LoginScreen", Type: TypeText, Max: 80, Required: true,
-		Default: "Selamat Datang"},
-	{Key: "login.subtitle", Page: "login", Group: "Teks", Label: "Subjudul", Used: "LoginScreen", Type: TypeMultiline, Max: 150, Required: true,
-		Default: "Login untuk melanjutkan\nke layanan DMB Mobile"},
-	{Key: "login.footer", Page: "login", Group: "Teks", Label: "Teks bawah", Used: "LoginScreen", Type: TypeText, Max: 80, Required: true,
-		Default: "Transaksi Anda aman bersama DMB"},
-	{Key: "login.help_badge", Page: "login", Group: "Panel bantuan", Label: "Label panel", Used: "LoginScreen (Pusat Bantuan)", Type: TypeText, Max: 40, Required: true,
-		Default: "Layanan Resmi 24 Jam"},
-	{Key: "login.help_title", Page: "login", Group: "Panel bantuan", Label: "Judul panel", Used: "LoginScreen (Pusat Bantuan)", Type: TypeText, Max: 60, Required: true,
-		Default: "Pusat Bantuan Bank DMB"},
-	{Key: "login.help_subtitle", Page: "login", Group: "Panel bantuan", Label: "Subjudul panel", Used: "LoginScreen (Pusat Bantuan)", Type: TypeText, Max: 120, Required: true,
-		Default: "Butuh bantuan? Tim kami siap melayani Anda."},
-	{Key: "login.security_title", Page: "login", Group: "Panel bantuan", Label: "Judul peringatan keamanan", Used: "LoginScreen (Pusat Bantuan)", Type: TypeText, Max: 60, Required: true,
-		Default: "PENTING: JAGA KERAHASIAAN ANDA"},
-	{Key: "login.security_text", Page: "login", Group: "Panel bantuan", Label: "Teks peringatan keamanan", Used: "LoginScreen (Pusat Bantuan)", Type: TypeMultiline, Max: 250, Required: true,
-		Default: "Petugas Bank DMB TIDAK PERNAH meminta Kata Sandi, PIN, atau Kode OTP Anda melalui kanal apa pun."},
+	{Key: "login.background", Page: "login", Group: "Hero Banner", Label: "Gambar latar hero", Used: "LoginScreen", Type: TypeImage, Max: 300,
+		Help: "Kosong = latar biru navy resmi aplikasi."},
+	{Key: "login.hero_slide1_badge", Page: "login", Group: "Hero Banner", Label: "Label slide 1", Used: "LoginScreen (Hero Slide 1)", Type: TypeText, Max: 50, Required: true,
+		Default: "TABUNGAN DANA MANDIRI"},
+	{Key: "login.hero_slide1_title", Page: "login", Group: "Hero Banner", Label: "Judul slide 1", Used: "LoginScreen (Hero Slide 1)", Type: TypeText, Max: 100, Required: true,
+		Default: "Menabung aman, usaha makin lancar"},
+	{Key: "login.hero_slide2_badge", Page: "login", Group: "Hero Banner", Label: "Label slide 2", Used: "LoginScreen (Hero Slide 2)", Type: TypeText, Max: 50, Required: true,
+		Default: "DEPOSITO BERJANGKA"},
+	{Key: "login.hero_slide2_title", Page: "login", Group: "Hero Banner", Label: "Judul slide 2", Used: "LoginScreen (Hero Slide 2)", Type: TypeText, Max: 100, Required: true,
+		Default: "Imbal hasil kompetitif, dijamin LPS"},
+	{Key: "login.hero_slide3_badge", Page: "login", Group: "Hero Banner", Label: "Label slide 3", Used: "LoginScreen (Hero Slide 3)", Type: TypeText, Max: 50, Required: true,
+		Default: "LAYANAN DIGITAL"},
+	{Key: "login.hero_slide3_title", Page: "login", Group: "Hero Banner", Label: "Judul slide 3", Used: "LoginScreen (Hero Slide 3)", Type: TypeText, Max: 100, Required: true,
+		Default: "Pantau saldo dan mutasi kapan saja"},
+	{Key: "login.title", Page: "login", Group: "Kartu Masuk", Label: "Judul", Used: "LoginScreen", Type: TypeText, Max: 80, Required: true,
+		Default: "Selamat datang"},
+	{Key: "login.subtitle", Page: "login", Group: "Kartu Masuk", Label: "Subjudul", Used: "LoginScreen", Type: TypeMultiline, Max: 150, Required: true,
+		Default: "Masuk ke akun DMB Anda"},
+	{Key: "login.footer", Page: "login", Group: "Kartu Masuk", Label: "Teks bawah", Used: "LoginScreen", Type: TypeText, Max: 120, Required: true,
+		Default: "PT BPR Dana Mandiri Bogor berizin dan diawasi OJK serta peserta LPS."},
 
 	{Key: "home.greeting_title", Page: "home", Group: "Sapaan", Label: "Sapaan", Used: "HomeScreen", Type: TypeText, Max: 40, Required: true,
-		Default: "Selamat Datang,"},
+		Default: "Selamat datang,"},
 	{Key: "home.greeting_subtitle", Page: "home", Group: "Sapaan", Label: "Kalimat sapaan", Used: "HomeScreen", Type: TypeText, Max: 120, Required: true,
-		Default: "Semoga harimu menyenangkan!"},
+		Default: "Semoga harimu lancar."},
+	{Key: "home.info_section_title", Page: "home", Group: "Info untuk Anda", Label: "Judul bagian info", Used: "HomeScreen", Type: TypeText, Max: 40, Required: true,
+		Default: "Info untuk Anda"},
 }
 
 func init() {
-	defaults := [3][3]string{
-		{"DMB Mobile", "Lebih Mudah, Lebih Dekat dengan Anda", "profil"},
-		{"Tabungan Mikro DMB", "Simpanan dijamin LPS sesuai ketentuan", "profil"},
-		{"Keamanan Berlapis", "PIN transaksi & perangkat terdaftar", "keamanan"},
+	defaults := [3][4]string{
+		{"UNTUK ANDA", "DMB Mobile", "Lebih Mudah, Lebih Dekat dengan Anda", "profil"},
+		{"INFO PRODUK", "Tabungan & Deposito DMB", "Simpanan dijamin LPS sesuai ketentuan", "profil"},
+		{"KEAMANAN", "Keamanan Berlapis", "PIN & perangkat terdaftar terlindungi", "keamanan"},
 	}
 	for i, d := range defaults {
 		n := string(rune('1' + i))
-		g := "Banner " + n
+		g := "Kartu Info " + n
 		Fields = append(Fields,
-			Field{Key: "home.banner" + n + "_visible", Page: "home", Group: g, Label: "Tampilkan", Used: "HomeScreen (carousel)", Type: TypeBool, Max: 5, Required: true, Default: "true"},
-			Field{Key: "home.banner" + n + "_title", Page: "home", Group: g, Label: "Judul", Used: "HomeScreen (carousel)", Type: TypeText, Max: 60, Required: true, Default: d[0]},
-			Field{Key: "home.banner" + n + "_subtitle", Page: "home", Group: g, Label: "Subjudul", Used: "HomeScreen (carousel)", Type: TypeText, Max: 100, Required: true, Default: d[1]},
-			Field{Key: "home.banner" + n + "_image", Page: "home", Group: g, Label: "Gambar (16:9)", Used: "HomeScreen (carousel)", Type: TypeImage, Max: 300,
-				Help: "Kosong = gambar bawaan aplikasi."},
-			Field{Key: "home.banner" + n + "_action", Page: "home", Group: g, Label: "Aksi saat diketuk", Used: "HomeScreen (carousel)", Type: TypeEnum, Max: 20, Required: true,
-				Default: d[2], Options: bannerActions, Help: "Hanya tujuan yang sudah ada di aplikasi."},
+			Field{Key: "home.banner" + n + "_visible", Page: "home", Group: g, Label: "Tampilkan", Used: "HomeScreen (Info untuk Anda)", Type: TypeBool, Max: 5, Required: true, Default: "true"},
+			Field{Key: "home.banner" + n + "_tag", Page: "home", Group: g, Label: "Label badge", Used: "HomeScreen (Info untuk Anda)", Type: TypeText, Max: 24, Required: true, Default: d[0]},
+			Field{Key: "home.banner" + n + "_title", Page: "home", Group: g, Label: "Judul", Used: "HomeScreen (Info untuk Anda)", Type: TypeText, Max: 60, Required: true, Default: d[1]},
+			Field{Key: "home.banner" + n + "_subtitle", Page: "home", Group: g, Label: "Subjudul", Used: "HomeScreen (Info untuk Anda)", Type: TypeText, Max: 100, Required: true, Default: d[2]},
+			Field{Key: "home.banner" + n + "_image", Page: "home", Group: g, Label: "Gambar latar (opsional)", Used: "HomeScreen (Info untuk Anda)", Type: TypeImage, Max: 300,
+				Help: "Kosong = kartu warna pastel resmi aplikasi."},
+			Field{Key: "home.banner" + n + "_action", Page: "home", Group: g, Label: "Aksi saat diketuk", Used: "HomeScreen (Info untuk Anda)", Type: TypeEnum, Max: 20, Required: true,
+				Default: d[3], Options: bannerActions, Help: "Hanya tujuan yang sudah ada di aplikasi."},
 		)
 	}
 	Fields = append(Fields,
@@ -191,6 +187,34 @@ func init() {
 		Field{Key: "contact.office_address", Page: "kontak", Group: "Kantor", Label: "Alamat lengkap", Used: "Pusat Bantuan", Type: TypeMultiline, Max: 200, Required: true,
 			Default: "Jl. Pajajaran No. 88, Kota Bogor, Jawa Barat 16128"},
 		Field{Key: "contact.office_hours", Page: "kontak", Group: "Kantor", Label: "Jam layanan", Used: "Pusat Bantuan", Type: TypeText, Max: 80, Required: true, Default: "Senin - Jumat (08.00 - 15.30 WIB)"},
+
+		Field{Key: "product.deposito_rate_bps", Page: "produk", Group: "Simulasi Deposito", Label: "Bunga deposito (bps)", Used: "DepositsScreen, ProductsCatalogScreen", Type: TypeText, Max: 10, Required: true, Default: "625"},
+		Field{Key: "product.deposito_rate_label", Page: "produk", Group: "Simulasi Deposito", Label: "Label bunga deposito", Used: "DepositsScreen, ProductsCatalogScreen", Type: TypeText, Max: 40, Required: true, Default: "6,25% p.a."},
+		Field{Key: "product.deposito_min_amount", Page: "produk", Group: "Simulasi Deposito", Label: "Nominal minimum deposito", Used: "DepositsScreen, ProductsCatalogScreen", Type: TypeText, Max: 20, Required: true, Default: "1000000"},
+		Field{Key: "product.deposito_max_amount", Page: "produk", Group: "Simulasi Deposito", Label: "Nominal maksimum deposito", Used: "DepositsScreen, ProductsCatalogScreen", Type: TypeText, Max: 20, Required: true, Default: "250000000"},
+		Field{Key: "product.deposito_tax_threshold", Page: "produk", Group: "Simulasi Deposito", Label: "Batas kena pajak deposito", Used: "DepositsScreen, ProductsCatalogScreen", Type: TypeText, Max: 20, Required: true, Default: "7500000"},
+		Field{Key: "product.deposito_tax_percent", Page: "produk", Group: "Simulasi Deposito", Label: "Persentase pajak deposito", Used: "DepositsScreen, ProductsCatalogScreen", Type: TypeText, Max: 5, Required: true, Default: "20"},
+		Field{Key: "product.loan_rate_bps", Page: "produk", Group: "Simulasi Pinjaman", Label: "Bunga pinjaman tahunan (bps)", Used: "LoansScreen, ProductsCatalogScreen", Type: TypeText, Max: 10, Required: true, Default: "1500"},
+		Field{Key: "product.loan_rate_label", Page: "produk", Group: "Simulasi Pinjaman", Label: "Label bunga pinjaman", Used: "LoansScreen, ProductsCatalogScreen", Type: TypeText, Max: 40, Required: true, Default: "1,25% flat/bln"},
+		Field{Key: "product.loan_min_amount", Page: "produk", Group: "Simulasi Pinjaman", Label: "Nominal minimum pinjaman", Used: "LoansScreen, ProductsCatalogScreen", Type: TypeText, Max: 20, Required: true, Default: "5000000"},
+		Field{Key: "product.loan_max_amount", Page: "produk", Group: "Simulasi Pinjaman", Label: "Nominal maksimum pinjaman", Used: "LoansScreen, ProductsCatalogScreen", Type: TypeText, Max: 20, Required: true, Default: "250000000"},
+		Field{Key: "company.hero_image", Page: "produk", Group: "Profil Perusahaan", Label: "Foto gedung / latar profil bank", Used: "CompanyProfileScreen", Type: TypeImage, Max: 300,
+			Help: "Kosong = gradien navy bawaan."},
+		Field{Key: "company.hero_title", Page: "produk", Group: "Profil Perusahaan", Label: "Judul utama profil bank", Used: "CompanyProfileScreen", Type: TypeText, Max: 100, Required: true,
+			Default: "Mitra Keuangan UMKM Bogor Sejak 1989"},
+		Field{Key: "company.established_year", Page: "produk", Group: "Profil Perusahaan", Label: "Tahun berdiri bank", Used: "CompanyProfileScreen", Type: TypeText, Max: 10, Required: true,
+			Default: "1989"},
+		Field{Key: "company.branches", Page: "produk", Group: "Profil Perusahaan", Label: "Daftar kantor layanan (1 baris per kantor: Nama | Alamat)", Used: "CompanyProfileScreen", Type: TypeMultiline, Max: 2000, Required: true,
+			Help:    "Format tiap baris: Nama Kantor | Alamat Lengkap",
+			Default: "Kantor Pusat Bogor | Jl Raya Puncak Ciawi No 402, Kel. Bendungan Kec. Ciawi Kab. Bogor, Jawa Barat 16720\nKantor Pusat Sukabumi | Jl. Raya Cikukulu RT. 019 RW. 005 Desa Cisande, Kec. Cicantayan Kab. Sukabumi, Jawa Barat 43155\nKantor Pusat Cianjur | Jl. Raya Cianjur - Bandung RT. 001 RW. 006 No. 7 - 8, Desa Babakancaringin Kec. Karangtengah Kab. Cianjur, Jawa Barat 43281\nKantor Pusat Tangerang Selatan | Ruko Harvest Bintaro Residence No. 27-28, Jl. Merpati Raya Ciputat, Tangerang Selatan, Banten 15413"},
+		Field{Key: "company.about_description", Page: "produk", Group: "Profil Perusahaan", Label: "Deskripsi tentang bank", Used: "AboutBankScreen", Type: TypeMultiline, Max: 600, Required: true,
+			Default: "PT BPR Dana Mandiri Bogor adalah lembaga perbankan resmi yang berfokus pada pemberdayaan ekonomi masyarakat dan UMKM melalui layanan tabungan, deposito berjangka, dan fasilitas kredit yang aman serta transparan."},
+		Field{Key: "company.vision", Page: "produk", Group: "Profil Perusahaan", Label: "Visi bank", Used: "AboutBankScreen", Type: TypeMultiline, Max: 300, Required: true,
+			Default: "Menjadi BPR yang sehat, terpercaya, dan unggul dalam memberikan solusi keuangan bagi masyarakat serta pelaku UMKM."},
+		Field{Key: "company.mission", Page: "produk", Group: "Profil Perusahaan", Label: "Misi bank", Used: "AboutBankScreen", Type: TypeMultiline, Max: 500, Required: true,
+			Default: "1. Memberikan pelayanan perbankan yang cepat, ramah, dan profesional.\n2. Menyediakan produk simpanan dan pinjaman yang kompetitif serta transparan.\n3. menerapkan tata kelola perbankan yang baik dan prinsip kehati-hatian."},
+		Field{Key: "company.lps_guarantee_text", Page: "produk", Group: "Profil Perusahaan", Label: "Pernyataan penjaminan LPS", Used: "AboutBankScreen, ProductsCatalogScreen", Type: TypeMultiline, Max: 300, Required: true,
+			Default: "Simpanan nasabah pada BPR dijamin oleh Lembaga Penjamin Simpanan (LPS) hingga Rp 2 Miliar per nasabah pada satu bank sesuai dengan syarat dan ketentuan yang berlaku."},
 	)
 	fieldIndex = map[string]*Field{}
 	for i := range Fields {
@@ -200,22 +224,23 @@ func init() {
 
 var fieldIndex map[string]*Field
 
-// FieldByKey returns the registry entry.
 func FieldByKey(k string) (*Field, bool) {
 	f, ok := fieldIndex[k]
 	return f, ok
 }
 
-// legacyColumns maps keys to app_configs columns still read by older app builds
-// (GET /api/v1/config). Published values are mirrored there.
 var legacyColumns = map[string]string{
 	"app.logo":                    "logo_url",
 	"app.announcement":            "announcement_text",
+	"splash.background":           "splash_bg_url",
 	"splash.tagline":              "tagline",
+	"onboarding.slide1_image":     "onboarding_bg_url",
 	"login.background":            "login_bg_url",
 	"login.title":                 "login_title",
 	"login.subtitle":              "login_subtitle",
 	"home.greeting_subtitle":      "home_greeting",
 	"contact.call_center_display": "call_center",
 	"contact.whatsapp_display":    "whats_app_cs",
+	"contact.email":               "email_cs",
+	"contact.office_address":      "head_office_address",
 }

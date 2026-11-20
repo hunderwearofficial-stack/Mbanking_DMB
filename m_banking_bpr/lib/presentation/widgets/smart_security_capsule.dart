@@ -3,11 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/services/dynamic_config_service.dart';
 import '../../core/constants/bank_contact.dart';
+import 'app_validation_feedback.dart';
 
-/// Smart Security Capsule - Bank DMB Executive Status Indicator.
-/// Exceeds BCA Mobile's legacy circular dot with an intelligent capsule pill
-/// featuring dual-state connectivity, animated heartbeat indicator,
-/// and interactive Emergency Assistance BottomSheet for offline reassurance.
 class SmartSecurityCapsule extends StatefulWidget {
   final String? customerName;
   final String? accountNumber;
@@ -71,7 +68,6 @@ class _SmartSecurityCapsuleState extends State<SmartSecurityCapsule>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Drag Handle
                     Container(
                       width: 40,
                       height: 4.5,
@@ -82,7 +78,6 @@ class _SmartSecurityCapsuleState extends State<SmartSecurityCapsule>
                     ),
                     const SizedBox(height: 18),
 
-                    // Header Status
                     Row(
                       children: [
                         Container(
@@ -116,7 +111,7 @@ class _SmartSecurityCapsuleState extends State<SmartSecurityCapsule>
                             children: [
                               Text(
                                 liveConnected
-                                    ? 'Sistem Terhubung & Aman'
+                                    ? 'Layanan Terhubung & Aman'
                                     : 'Aplikasi dalam Mode Offline',
                                 style: GoogleFonts.plusJakartaSans(
                                   fontSize: 16,
@@ -127,7 +122,7 @@ class _SmartSecurityCapsuleState extends State<SmartSecurityCapsule>
                               const SizedBox(height: 2),
                               Text(
                                 liveConnected
-                                    ? 'Koneksi real-time aktif ke Core Banking Bank DMB'
+                                    ? 'Koneksi real-time aktif dan terenkripsi ke layanan Bank DMB'
                                     : 'Koneksi internet terputus • Data lokal terenkripsi',
                                 style: GoogleFonts.plusJakartaSans(
                                   fontSize: 12,
@@ -142,20 +137,19 @@ class _SmartSecurityCapsuleState extends State<SmartSecurityCapsule>
 
                     const SizedBox(height: 18),
 
-                    // Security Card & Offline Account Info
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [Color(0xFF0A3B66), Color(0xFF062440)],
+                          colors: [Color(0xFF0B356D), Color(0xFF071A3E)],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
                         borderRadius: BorderRadius.circular(18),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF0A3B66).withOpacity(0.25),
+                            color: const Color(0xFF0B356D).withOpacity(0.25),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
                           ),
@@ -233,7 +227,6 @@ class _SmartSecurityCapsuleState extends State<SmartSecurityCapsule>
 
                     const SizedBox(height: 16),
 
-                    // Quick Contact Support Buttons
                     Row(
                       children: [
                         Expanded(
@@ -241,13 +234,7 @@ class _SmartSecurityCapsuleState extends State<SmartSecurityCapsule>
                             onPressed: () {
                               final num = BankContact.callCenterDisplay;
                               Clipboard.setData(ClipboardData(text: num));
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Nomor Call Center disalin: $num'),
-                                  behavior: SnackBarBehavior.floating,
-                                  duration: const Duration(seconds: 2),
-                                ),
-                              );
+                              AppToast.showSuccess(context, 'Nomor Call Center disalin: $num');
                             },
                             icon: const Icon(Icons.phone_in_talk, size: 16),
                             label: Text(
@@ -256,7 +243,7 @@ class _SmartSecurityCapsuleState extends State<SmartSecurityCapsule>
                                   fontSize: 12, fontWeight: FontWeight.w700),
                             ),
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFF0A3B66),
+                              foregroundColor: const Color(0xFF0B356D),
                               side: const BorderSide(color: Color(0xFFCBD5E1)),
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               shape: RoundedRectangleBorder(
@@ -271,13 +258,7 @@ class _SmartSecurityCapsuleState extends State<SmartSecurityCapsule>
                             onPressed: () {
                               final num = BankContact.whatsAppDisplay;
                               Clipboard.setData(ClipboardData(text: num));
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Nomor WhatsApp CS disalin: $num'),
-                                  behavior: SnackBarBehavior.floating,
-                                  duration: const Duration(seconds: 2),
-                                ),
-                              );
+                              AppToast.showSuccess(context, 'Nomor WhatsApp CS disalin: $num');
                             },
                             icon: const Icon(Icons.chat_bubble_outline,
                                 size: 16, color: Color(0xFF16984B)),
@@ -303,45 +284,38 @@ class _SmartSecurityCapsuleState extends State<SmartSecurityCapsule>
 
                     const SizedBox(height: 12),
 
-                    // Check Connectivity Button
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         onPressed: () async {
-                          final ok =
-                              await DynamicConfigService().checkHealth();
+                          final ok = await DynamicConfigService().checkHealth();
                           setModalState(() {});
-                          if (ctx.mounted) {
-                            ScaffoldMessenger.of(ctx).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  ok
-                                      ? 'Berhasil terhubung ke server Bank DMB!'
-                                      : 'Server belum terjangkau. Periksa koneksi internet Anda.',
-                                  style: GoogleFonts.plusJakartaSans(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 12),
-                                ),
-                                backgroundColor: ok
-                                    ? const Color(0xFF16984B)
-                                    : const Color(0xFFDC2626),
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10)),
-                              ),
-                            );
+                          if (context.mounted) {
+                            if (ok) {
+                              AppToast.showSuccess(
+                                context,
+                                'Berhasil terhubung ke layanan Bank DMB!',
+                                title: 'Koneksi Aktif',
+                              );
+                            } else {
+                              AppToast.showWarning(
+                                context,
+                                'Koneksi sedang bermasalah. Periksa jaringan internet Anda dan coba kembali.',
+                                title: 'Koneksi Terputus',
+                              );
+                            }
                           }
                         },
                         icon: const Icon(Icons.sync_rounded, size: 17),
                         label: Text(
-                          'Cek Ulang Koneksi Server',
+                          'Cek Ulang Koneksi Jaringan',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 12.5,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF00897B),
+                          backgroundColor: const Color(0xFF0B356D),
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 13),
                           shape: RoundedRectangleBorder(
@@ -403,7 +377,6 @@ class _SmartSecurityCapsuleState extends State<SmartSecurityCapsule>
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Live Heartbeat Pulse Indicator
                 AnimatedBuilder(
                   animation: _pulseAnimation,
                   builder: (context, child) {

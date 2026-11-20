@@ -5,8 +5,6 @@ import '../money/money.dart';
 class CurrencyFormatter {
   static final NumberFormat _thousands = NumberFormat.decimalPattern('id_ID');
 
-  /// Formats an exact [Money] as "Rp 1.500.000" (or "Rp 15.000,50" with sen).
-  /// A missing amount is shown as "-" — never as a fabricated "Rp 0".
   static String formatRupiah(Money? amount) {
     if (amount == null) return '-';
     final abs = amount.sen.abs();

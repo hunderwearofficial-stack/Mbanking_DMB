@@ -25,7 +25,7 @@ server {
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
 
     client_max_body_size 5m;          # upload konsol admin dibatasi 4 MB di aplikasi
-    proxy_read_timeout 50s;           # > timeout transfer CBS (30 s) + margin
+    proxy_read_timeout 50s;           # > WriteTimeout API server (45 s) + margin
     proxy_send_timeout 30s;
 
     # Konsol admin: batasi ke jaringan kantor/VPN bank (isi daftar IP resmi).

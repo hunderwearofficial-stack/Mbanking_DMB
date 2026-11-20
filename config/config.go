@@ -1,27 +1,3 @@
-// Package config adalah SATU-SATUNYA tempat backend membaca konfigurasi.
-//
-// Sumber konfigurasi (sederhana dan eksplisit):
-//
-//	LOCAL (komputer developer)
-//	  - Isi file `.env` di root repository (salin dari `.env.example`).
-//	  - `.env` WAJIB berisi APP_ENV=local. File `.env` hanya boleh dipakai untuk local.
-//	  - Nilai yang sudah ada di environment proses mengalahkan isi `.env`.
-//
-//	DEVELOPMENT / STAGING / PRODUCTION (server)
-//	  - Semua nilai berasal dari environment server atau Secret Manager.
-//	  - Tidak ada file yang dibaca. Bila ada file `.env` di working directory server,
-//	    backend MENOLAK start (mencegah konfigurasi local terbawa ke server).
-//
-//	TEST (pengujian otomatis) — tidak membaca file apa pun.
-//
-// Aturan validasi:
-//   - Tidak ada nilai default untuk secret atau konfigurasi wajib (database, JWT,
-//     kunci enkripsi, CBS).
-//   - Nilai yang ada tetapi formatnya salah adalah ERROR (tidak diganti default).
-//   - Pengaturan opsional (port, umur token, timeout, ukuran pool) memiliki default
-//     tertulis yang tetap diperiksa rentangnya.
-//   - staging & production berlaku aturan ketat: CBS lokal ditolak, Redis wajib.
-//   - Semua kesalahan dikumpulkan dan dilaporkan sekaligus; secret tidak pernah dicetak.
 package config
 
 import (
@@ -29,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -42,12 +19,10 @@ const (
 	EnvTest        = "test"
 )
 
-// LocalEnvFile adalah file konfigurasi local (hanya untuk APP_ENV=local).
 const LocalEnvFile = ".env"
 
 var knownEnvs = map[string]bool{EnvLocal: true, EnvDevelopment: true, EnvStaging: true, EnvProduction: true, EnvTest: true}
 
-// Config menampung seluruh konfigurasi runtime.
 type Config struct {
 	AppEnv     string
 	EnvFile    string // file yang dimuat ("" = tidak ada) — hanya untuk diagnosis
@@ -56,7 +31,6 @@ type Config struct {
 	AppName    string
 	AppVersion string
 
-	// Database (role aplikasi; migrasi memakai MIGRATION_DB_USER/PASS di cmd/migrate)
 	DBHost         string
 	DBPort         string
 	DBUser         string
@@ -66,39 +40,66 @@ type Config struct {
 	DBMaxOpenConns int
 	DBMaxIdleConns int
 
-	// Redis (RedisHost kosong = memori proses, hanya local/development/test)
 	RedisHost string
 	RedisPort string
 	RedisPass string
 	RedisDB   int
 
-	// Token nasabah (mobile)
 	JWTSecret        string
 	JWTExpiryMinutes int
 	RefreshTokenDays int
 
-	// Token petugas backoffice — kunci & audience terpisah (audit DMB-001)
 	AdminJWTSecret        string
 	AdminJWTExpiryMinutes int
 
-	// Bootstrap SUPER_ADMIN sekali pakai (audit DMB-009)
 	AdminBootstrapUsername string
 	AdminBootstrapPassword string
 
-	// Keamanan & enkripsi
 	DBEncryptionKey         string   // kunci AES-256 aktif (64 hex atau base64 32 byte)
 	DBEncryptionKeyPrevious string   // opsional: kunci lama, hanya dekripsi (rotasi)
 	EnableMockCBS           bool     // ledger PostgreSQL lokal pengganti CBS (local/development/test saja)
 	StandaloneCore          bool     // DITOLAK di semua environment — docs/SYSTEM_ARCHITECTURE.md
 	TrustedProxies          []string // IP/CIDR reverse proxy yang boleh mengisi X-Forwarded-For
 	CORSAllowedOrigins      []string // kosong = tanpa akses cross-origin
-	AllowedBankCodes        []string // kode bank yang dianggap transfer internal (overbooking)
 
-	// Core Banking System (CBS) OpenAPI
+	DeviceBindingMode                string   // off | dual | enforced (DEVICE_BINDING_MODE)
+	DeviceAttestationMode            string   // off | observe | enforce (DEVICE_ATTESTATION_MODE)
+	AndroidAttestationRootsFile      string   // PEM root attestation Google
+	AndroidAttestationRevocationFile string   // JSON daftar status attestation Google (opsional)
+	AndroidPackageName               string   // applicationId resmi
+	AndroidSigningCertSHA256         []string // SHA-256 sertifikat signing resmi (hex)
+	AndroidRequireVerifiedBoot       bool     // tolak bootloader terbuka / boot tidak terverifikasi
+	AppleAppAttestRootFile           string   // PEM Apple App Attestation Root CA
+	AppleAppID                       string   // TeamID.bundleID resmi
+	AppleAppAttestEnvironment        string   // production | development
+
+	// SR-4: menonaktifkan proteksi (DEVICE_BINDING_MODE=off atau DEVICE_ATTESTATION_MODE=off)
+	// di staging/production wajib beralasan dan berbatas waktu (maks. 72 jam).
+	DeviceBindingOffReason string
+	DeviceBindingOffUntil  time.Time
+
+	deviceExplicit map[string]bool // variabel device binding yang diisi eksplisit
+
 	CBSBaseURL      string
 	CBSClientID     string
 	CBSClientSecret string
 	CBSTimeoutSec   int
+
+	// OTP policy and the allowlist of OTP gateway hosts (an officer cannot redirect OTPs
+	// to an arbitrary server from the backoffice; audit E-03).
+	OTPTTLMinutes          int
+	OTPMaxAttempts         int
+	OTPGatewayAllowedHosts []string
+
+	// Backoffice login hardening (audit E-01): TOTP MFA and per-account lockout.
+	AdminMFARequired    bool
+	AdminMaxFailedLogin int
+	AdminLockoutMinutes int
+
+	// RateLimitMultiplier relaxes every rate limit for local/development testing only.
+	RateLimitMultiplier int
+	// MaxJSONBodyBytes bounds non-multipart request bodies.
+	MaxJSONBodyBytes int64
 
 	loadErrs []string
 	envErrs  []string // kesalahan pemilihan environment / file .env (dilaporkan sendiri)
@@ -106,7 +107,6 @@ type Config struct {
 
 var validSSLModes = map[string]bool{"disable": true, "require": true, "verify-ca": true, "verify-full": true}
 
-// envReader membaca variabel dan mencatat setiap nilai yang formatnya salah.
 type envReader struct{ errs []string }
 
 func (r *envReader) fail(format string, args ...interface{}) {
@@ -128,7 +128,6 @@ func (r *envReader) required(key, hint string) string {
 	return v
 }
 
-// secret membaca nilai apa adanya (tanpa trim) dan tidak pernah dicetak.
 func (r *envReader) secret(key string) string { return os.Getenv(key) }
 
 func (r *envReader) int(key string, def, min, max int) int {
@@ -142,6 +141,19 @@ func (r *envReader) int(key string, def, min, max int) int {
 		return def
 	}
 	return v
+}
+
+func (r *envReader) timestamp(key string) time.Time {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return time.Time{}
+	}
+	t, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		r.fail("%s tidak valid: gunakan format RFC3339, mis. 2026-11-20T08:00:00+07:00", key)
+		return time.Time{}
+	}
+	return t
 }
 
 func (r *envReader) bool(key string, def bool) bool {
@@ -171,7 +183,6 @@ func (r *envReader) list(key string) []string {
 	return out
 }
 
-// resolveEnvironment menentukan APP_ENV dan memuat `.env` HANYA untuk local.
 func resolveEnvironment(r *envReader) (appEnv, envFile string) {
 	var fileVals map[string]string
 	if _, err := os.Stat(LocalEnvFile); err == nil {
@@ -212,15 +223,13 @@ func resolveEnvironment(r *envReader) (appEnv, envFile string) {
 		return appEnv, LocalEnvFile
 	}
 	for k, v := range fileVals {
-		if _, exists := os.LookupEnv(k); !exists { // environment proses menang
+		if _, exists := os.LookupEnv(k); !exists {
 			_ = os.Setenv(k, v)
 		}
 	}
 	return appEnv, LocalEnvFile
 }
 
-// LoadConfig menentukan environment, membaca nilai, dan mencatat kesalahan format.
-// Pemanggil WAJIB memanggil Validate (server) atau ValidateDatabase (CLI).
 func LoadConfig() *Config {
 	r := &envReader{}
 	appEnv, envFile := resolveEnvironment(r)
@@ -264,17 +273,41 @@ func LoadConfig() *Config {
 		StandaloneCore:          r.bool("STANDALONE_CORE", false),
 		TrustedProxies:          r.list("TRUSTED_PROXIES"),
 		CORSAllowedOrigins:      r.list("CORS_ALLOWED_ORIGINS"),
-		AllowedBankCodes:        r.list("INTERNAL_BANK_CODES"),
+
+		DeviceBindingMode:                strings.ToLower(r.str("DEVICE_BINDING_MODE", "dual")),
+		DeviceAttestationMode:            strings.ToLower(r.str("DEVICE_ATTESTATION_MODE", "observe")),
+		AndroidAttestationRootsFile:      r.str("DEVICE_ATTESTATION_ANDROID_ROOTS_FILE", ""),
+		AndroidAttestationRevocationFile: r.str("DEVICE_ATTESTATION_ANDROID_REVOCATION_FILE", ""),
+		AndroidPackageName:               r.str("DEVICE_ATTESTATION_ANDROID_PACKAGE", ""),
+		AndroidSigningCertSHA256:         r.list("DEVICE_ATTESTATION_ANDROID_CERT_SHA256"),
+		AndroidRequireVerifiedBoot:       r.bool("DEVICE_ATTESTATION_ANDROID_REQUIRE_VERIFIED_BOOT", true),
+		AppleAppAttestRootFile:           r.str("DEVICE_ATTESTATION_APPLE_ROOT_FILE", ""),
+		AppleAppID:                       r.str("DEVICE_ATTESTATION_APPLE_APP_ID", ""),
+		AppleAppAttestEnvironment:        strings.ToLower(r.str("DEVICE_ATTESTATION_APPLE_ENVIRONMENT", "production")),
+		DeviceBindingOffReason:           r.str("DEVICE_BINDING_OFF_REASON", ""),
+		DeviceBindingOffUntil:            r.timestamp("DEVICE_BINDING_OFF_UNTIL"),
+		deviceExplicit:                   explicitVars(deviceSecurityVars),
 
 		CBSBaseURL:      r.str("CBS_BASE_URL", ""),
 		CBSClientID:     r.str("CBS_CLIENT_ID", ""),
 		CBSClientSecret: r.secret("CBS_CLIENT_SECRET"),
 		CBSTimeoutSec:   r.int("CBS_TIMEOUT_SEC", 15, 1, 60),
+
+		OTPTTLMinutes:          r.int("OTP_TTL_MINUTES", 3, 1, 10),
+		OTPMaxAttempts:         r.int("OTP_MAX_ATTEMPTS", 5, 3, 10),
+		OTPGatewayAllowedHosts: lowerAll(r.list("OTP_GATEWAY_ALLOWED_HOSTS")),
+		AdminMaxFailedLogin:    r.int("ADMIN_MAX_FAILED_LOGIN", 5, 3, 10),
+		AdminLockoutMinutes:    r.int("ADMIN_LOCKOUT_MINUTES", 15, 5, 1440),
+		MaxJSONBodyBytes:       int64(r.int("MAX_JSON_BODY_BYTES", 1<<20, 16<<10, 8<<20)),
 	}
-	if len(cfg.AllowedBankCodes) == 0 {
-		// Kode bank internal untuk overbooking (konstanta bisnis, bukan secret).
-		cfg.AllowedBankCodes = []string{"", "BPR", "DMB", "BPR_DMB", "000"}
+	// Defaults follow the environment; staging/production cannot weaken them (Validate).
+	prodLike := appEnv == EnvProduction || appEnv == EnvStaging
+	cfg.AdminMFARequired = r.bool("ADMIN_MFA_REQUIRED", prodLike)
+	defMultiplier := 1
+	if appEnv == EnvLocal || appEnv == EnvDevelopment {
+		defMultiplier = 50
 	}
+	cfg.RateLimitMultiplier = r.int("RATE_LIMIT_MULTIPLIER", defMultiplier, 1, 100)
 	cfg.loadErrs = r.errs
 	cfg.envErrs = envErrs
 	return cfg
@@ -349,6 +382,7 @@ func (c *Config) Validate() error {
 			errs = append(errs, "ADMIN_BOOTSTRAP_USERNAME dan ADMIN_BOOTSTRAP_PASSWORD (minimal 12 karakter) harus diisi bersamaan")
 		}
 	}
+	errs = append(errs, c.deviceBindingErrors()...)
 	if c.StandaloneCore {
 		errs = append(errs, "STANDALONE_CORE tidak diizinkan: ledger lokal bukan core banking dan tidak boleh menggantikan CBS (lihat docs/SYSTEM_ARCHITECTURE.md). Untuk pengujian lokal gunakan ENABLE_MOCK_CBS=true dengan APP_ENV=local")
 	}
@@ -375,6 +409,122 @@ func (c *Config) Validate() error {
 		if c.AppVersion == "unversioned" {
 			errs = append(errs, "APP_VERSION wajib diisi di "+c.AppEnv+" (jejak audit rilis)")
 		}
+		if !c.AdminMFARequired {
+			errs = append(errs, "ADMIN_MFA_REQUIRED tidak boleh false di "+c.AppEnv+" (login backoffice wajib MFA)")
+		}
+		if c.RateLimitMultiplier != 1 {
+			errs = append(errs, "RATE_LIMIT_MULTIPLIER harus 1 di "+c.AppEnv)
+		}
+	}
+	if c.IsProduction() && len(c.OTPGatewayAllowedHosts) == 0 {
+		errs = append(errs, "OTP_GATEWAY_ALLOWED_HOSTS wajib diisi di production (host gateway OTP resmi)")
+	}
+	for _, h := range c.OTPGatewayAllowedHosts {
+		if strings.ContainsAny(h, "/:@ ") {
+			errs = append(errs, "OTP_GATEWAY_ALLOWED_HOSTS hanya berisi nama host (tanpa skema, port, atau path)")
+			break
+		}
 	}
 	return c.wrap(errs)
+}
+
+func lowerAll(in []string) []string {
+	for i := range in {
+		in[i] = strings.ToLower(in[i])
+	}
+	return in
+}
+
+// OTPGatewayHostAllowed reports whether an OTP gateway URL host is allowlisted. An empty
+// allowlist (non-production only) allows any https host.
+func (c *Config) OTPGatewayHostAllowed(host string) bool {
+	if len(c.OTPGatewayAllowedHosts) == 0 {
+		return !c.IsProduction()
+	}
+	host = strings.ToLower(strings.TrimSpace(host))
+	for _, h := range c.OTPGatewayAllowedHosts {
+		if host == h {
+			return true
+		}
+	}
+	return false
+}
+
+// deviceSecurityVars wajib diisi eksplisit di staging/production (DB-M2): keamanan
+// device binding tidak boleh bergantung pada nilai default yang diam-diam aktif.
+var deviceSecurityVars = []string{"DEVICE_BINDING_MODE", "DEVICE_ATTESTATION_MODE", "DEVICE_ATTESTATION_ANDROID_REQUIRE_VERIFIED_BOOT"}
+
+func explicitVars(keys []string) map[string]bool {
+	out := map[string]bool{}
+	for _, k := range keys {
+		out[k] = strings.TrimSpace(os.Getenv(k)) != ""
+	}
+	return out
+}
+
+func (c *Config) deviceBindingErrors() []string {
+	var errs []string
+	switch c.DeviceBindingMode {
+	case "", "off", "dual", "enforced":
+	default:
+		errs = append(errs, "DEVICE_BINDING_MODE harus off | dual | enforced")
+	}
+	switch c.DeviceAttestationMode {
+	case "", "off", "observe", "enforce":
+	default:
+		errs = append(errs, "DEVICE_ATTESTATION_MODE harus off | observe | enforce")
+	}
+	switch c.AppleAppAttestEnvironment {
+	case "", "production", "development":
+	default:
+		errs = append(errs, "DEVICE_ATTESTATION_APPLE_ENVIRONMENT harus production | development")
+	}
+	if !c.IsProductionLike() {
+		return errs
+	}
+	if c.DeviceBindingMode == "off" || c.DeviceAttestationMode == "off" {
+		if len(strings.TrimSpace(c.DeviceBindingOffReason)) < 10 {
+			errs = append(errs, "DEVICE_BINDING_OFF_REASON wajib diisi (min. 10 karakter, mis. nomor tiket insiden) bila proteksi perangkat dimatikan di "+c.AppEnv)
+		}
+		switch now := time.Now(); {
+		case c.DeviceBindingOffUntil.IsZero():
+			errs = append(errs, "DEVICE_BINDING_OFF_UNTIL wajib diisi (RFC3339) bila proteksi perangkat dimatikan di "+c.AppEnv)
+		case !c.DeviceBindingOffUntil.After(now):
+			errs = append(errs, "DEVICE_BINDING_OFF_UNTIL sudah lewat: proteksi perangkat tidak boleh dimatikan lagi tanpa batas baru")
+		case c.DeviceBindingOffUntil.After(now.Add(72 * time.Hour)):
+			errs = append(errs, "DEVICE_BINDING_OFF_UNTIL maksimal 72 jam dari sekarang")
+		}
+	}
+	// Stolen access tokens: keep their lifetime short in production (refresh is signed).
+	if c.JWTExpiryMinutes > 10 {
+		errs = append(errs, "JWT_EXPIRY_MINUTES maksimal 10 di "+c.AppEnv+" (masa pakai token akses yang dicuri dibatasi)")
+	}
+	for _, k := range deviceSecurityVars {
+		if !c.deviceExplicit[k] {
+			errs = append(errs, k+" wajib diisi eksplisit di "+c.AppEnv+" (tidak ada nilai default keamanan)")
+		}
+	}
+	if c.DeviceAttestationMode != "off" {
+		need := map[string]string{
+			"DEVICE_ATTESTATION_ANDROID_ROOTS_FILE": c.AndroidAttestationRootsFile,
+			"DEVICE_ATTESTATION_ANDROID_PACKAGE":    c.AndroidPackageName,
+			"DEVICE_ATTESTATION_APPLE_ROOT_FILE":    c.AppleAppAttestRootFile,
+			"DEVICE_ATTESTATION_APPLE_APP_ID":       c.AppleAppID,
+		}
+		for _, k := range []string{"DEVICE_ATTESTATION_ANDROID_ROOTS_FILE", "DEVICE_ATTESTATION_ANDROID_PACKAGE", "DEVICE_ATTESTATION_APPLE_ROOT_FILE", "DEVICE_ATTESTATION_APPLE_APP_ID"} {
+			if strings.TrimSpace(need[k]) == "" {
+				errs = append(errs, k+" wajib diisi bila DEVICE_ATTESTATION_MODE bukan off")
+			}
+		}
+		if len(c.AndroidSigningCertSHA256) == 0 {
+			errs = append(errs, "DEVICE_ATTESTATION_ANDROID_CERT_SHA256 wajib diisi bila DEVICE_ATTESTATION_MODE bukan off")
+		}
+		if strings.HasPrefix(c.AndroidPackageName, "com.example") || strings.HasPrefix(c.AppleAppID, "com.example") || strings.Contains(c.AppleAppID, ".com.example.") {
+			errs = append(errs, "identitas aplikasi template (com.example) tidak boleh dipakai untuk attestation di "+c.AppEnv)
+		}
+		if c.AppleAppAttestEnvironment != "production" {
+			errs = append(errs, "DEVICE_ATTESTATION_APPLE_ENVIRONMENT harus production di "+c.AppEnv)
+		}
+	}
+	return errs
 }

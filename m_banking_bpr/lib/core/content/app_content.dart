@@ -1,7 +1,14 @@
-import 'package:flutter/widgets.dart';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:crypto/crypto.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import '../config/app_environment.dart';
+import '../network/api_client.dart';
 import '../services/dynamic_config_service.dart';
 
-/// Kind of a content element (mirrors internal/mobilecontent/registry.go).
 enum ContentType { text, multiline, image, phone, email, flag, action }
 
 class ContentSpec {
@@ -10,11 +17,6 @@ class ContentSpec {
   const ContentSpec(this.type, this.builtIn);
 }
 
-/// Content elements of existing screens that the bank manages from the back office
-/// (GET /api/v1/content). Keys and built-in values are the same as the backend registry;
-/// the app keeps full control over widgets, layout and navigation and only reads
-/// validated plain values. An invalid or missing value is never applied: the built-in
-/// value (what the app showed before) is used instead.
 class AppContent {
   AppContent._();
 
@@ -26,43 +28,47 @@ class AppContent {
     'splash.loading_text': ContentSpec(ContentType.text, 'Memuat layanan perbankan...'),
     'splash.disclaimer': ContentSpec(ContentType.multiline,
         'PT BPR Dana Mandiri Bogor berizin dan diawasi oleh Otoritas Jasa Keuangan (OJK) serta merupakan peserta penjaminan Lembaga Penjamin Simpanan (LPS).'),
-    'onboarding.slide1_title': ContentSpec(ContentType.text, 'Jadi bestie di dunia finansial anak dengan DMB Mobile'),
+    'onboarding.slide1_title': ContentSpec(ContentType.text, 'Solusi Finansial Terpercaya untuk Keluarga & UMKM'),
     'onboarding.slide1_desc': ContentSpec(ContentType.multiline,
-        'Dari uang jajan sampai target impian anak, semua bisa didampingi bersama orang tua secara transparan dan mudah.'),
+        'Pantau saldo tabungan, mutasi rekening, portofolio deposito, dan fasilitas pinjaman Anda secara aman dan real-time.'),
     'onboarding.slide1_image': ContentSpec(ContentType.image, ''),
     'onboarding.slide2_title': ContentSpec(ContentType.text, 'Wujudkan masa depan keluarga dengan tabungan cerdas'),
     'onboarding.slide2_desc': ContentSpec(ContentType.multiline,
-        'Bebas biaya transfer, bunga deposito menguntungkan, dan proteksi transaksi berlapis dalam genggaman Anda.'),
+        'Pantau saldo dan mutasi rekening, bunga deposito menguntungkan, dan proteksi keamanan berlapis dalam genggaman Anda.'),
     'onboarding.slide2_image': ContentSpec(ContentType.image, ''),
     'onboarding.button_text': ContentSpec(ContentType.text, 'Mulai Sekarang'),
     'terms.headline': ContentSpec(ContentType.multiline, 'Ringkasan Informasi dan Syarat Ketentuan DMB Mobile by PT BPR Dana Mandiri Bogor'),
     'terms.instruction': ContentSpec(ContentType.multiline,
         'Baca dan setujui Ringkasan Informasi serta Syarat dan Ketentuan DMB Mobile by PT BPR Dana Mandiri Bogor.'),
     'login.background': ContentSpec(ContentType.image, ''),
-    'login.title': ContentSpec(ContentType.text, 'Selamat Datang'),
-    'login.subtitle': ContentSpec(ContentType.multiline, 'Login untuk melanjutkan\nke layanan DMB Mobile'),
-    'login.footer': ContentSpec(ContentType.text, 'Transaksi Anda aman bersama DMB'),
-    'login.help_badge': ContentSpec(ContentType.text, 'Layanan Resmi 24 Jam'),
-    'login.help_title': ContentSpec(ContentType.text, 'Pusat Bantuan Bank DMB'),
-    'login.help_subtitle': ContentSpec(ContentType.text, 'Butuh bantuan? Tim kami siap melayani Anda.'),
-    'login.security_title': ContentSpec(ContentType.text, 'PENTING: JAGA KERAHASIAAN ANDA'),
-    'login.security_text': ContentSpec(ContentType.multiline,
-        'Petugas Bank DMB TIDAK PERNAH meminta Kata Sandi, PIN, atau Kode OTP Anda melalui kanal apa pun.'),
-    'home.greeting_title': ContentSpec(ContentType.text, 'Selamat Datang,'),
-    'home.greeting_subtitle': ContentSpec(ContentType.text, 'Semoga harimu menyenangkan!'),
+    'login.hero_slide1_badge': ContentSpec(ContentType.text, 'TABUNGAN DANA MANDIRI'),
+    'login.hero_slide1_title': ContentSpec(ContentType.text, 'Menabung aman, usaha makin lancar'),
+    'login.hero_slide2_badge': ContentSpec(ContentType.text, 'DEPOSITO BERJANGKA'),
+    'login.hero_slide2_title': ContentSpec(ContentType.text, 'Imbal hasil kompetitif, dijamin LPS'),
+    'login.hero_slide3_badge': ContentSpec(ContentType.text, 'LAYANAN DIGITAL'),
+    'login.hero_slide3_title': ContentSpec(ContentType.text, 'Pantau saldo dan mutasi kapan saja'),
+    'login.title': ContentSpec(ContentType.text, 'Selamat datang'),
+    'login.subtitle': ContentSpec(ContentType.multiline, 'Masuk ke akun DMB Anda'),
+    'login.footer': ContentSpec(ContentType.text, 'PT BPR Dana Mandiri Bogor berizin dan diawasi OJK serta peserta LPS.'),
+    'home.greeting_title': ContentSpec(ContentType.text, 'Selamat datang,'),
+    'home.greeting_subtitle': ContentSpec(ContentType.text, 'Semoga harimu lancar.'),
+    'home.info_section_title': ContentSpec(ContentType.text, 'Info untuk Anda'),
     'home.banner1_visible': ContentSpec(ContentType.flag, 'true'),
+    'home.banner1_tag': ContentSpec(ContentType.text, 'UNTUK ANDA'),
     'home.banner1_title': ContentSpec(ContentType.text, 'DMB Mobile'),
     'home.banner1_subtitle': ContentSpec(ContentType.text, 'Lebih Mudah, Lebih Dekat dengan Anda'),
     'home.banner1_image': ContentSpec(ContentType.image, ''),
     'home.banner1_action': ContentSpec(ContentType.action, 'profil'),
     'home.banner2_visible': ContentSpec(ContentType.flag, 'true'),
-    'home.banner2_title': ContentSpec(ContentType.text, 'Tabungan Mikro DMB'),
+    'home.banner2_tag': ContentSpec(ContentType.text, 'INFO PRODUK'),
+    'home.banner2_title': ContentSpec(ContentType.text, 'Tabungan & Deposito DMB'),
     'home.banner2_subtitle': ContentSpec(ContentType.text, 'Simpanan dijamin LPS sesuai ketentuan'),
     'home.banner2_image': ContentSpec(ContentType.image, ''),
     'home.banner2_action': ContentSpec(ContentType.action, 'profil'),
     'home.banner3_visible': ContentSpec(ContentType.flag, 'true'),
+    'home.banner3_tag': ContentSpec(ContentType.text, 'KEAMANAN'),
     'home.banner3_title': ContentSpec(ContentType.text, 'Keamanan Berlapis'),
-    'home.banner3_subtitle': ContentSpec(ContentType.text, 'PIN transaksi & perangkat terdaftar'),
+    'home.banner3_subtitle': ContentSpec(ContentType.text, 'PIN & perangkat terdaftar terlindungi'),
     'home.banner3_image': ContentSpec(ContentType.image, ''),
     'home.banner3_action': ContentSpec(ContentType.action, 'keamanan'),
     'helpdesk.intro_title': ContentSpec(ContentType.text, 'Butuh Bantuan?'),
@@ -79,6 +85,29 @@ class AppContent {
     'contact.office_short': ContentSpec(ContentType.text, 'Jl. Pajajaran No. 88, Bogor'),
     'contact.office_address': ContentSpec(ContentType.multiline, 'Jl. Pajajaran No. 88, Kota Bogor, Jawa Barat 16128'),
     'contact.office_hours': ContentSpec(ContentType.text, 'Senin - Jumat (08.00 - 15.30 WIB)'),
+    'company.hero_image': ContentSpec(ContentType.image, ''),
+    'company.hero_title': ContentSpec(ContentType.text, 'Mitra Keuangan UMKM Bogor Sejak 1989'),
+    'company.established_year': ContentSpec(ContentType.text, '1989'),
+    'company.branches': ContentSpec(ContentType.multiline,
+        'Kantor Pusat Bogor | Jl Raya Puncak Ciawi No 402, Kel. Bendungan Kec. Ciawi Kab. Bogor, Jawa Barat 16720\nKantor Pusat Sukabumi | Jl. Raya Cikukulu RT. 019 RW. 005 Desa Cisande, Kec. Cicantayan Kab. Sukabumi, Jawa Barat 43155\nKantor Pusat Cianjur | Jl. Raya Cianjur - Bandung RT. 001 RW. 006 No. 7 - 8, Desa Babakancaringin Kec. Karangtengah Kab. Cianjur, Jawa Barat 43281\nKantor Pusat Tangerang Selatan | Ruko Harvest Bintaro Residence No. 27-28, Jl. Merpati Raya Ciputat, Tangerang Selatan, Banten 15413'),
+    'company.about_description': ContentSpec(ContentType.multiline,
+        'PT Bank Perekonomian Rakyat (BPR) Dana Mandiri Bogor atau dikenal dengan Bank DMB hadir sebagai mitra finansial terpercaya yang berfokus melayani kebutuhan masyarakat umum, pelaku Usaha Mikro, Kecil, dan Menengah (UMKM), serta industri produktif di wilayah Bogor dan sekitarnya.\n\nDengan komitmen tata kelola perbankan yang sehat (Good Corporate Governance) dan transformasi layanan digital, Bank DMB menyediakan fasilitas Simpanan Tabungan, Deposito Berjangka dengan imbal hasil kompetitif, serta Pembiayaan Kredit Modal Kerja dan Konsumtif.'),
+    'company.vision': ContentSpec(ContentType.multiline,
+        'Menjadi Bank Perekonomian Rakyat yang sehat, kuat, andal, dan terdepan dalam mendorong pertumbuhan ekonomi masyarakat serta kemajuan sektor UMKM.'),
+    'company.mission': ContentSpec(ContentType.multiline,
+        'Menyediakan layanan perbankan yang prima, cepat, dan mudah diakses berbasis inovasi teknologi.\nMendukung penguatan permodalan pelaku UMKM melalui pembiayaan kredit yang bertanggung jawab.\nMemberikan edukasi dan literasi keuangan untuk meningkatkan kesejahteraan finansial masyarakat.\nMenerapkan prinsip kehati-hatian, transparansi, dan integritas tinggi dalam seluruh kegiatan operasional.'),
+    'company.lps_guarantee_text': ContentSpec(ContentType.multiline,
+        'Seluruh simpanan dana nasabah (Tabungan & Deposito) dijamin oleh LPS hingga Rp 2 Miliar per nasabah sesuai syarat dan ketentuan berlaku.'),
+    'product.deposito_rate_bps': ContentSpec(ContentType.text, '625'),
+    'product.deposito_rate_label': ContentSpec(ContentType.text, '6.25% p.a. (ilustrasi)'),
+    'product.deposito_min_amount': ContentSpec(ContentType.text, '1000000'),
+    'product.deposito_max_amount': ContentSpec(ContentType.text, '2000000000'),
+    'product.deposito_tax_threshold': ContentSpec(ContentType.text, '7500000'),
+    'product.deposito_tax_percent': ContentSpec(ContentType.text, '20'),
+    'product.loan_rate_bps': ContentSpec(ContentType.text, '1500'),
+    'product.loan_rate_label': ContentSpec(ContentType.text, '1.25% flat/bln (ilustrasi)'),
+    'product.loan_min_amount': ContentSpec(ContentType.text, '5000000'),
+    'product.loan_max_amount': ContentSpec(ContentType.text, '500000000'),
   };
 
   static final RegExp _upload = RegExp(r'^/admin/(uploads|images)/[A-Za-z0-9_\-]+\.(png|jpg|jpeg|webp)$');
@@ -86,7 +115,6 @@ class AppContent {
   static final RegExp _email = RegExp(r'^[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+$');
   static const _actions = {'profil', 'keamanan', 'none'};
 
-  /// Whether [value] may be applied for [key] (same rules as the backend).
   static bool isValid(String key, String value) {
     final spec = specs[key];
     if (spec == null || value.length > 1000 || value.contains('<') || value.contains('>')) return false;
@@ -94,7 +122,15 @@ class AppContent {
       case ContentType.image:
         if (value.isEmpty || _upload.hasMatch(value)) return true;
         final u = Uri.tryParse(value);
-        return u != null && u.scheme == 'https' && u.host.isNotEmpty;
+        if (u == null || u.host.isEmpty) return false;
+        if (u.scheme == 'https') return true;
+        if (u.scheme == 'http' && !AppEnvironment.isProduction) {
+          final apiUri = Uri.tryParse(AppEnvironment.apiBaseUrl);
+          if (apiUri != null && apiUri.host.isNotEmpty && apiUri.host.toLowerCase() == u.host.toLowerCase()) {
+            return true;
+          }
+        }
+        return false;
       case ContentType.phone:
         return _phone.hasMatch(value);
       case ContentType.email:
@@ -116,23 +152,22 @@ class AppContent {
     return specs[key]?.builtIn ?? '';
   }
 
-  /// Text content.
   static String text(String key) => _value(key);
 
-  /// Image content: absolute URL to load, or null to use the image bundled in the app.
+  static int intValue(String key, int defaultValue) {
+    final raw = _value(key).trim();
+    return int.tryParse(raw) ?? defaultValue;
+  }
+
   static String? imageUrl(String key) {
     final v = _value(key);
     if (v.isEmpty) return null;
     return DynamicConfigService().resolveUrl(v);
   }
 
-  /// Visibility flags.
   static bool flag(String key) => _value(key) == 'true';
 }
 
-/// Rebuilds the visible screens when a new content version has been downloaded, so a
-/// published change appears without restarting or rebuilding the app. Navigation and
-/// screen state are kept (elements are rebuilt, not recreated).
 class ContentRefreshScope extends StatefulWidget {
   final Widget child;
   const ContentRefreshScope({super.key, required this.child});
@@ -172,23 +207,168 @@ class _ContentRefreshScopeState extends State<ContentRefreshScope> {
   Widget build(BuildContext context) => widget.child;
 }
 
-/// Image element managed from the back office; the image bundled with the app is used
-/// when no image is published or the published one can not be loaded.
-class ContentImage extends StatelessWidget {
+class RemoteImageCache {
+  RemoteImageCache._();
+
+  static final Map<String, Uint8List> _memCache = <String, Uint8List>{};
+  static final Map<String, Future<Uint8List?>> _inflight = <String, Future<Uint8List?>>{};
+  static Dio? _dio;
+
+  static const List<String> _imageKeys = [
+    'app.logo',
+    'splash.background',
+    'login.background',
+    'onboarding.slide1_image',
+    'onboarding.slide2_image',
+    'home.banner1_image',
+    'home.banner2_image',
+    'home.banner3_image',
+    'company.hero_image',
+  ];
+
+  static Dio _client() => _dio ??= ApiClient.createSecureDio(baseUrl: '');
+
+  static File _diskFile(String url) {
+    final hash = sha256.convert(utf8.encode(url)).toString();
+    final dir = Directory('${Directory.systemTemp.path}${Platform.pathSeparator}dmb_img_cache');
+    return File('${dir.path}${Platform.pathSeparator}$hash.bin');
+  }
+
+  static Uint8List? getCachedSync(String url) => _memCache[url];
+
+  static Future<void> preloadStartupImages() async {
+    for (final key in _imageKeys) {
+      final url = AppContent.imageUrl(key);
+      if (url == null || _memCache.containsKey(url)) continue;
+      try {
+        final file = _diskFile(url);
+        if (await file.exists()) {
+          final bytes = await file.readAsBytes();
+          if (bytes.isNotEmpty) {
+            _memCache[url] = bytes;
+          }
+        }
+      } catch (_) {}
+    }
+  }
+
+  static Future<void> warmUpAllContentImages() async {
+    for (final key in _imageKeys) {
+      final url = AppContent.imageUrl(key);
+      if (url != null) {
+        await getOrFetch(url);
+      }
+    }
+  }
+
+  static Future<Uint8List?> getOrFetch(String url) {
+    final cached = _memCache[url];
+    if (cached != null) return Future<Uint8List?>.value(cached);
+    return _inflight.putIfAbsent(url, () async {
+      try {
+        final file = _diskFile(url);
+        if (await file.exists()) {
+          final diskBytes = await file.readAsBytes();
+          if (diskBytes.isNotEmpty) {
+            _memCache[url] = diskBytes;
+            return diskBytes;
+          }
+        }
+        final resp = await _client().get<List<int>>(
+          url,
+          options: Options(
+            responseType: ResponseType.bytes,
+            receiveTimeout: const Duration(seconds: 10),
+          ),
+        );
+        final data = resp.data;
+        if (data != null && data.isNotEmpty) {
+          final bytes = Uint8List.fromList(data);
+          _memCache[url] = bytes;
+          try {
+            await file.parent.create(recursive: true);
+            await file.writeAsBytes(bytes, flush: true);
+          } catch (_) {}
+          return bytes;
+        }
+      } catch (_) {
+      } finally {
+        _inflight.remove(url);
+      }
+      return null;
+    });
+  }
+}
+
+class ContentImage extends StatefulWidget {
   final String contentKey;
   final String asset;
+  final Widget? placeholder;
   final BoxFit fit;
   final double? width;
   final double? height;
   final Alignment alignment;
 
-  const ContentImage(this.contentKey, {super.key, required this.asset, this.fit = BoxFit.cover, this.width, this.height, this.alignment = Alignment.center});
+  const ContentImage(
+    this.contentKey, {
+    super.key,
+    this.asset = '',
+    this.placeholder,
+    this.fit = BoxFit.cover,
+    this.width,
+    this.height,
+    this.alignment = Alignment.center,
+  });
+
+  @override
+  State<ContentImage> createState() => _ContentImageState();
+}
+
+class _ContentImageState extends State<ContentImage> {
+  String? _fetchingUrl;
+
+  void _ensureFetched(String url) {
+    if (_fetchingUrl == url || RemoteImageCache.getCachedSync(url) != null) return;
+    _fetchingUrl = url;
+    RemoteImageCache.getOrFetch(url).then((bytes) {
+      if (bytes != null && mounted) {
+        setState(() {});
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final url = AppContent.imageUrl(contentKey);
-    Widget bundled() => Image.asset(asset, fit: fit, width: width, height: height, alignment: alignment);
-    if (url == null) return bundled();
-    return Image.network(url, fit: fit, width: width, height: height, alignment: alignment, errorBuilder: (_, __, ___) => bundled());
+    final url = AppContent.imageUrl(widget.contentKey);
+    Widget fallback() {
+      if (widget.placeholder != null) return widget.placeholder!;
+      if (widget.asset.isNotEmpty) {
+        return Image.asset(
+          widget.asset,
+          fit: widget.fit,
+          width: widget.width,
+          height: widget.height,
+          alignment: widget.alignment,
+        );
+      }
+      return const SizedBox.shrink();
+    }
+    if (url == null) return fallback();
+
+    final cachedBytes = RemoteImageCache.getCachedSync(url);
+    if (cachedBytes != null) {
+      return Image.memory(
+        cachedBytes,
+        fit: widget.fit,
+        width: widget.width,
+        height: widget.height,
+        alignment: widget.alignment,
+        gaplessPlayback: true,
+        errorBuilder: (_, __, ___) => fallback(),
+      );
+    }
+
+    _ensureFetched(url);
+    return fallback();
   }
 }

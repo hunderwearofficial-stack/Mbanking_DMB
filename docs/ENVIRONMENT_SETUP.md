@@ -70,7 +70,6 @@ Kolom environment: L = local, D = development, S = staging, P = production.
 | `DB_ENCRYPTION_KEY_PREVIOUS` | Kunci lama (decrypt-only) saat rotasi | Tidak | idem | semua | hanya selama rotasi (`cmd/rekey`) |
 | `TRUSTED_PROXIES` | Proxy yang dipercaya untuk `X-Forwarded-For` | Tidak | daftar IP/CIDR dipisah koma | S/P | alamat reverse proxy |
 | `CORS_ALLOWED_ORIGINS` | Origin lintas domain yang diizinkan | Tidak (tidak ada) | daftar URL | — | biarkan kosong bila konsol same-origin |
-| `INTERNAL_BANK_CODES` | Kode bank yang dianggap transfer internal | Tidak (konstanta di kode) | daftar | semua | — |
 | `ENABLE_MOCK_CBS` | Memakai ledger PostgreSQL local sebagai pengganti CBS | Tidak (false) | `true`/`false` | L/D saja; **ditolak** di S/P | — |
 | `CBS_BASE_URL` | Alamat CBS OpenAPI | Ya bila mock tidak aktif | `https://…` | D/S/P | — |
 | `CBS_CLIENT_ID` | Client ID CBS | Ya bila `CBS_BASE_URL` diisi | teks | D/S/P | — |
@@ -91,7 +90,6 @@ Kolom environment: L = local, D = development, S = staging, P = production.
 ### Konfigurasi yang disimpan di database (konsol admin, SUPER_ADMIN)
 
 Tabel `app_configs` (default dari migrasi `0003_default_app_config.sql`): mode maintenance,
-minimum transfer (default Rp 10.000), limit transfer harian (default Rp 25.000.000),
 `enforce_device_binding`, batas gagal login, penyedia OTP (`SANDBOX`/`FONNTE`/`WABLAS`/webhook),
 token gateway OTP, dan FCM server key. Token dan key bersifat write-only (tidak dikirim kembali ke
 konsol atau aplikasi).
@@ -136,3 +134,34 @@ flutter build appbundle --release --dart-define-from-file=config/production.json
 `file .env ditemukan tetapi APP_ENV=development`. Simpan cadangan (`Copy-Item .env .env.backup-lama`)
 lalu buat `.env` baru dari `.env.example` ([LOCAL_SETUP.md](LOCAL_SETUP.md) §3). Database lama
 `mbanking_bpr` tidak dipakai untuk pengujian local.
+
+## 7. Device binding & attestation
+
+Di **staging/production** semua nilai bertanda * wajib diisi eksplisit; backend menolak start bila
+kosong atau tidak valid (tidak ada default keamanan). Default hanya berlaku untuk local/development/test.
+
+| Variabel | Nilai | Default (non-production) |
+|---|---|---|
+| `DEVICE_BINDING_MODE` * | `off` / `dual` / `enforced` | `dual` |
+| `DEVICE_ATTESTATION_MODE` * | `off` / `observe` / `enforce` | `observe` |
+| `DEVICE_ATTESTATION_ANDROID_REQUIRE_VERIFIED_BOOT` * | `true` / `false` | `true` |
+| `DEVICE_ATTESTATION_ANDROID_ROOTS_FILE` | path PEM root attestation Google (wajib bila attestation bukan off di production) | — |
+| `DEVICE_ATTESTATION_ANDROID_REVOCATION_FILE` | path JSON daftar status attestation Google (opsional, diperbarui berkala) | — |
+| `DEVICE_ATTESTATION_ANDROID_PACKAGE` | applicationId resmi (bukan `com.example…`) | — |
+| `DEVICE_ATTESTATION_ANDROID_CERT_SHA256` | SHA-256 sertifikat app signing resmi (hex, boleh dengan `:`; beberapa nilai dipisah koma) | — |
+| `DEVICE_ATTESTATION_APPLE_ROOT_FILE` | path PEM Apple App Attestation Root CA | — |
+| `DEVICE_ATTESTATION_APPLE_APP_ID` | `<TeamID>.<bundleID>` resmi | — |
+| `DEVICE_ATTESTATION_APPLE_ENVIRONMENT` | `production` (wajib di production) / `development` | `production` |
+| `DEVICE_CHALLENGE_RETENTION_DAYS` | retensi `migrate purge-challenges` (1–3650) | 30 |
+| `DEVICE_BINDING_OFF_REASON` | wajib di staging/production bila binding atau attestation `off` (min. 10 karakter, mis. nomor tiket) | — |
+| `DEVICE_BINDING_OFF_UNTIL` | wajib bersama alasan di atas: RFC3339, di masa depan, maks. 72 jam; setelahnya binding kembali `dual` | — |
+
+File root **tidak** disertakan di repository dan tidak boleh diketik ulang dari ingatan: unduh dari
+sumber resmi, verifikasi fingerprint bersama tim keamanan bank, simpan read-only di server. File yang
+tidak dapat dibaca/diparse menghentikan start backend (fail-closed).
+
+### Kontrol tambahan (mitigasi risiko residual)
+
+| Variabel | Nilai | Default (non-production) |
+|---|---|---|
+| `JWT_EXPIRY_MINUTES` | Di staging/production maksimal 10 menit (masa pakai token akses yang dicuri) | 15 |

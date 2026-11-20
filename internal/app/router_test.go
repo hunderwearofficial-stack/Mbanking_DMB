@@ -1,10 +1,5 @@
 package app
 
-// Router-level security tests that run WITHOUT a database (always executed by
-// `go test ./...`). They exercise the real route table from NewRouter — unlike the
-// former api_test.go, which only tested a handler defined inside the test itself.
-// Database-backed end-to-end tests live in test/integration.
-
 import (
 	"encoding/json"
 	"net/http"
@@ -32,9 +27,7 @@ func newTestRouter(t *testing.T) *gin.Engine {
 	cfg := &config.Config{
 		AppEnv: "test", JWTSecret: rtCustomerSecret, AdminJWTSecret: rtAdminSecret,
 		JWTExpiryMinutes: 15, RefreshTokenDays: 7, AdminJWTExpiryMinutes: 60,
-		AllowedBankCodes: []string{"DMB"},
 	}
-	// db == nil: every DB-dependent path must fail closed.
 	r, _, err := NewRouter(cfg, nil, redis.NewMemoryClient(), cbsprovider.NewDatabaseCBSProvider(nil))
 	if err != nil {
 		t.Fatalf("NewRouter: %v", err)
@@ -67,7 +60,6 @@ func TestHealthIsMinimal(t *testing.T) {
 	if data["status"] != "UP" {
 		t.Fatalf("unexpected health payload: %s", w.Body.String())
 	}
-	// Liveness must not disclose integration details (audit DMB-023).
 	for _, leak := range []string{"cbs", "database", "postgres", "redis", "version"} {
 		if strings.Contains(strings.ToLower(w.Body.String()), leak) {
 			t.Fatalf("health response discloses %q: %s", leak, w.Body.String())
@@ -89,7 +81,6 @@ func TestSecurityHeaders(t *testing.T) {
 	}
 }
 
-// Every customer endpoint must require a bearer token.
 func TestCustomerRoutesRequireAuthentication(t *testing.T) {
 	r := newTestRouter(t)
 	routes := [][2]string{
@@ -98,21 +89,20 @@ func TestCustomerRoutesRequireAuthentication(t *testing.T) {
 		{"POST", "/api/v1/auth/change-pin"},
 		{"GET", "/api/v1/account/balance"},
 		{"GET", "/api/v1/account/mutations"},
-		{"GET", "/api/v1/account/inquiry"},
 		{"GET", "/api/v1/account/profile"},
 		{"GET", "/api/v1/account/list"},
 		{"GET", "/api/v1/account/loans"},
 		{"GET", "/api/v1/account/deposits"},
 		{"GET", "/api/v1/account/products"},
-		{"POST", "/api/v1/transaction/transfer"},
-		{"GET", "/api/v1/beneficiaries"},
-		{"POST", "/api/v1/beneficiaries"},
-		{"DELETE", "/api/v1/beneficiaries/x"},
 		{"GET", "/api/v1/applications"},
 		{"POST", "/api/v1/applications"},
 		{"GET", "/api/v1/notifications"},
 		{"POST", "/api/v1/notifications/read"},
 		{"POST", "/api/v1/notifications/fcm-token"},
+		{"GET", "/api/v1/device/status"},
+		{"POST", "/api/v1/device/challenge"},
+		{"POST", "/api/v1/device/enroll"},
+		{"POST", "/api/v1/device/keys/rotate"},
 	}
 	for _, rt := range routes {
 		if w := do(r, rt[0], rt[1], ""); w.Code != http.StatusUnauthorized {
@@ -121,20 +111,20 @@ func TestCustomerRoutesRequireAuthentication(t *testing.T) {
 	}
 }
 
-// Every backoffice endpoint (except login) must require an admin token.
 func TestAdminRoutesRequireAuthentication(t *testing.T) {
 	r := newTestRouter(t)
 	routes := [][2]string{
 		{"GET", "/api/v1/admin/stats"},
 		{"GET", "/api/v1/admin/customers"},
 		{"POST", "/api/v1/admin/customers/x/reset-device"},
-		{"GET", "/api/v1/admin/transactions"},
 		{"GET", "/api/v1/admin/audit-logs"},
 		{"GET", "/api/v1/admin/config"},
 		{"PUT", "/api/v1/admin/config"},
 		{"POST", "/api/v1/admin/upload"},
 		{"GET", "/api/v1/admin/users"},
-		{"POST", "/api/v1/admin/notifications/broadcast"},
+		{"POST", "/api/v1/admin/push/campaigns"},
+		{"POST", "/api/v1/admin/push/credential"},
+		{"GET", "/api/v1/admin/device-binding/summary"},
 		{"GET", "/api/v1/admin/cbs/health"},
 		{"POST", "/api/v1/admin/cbs/refresh-token"},
 	}
@@ -145,7 +135,6 @@ func TestAdminRoutesRequireAuthentication(t *testing.T) {
 	}
 }
 
-// Customer and admin tokens are signed with different keys/audiences (audit DMB-001).
 func TestTokensAreNotInterchangeable(t *testing.T) {
 	r := newTestRouter(t)
 	pair, err := security.GenerateTokenPair(security.CustomerTokenInput{
@@ -166,8 +155,6 @@ func TestTokensAreNotInterchangeable(t *testing.T) {
 	}
 }
 
-// With a cryptographically valid token but no database, authorization must fail
-// closed (503) instead of letting the request through (audit DMB-026).
 func TestAuthFailsClosedWithoutDatabase(t *testing.T) {
 	r := newTestRouter(t)
 	pair, _ := security.GenerateTokenPair(security.CustomerTokenInput{
@@ -182,7 +169,6 @@ func TestAuthFailsClosedWithoutDatabase(t *testing.T) {
 	}
 }
 
-// Former public operational/CBS endpoints must no longer exist (audit DMB-023).
 func TestLegacyPublicCBSEndpointsRemoved(t *testing.T) {
 	r := newTestRouter(t)
 	for _, rt := range [][2]string{{"GET", "/api/v1/cbs/health"}, {"POST", "/api/v1/cbs/refresh-token"}} {
@@ -192,7 +178,23 @@ func TestLegacyPublicCBSEndpointsRemoved(t *testing.T) {
 	}
 }
 
-// Terms endpoints fail closed (503, no panic, no fallback document) without a database.
+// Fund transfer is not a feature of Mobile DMB: none of its endpoints may be routable.
+func TestFundTransferEndpointsRemoved(t *testing.T) {
+	r := newTestRouter(t)
+	for _, rt := range [][2]string{
+		{"POST", "/api/v1/transaction/transfer"},
+		{"GET", "/api/v1/beneficiaries"},
+		{"POST", "/api/v1/beneficiaries"},
+		{"DELETE", "/api/v1/beneficiaries/x"},
+		{"GET", "/api/v1/account/inquiry"},
+		{"GET", "/api/v1/admin/transactions"},
+	} {
+		if w := do(r, rt[0], rt[1], ""); w.Code != http.StatusNotFound {
+			t.Errorf("%s %s: got %d, want 404", rt[0], rt[1], w.Code)
+		}
+	}
+}
+
 func TestTermsEndpointsFailClosedWithoutDatabase(t *testing.T) {
 	r := newTestRouter(t)
 	for _, rt := range [][2]string{
@@ -203,7 +205,6 @@ func TestTermsEndpointsFailClosedWithoutDatabase(t *testing.T) {
 			t.Errorf("%s %s without DB: got %d, want 503", rt[0], rt[1], w.Code)
 		}
 	}
-	// Back-office Terms routes require an officer token.
 	if w := do(r, http.MethodGet, "/api/v1/admin/terms/versions", ""); w.Code != http.StatusUnauthorized && w.Code != http.StatusServiceUnavailable {
 		t.Errorf("admin terms without token: got %d", w.Code)
 	}

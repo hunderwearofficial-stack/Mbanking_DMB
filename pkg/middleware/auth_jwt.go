@@ -1,15 +1,28 @@
 package middleware
 
 import (
+	"net/http"
+	"strings"
+
 	"mbanking-bpr/pkg/reqctx"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
-// RequestMeta attaches request id, client IP and user agent to the request
-// context for audit attribution (audit DMB-016). ClientIP honours only the
-// proxies configured via TRUSTED_PROXIES (see main.go).
+func MaxBodyBytes(maxBytes int64) gin.HandlerFunc {
+	if maxBytes <= 0 {
+		maxBytes = 1 << 20
+	}
+	return func(c *gin.Context) {
+		ct := strings.ToLower(c.GetHeader("Content-Type"))
+		if c.Request.Body != nil && !strings.HasPrefix(ct, "multipart/form-data") {
+			c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxBytes)
+		}
+		c.Next()
+	}
+}
+
 func RequestMeta() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		rid := c.GetHeader("X-Request-ID")

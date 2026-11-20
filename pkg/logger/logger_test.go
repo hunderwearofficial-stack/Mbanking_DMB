@@ -5,7 +5,6 @@ import (
 	"testing"
 )
 
-// DMB-011 regression: credential-bearing fields must never reach the logs.
 func TestMaskJSONString_CoversVariants(t *testing.T) {
 	body := `{"phone_number":"0812","password":"p1","new_password":"p2","old_password":"p3","otp_code":"482913",
 	"refresh_token":"rt","session_id":"s","pin":"583920","old_pin":"1","new_pin":"2","fcm_token":"f",

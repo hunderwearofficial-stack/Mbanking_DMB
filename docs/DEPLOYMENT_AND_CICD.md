@@ -164,7 +164,7 @@ serta belum ada environment development/staging.
 | 12 | UAT & security verification | UAT bank, uji integrasi CBS, pentest sebelum rilis besar |
 | 13 | Approval Production | Change Advisory/direksi sesuai kebijakan; dicatat siapa menyetujui |
 | 14 | Deploy Production | **Manual dengan approval**; backup terverifikasi → migrate → deploy artefak yang sama |
-| 15 | Health check | `/health`, `/ready`, `auditverify`, pemantauan transfer `UNKNOWN` |
+| 15 | Health check | `/health`, `/ready`, `auditverify` |
 | 16 | Rollback | Lihat di bawah |
 
 Ketentuan: secret hanya di CI/CD secret store (masked + protected); tidak ada private key di
@@ -198,3 +198,68 @@ integrasi resmi · rotasi semua secret yang pernah terpapar · secret manager ·
 `applicationId`, Play Integrity · proyek Firebase resmi dan FCM HTTP v1 · vendor gateway OTP ·
 firewall/WAF/SIEM/monitoring · backup terjadwal, DRC, RPO/RTO · penetration test independen ·
 pipeline CI/CD aktif dengan approval · persetujuan manajemen perubahan bank.
+
+## 7. Device binding: signing, attestation, dan deployment
+
+### 7.1 Android: signing release (DB-H8)
+
+* Build release **gagal** bila keystore resmi tidak tersedia; tidak ada lagi fallback debug key.
+  Konfigurasi dibaca dari `android/key.properties` (git-ignored) atau dari file yang ditunjuk
+  `DMB_ANDROID_KEY_PROPERTIES`, berisi `storeFile`, `storePassword`, `keyAlias`, `keyPassword`.
+* Keystore dibuat dan disimpan oleh bank (key custodian); CI menerima keystore + properties sebagai
+  secret base64 (`DMB_ANDROID_KEYSTORE_B64`, `DMB_ANDROID_KEY_PROPERTIES_B64`; `storeFile` di
+  properties menunjuk `$RUNNER_TEMP/keys/release.jks`).
+* Play Console: aktifkan **Play App Signing**. Digest yang dipakai server dan gate CI adalah SHA-256
+  **sertifikat app signing** (Play Console → Setup → App integrity), bukan upload key.
+* `applicationId`/`namespace` masih `com.example.m_banking_bpr` — **NEEDS BANK INPUT**. Saat
+  diganti: daftarkan aplikasi Android baru di Firebase (unduh `google-services.json` baru), perbarui
+  `DEVICE_ATTESTATION_ANDROID_PACKAGE`. ANDROID_ID dan kunci Keystore berubah untuk instalasi lama;
+  pengguna uji mengikat ulang perangkat melalui OTP.
+
+### 7.2 iOS: App Attest
+
+* `ios/Runner/Runner.entitlements` berisi `com.apple.developer.devicecheck.appattest-environment =
+  production` dan dipasang di konfigurasi Debug/Profile/Release.
+* Apple Developer: App ID resmi dengan capability **App Attest**, provisioning profile yang memuat
+  entitlement tersebut, Team ID. Nilai server `DEVICE_ATTESTATION_APPLE_APP_ID = <TeamID>.<bundleID>`.
+  Bundle ID masih `com.example.mBankingBpr` — **NEEDS BANK INPUT**.
+* iOS 13 / perangkat tanpa App Attest: kunci Secure Enclave `UNVERIFIED` (ditolak di `enforce`).
+  Target minimum iOS 13 dipertahankan sampai ada data distribusi versi iOS nasabah.
+* Build iOS hanya dapat dijalankan di macOS (workflow `build-ios.yml`); perubahan Swift di
+  `AppDelegate.swift` **belum dikompilasi** di lingkungan pengembangan Windows.
+
+### 7.3 CI security gates (`.github/workflows/security-gates.yml`)
+
+| Gate | Script | Gagal bila |
+|---|---|---|
+| Backend | `gofmt`, `go vet`, `go test -p 1 ./...` (PostgreSQL sementara) | format, vet, test unit/migrasi/integrasi gagal |
+| Mobile | `flutter analyze`, `flutter test` | error analyzer, test gagal |
+| Jalur produksi | `scripts/ci/check_production_paths.sh` | paket CA uji diimpor kode produksi, material kunci tertanam, ID cadangan / penyimpanan memori, turunan ID lama, debug key untuk release |
+| Konfigurasi iOS | `scripts/ci/verify_ios_config.sh` | `NSAllowsArbitraryLoads`, bundle ID template, entitlement App Attest tidak lengkap |
+| Artefak Android | `scripts/ci/verify_android_release.sh <apk>` | bukan sertifikat resmi (`DMB_ANDROID_RELEASE_CERT_SHA256`), debug key, `debuggable`, `usesCleartextTraffic`, applicationId template / bukan `DMB_ANDROID_PACKAGE`, flavor artefak bukan `production`, API bukan `https://` |
+
+Build Gradle juga menolak release tanpa `APP_FLAVOR`, dan release staging/production tanpa `API_BASE_URL`
+`https://`. Status saat ini: gate konfigurasi iOS dan artefak Android **GAGAL hanya karena input bank**
+(bundle ID / applicationId template, sertifikat signing resmi). Artefak flavor local/development tetap
+ditolak gate (cleartext, flavor, HTTP). `build-ios.yml`: push ke `main` hanya compile check; IPA dibuat
+lewat *workflow_dispatch* (`testing` = HTTP, berlabel NOT_FOR_PRODUCTION; `production` = gate iOS + https).
+
+### 7.4 Urutan deployment device binding
+
+1. Backup database (OPERATIONS_AND_BACKUP.md).
+2. `migrate up` (0013, 0014, 0015) lalu `migrate grants` dengan role migrasi.
+3. Siapkan file root attestation resmi di server (ENVIRONMENT_SETUP.md §7): root Google hardware
+   attestation (dokumentasi Android "Key and ID attestation"), Apple App Attestation Root CA (Apple
+   PKI), dan opsional daftar status attestation Google.
+4. Deploy backend dengan `DEVICE_BINDING_MODE=dual`, `DEVICE_ATTESTATION_MODE=observe`, dan identitas
+   aplikasi resmi. Backend menolak start bila variabel wajib tidak diisi eksplisit.
+5. Rilis aplikasi. Pantau **Backoffice → Nasabah & Perangkat → Kunci Keamanan Perangkat**
+   (`GET /api/v1/admin/device-binding/summary`).
+6. Sebelum `DEVICE_ATTESTATION_MODE=enforce`: periksa angka *Belum terverifikasi* di panel. Saat
+   `enforce` aktif, kunci tersebut langsung tidak dapat dipakai (nasabahnya mengikat ulang melalui OTP),
+   jadi umumkan ke nasabah terdampak terlebih dahulu. Setelah seluruh nasabah aktif memiliki kunci
+   terverifikasi: `DEVICE_BINDING_MODE=enforced`.
+7. Rollback cepat tanpa mengubah database: `DEVICE_BINDING_MODE=off` dengan `DEVICE_BINDING_OFF_REASON`
+   (nomor tiket) dan `DEVICE_BINDING_OFF_UNTIL` (≤ 72 jam; setelahnya otomatis kembali ke `dual`). Saat
+   kembali ke `dual`, nasabah yang memiliki kunci login ulang satu kali (token tanpa klaim `dk`). Rollback skema:
+   OPERATIONS_AND_BACKUP.md §Rollback device binding.

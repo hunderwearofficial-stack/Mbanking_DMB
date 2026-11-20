@@ -1,13 +1,12 @@
-import 'dart:math';
-import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import 'device_identity_service.dart';
+
 class SecureStorageService {
-  static const MethodChannel _deviceChannel = MethodChannel('com.bprdmb.mbanking/device_info');
   static const String _keyAccessToken = 'jwt_access_token';
   static const String _keyRefreshToken = 'jwt_refresh_token';
-  static const String _keyDeviceID = 'app_device_id';
   static const String _keyPhoneNumber = 'user_phone_number';
+  static const String _keyUsername = 'user_username';
   static const String _keyCIF = 'user_cif';
   static const String _keyFullName = 'user_full_name';
   static const String _keyPrimaryAccount = 'user_primary_account';
@@ -17,51 +16,59 @@ class SecureStorageService {
   static const String _keyBiometricPhone = 'biometric_phone';
   static const String _keyBiometricFullName = 'biometric_full_name';
   static const String _keyBiometricPrimaryAccount = 'biometric_primary_account';
-  static const String _keyFCMToken = 'fcm_device_token';
+  static const String _keyDeviceKeyKind = 'device_key_kind';
+  static const String _keyDeviceKeyRef = 'device_key_ref';
 
   final FlutterSecureStorage _storage;
+  final DeviceIdentityService _deviceIdentityService;
 
-  // In-memory fallback if platform secure storage is unavailable
-  final Map<String, String> _memoryFallback = {};
-
-  SecureStorageService({FlutterSecureStorage? storage})
-      : _storage = storage ??
+  SecureStorageService({
+    FlutterSecureStorage? storage,
+    DeviceIdentityService? deviceIdentityService,
+  })  : _storage = storage ??
             const FlutterSecureStorage(
-              aOptions: AndroidOptions(encryptedSharedPreferences: true),
-              // ThisDeviceOnly: Keychain items are not migrated to other devices via
-              // backup/restore (audit DMB-030).
+              // SR-8: a corrupted EncryptedSharedPreferences store (known on some vendor
+              // ROMs / after a Keystore key invalidation) is reset instead of failing every
+              // start forever. Only this app's secure values are lost (session tokens, key
+              // state); the device identity (ANDROID_ID) and the Keystore device key are not
+              // stored here, so the customer logs in again and the key is rediscovered.
+              aOptions: AndroidOptions(encryptedSharedPreferences: true, resetOnError: true),
               iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock_this_device),
-            );
+            ),
+        _deviceIdentityService = deviceIdentityService ?? DeviceIdentityService();
+
+  static const DeviceSecurityException _unavailable =
+      DeviceSecurityException('STORAGE_UNAVAILABLE', 'Penyimpanan aman perangkat tidak dapat diakses');
 
   Future<void> _write(String key, String value) async {
     try {
       await _storage.write(key: key, value: value);
     } catch (_) {
-      _memoryFallback[key] = value;
+      throw _unavailable;
     }
   }
 
   Future<String?> _read(String key) async {
     try {
-      return await _storage.read(key: key) ?? _memoryFallback[key];
+      return await _storage.read(key: key);
     } catch (_) {
-      return _memoryFallback[key];
+      throw _unavailable;
     }
   }
 
   Future<void> _delete(String key) async {
     try {
       await _storage.delete(key: key);
-    } catch (_) {}
-    _memoryFallback.remove(key);
+    } catch (_) {
+      throw _unavailable;
+    }
   }
-
-  // --- Auth Token Management ---
 
   Future<void> saveAuthData({
     required String accessToken,
     required String refreshToken,
     required String phoneNumber,
+    String username = '',
     required String cif,
     required String fullName,
     required String primaryAccount,
@@ -69,11 +76,12 @@ class SecureStorageService {
     await _write(_keyAccessToken, accessToken);
     await _write(_keyRefreshToken, refreshToken);
     await _write(_keyPhoneNumber, phoneNumber);
+    if (username.isNotEmpty) {
+      await _write(_keyUsername, username);
+    }
     await _write(_keyCIF, cif);
     await _write(_keyFullName, fullName);
     await _write(_keyPrimaryAccount, primaryAccount);
-    // Refresh tokens are rotated by the server and an old one is treated as stolen.
-    // Keep the biometric copy in sync with the latest token (audit DMB-014).
     if (await isBiometricEnabled() && refreshToken.isNotEmpty) {
       await _write(_keyBiometricRefreshToken, refreshToken);
     }
@@ -82,6 +90,12 @@ class SecureStorageService {
   Future<String?> getAccessToken() async => await _read(_keyAccessToken);
   Future<String?> getRefreshToken() async => await _read(_keyRefreshToken);
   Future<String?> getPhoneNumber() async => await _read(_keyPhoneNumber);
+  Future<String?> getUsername() async => await _read(_keyUsername);
+  Future<void> saveUsername(String username) async => await _write(_keyUsername, username);
+  Future<void> clearSavedLoginIdentifier() async {
+    await _delete(_keyUsername);
+    await _delete(_keyPhoneNumber);
+  }
   Future<String?> getCIF() async => await _read(_keyCIF);
   Future<String?> getCif() async => await _read(_keyCIF);
   Future<String?> getFullName() async => await _read(_keyFullName);
@@ -93,6 +107,11 @@ class SecureStorageService {
     await _delete(_keyCIF);
     await _delete(_keyFullName);
     await _delete(_keyPrimaryAccount);
+    await _delete(_keyBiometricRefreshToken);
+    await _delete(_keyBiometricCif);
+    await _delete(_keyBiometricPhone);
+    await _delete(_keyBiometricFullName);
+    await _delete(_keyBiometricPrimaryAccount);
   }
 
   Future<void> clearSessionTokens() async {
@@ -104,8 +123,6 @@ class SecureStorageService {
     final token = await getAccessToken();
     return token != null && token.isNotEmpty;
   }
-
-  // --- Biometric Authentication Management ---
 
   Future<void> setBiometricEnabled(bool enabled) async {
     await _write(_keyBiometricEnabled, enabled ? 'true' : 'false');
@@ -142,57 +159,26 @@ class SecureStorageService {
 
   Future<String?> getBiometricRefreshToken() async => await _read(_keyBiometricRefreshToken);
 
-  /// Removes the biometric session token after an explicit logout (the server-side
-  /// session is revoked, so the token is no longer usable). Biometric preference and
-  /// identity hints are kept; the next password login re-arms biometric login.
   Future<void> clearBiometricRefreshToken() async => await _delete(_keyBiometricRefreshToken);
   Future<String?> getBiometricCif() async => await _read(_keyBiometricCif);
   Future<String?> getBiometricPhone() async => await _read(_keyBiometricPhone);
   Future<String?> getBiometricFullName() async => await _read(_keyBiometricFullName);
   Future<String?> getBiometricPrimaryAccount() async => await _read(_keyBiometricPrimaryAccount);
 
-  // --- Device Binding Identifier ---
+  DeviceIdentityService get deviceIdentityService => _deviceIdentityService;
 
-  Future<String> getDeviceID() async {
-    // 1. Always prioritize fetching the real hardware device ID from native Android MethodChannel
-    try {
-      final hwId = await _deviceChannel.invokeMethod<String>('getHardwareDeviceId');
-      if (hwId != null && hwId.trim().isNotEmpty && !hwId.contains('DEMO')) {
-        final cleanHwId = hwId.trim();
-        await _write(_keyDeviceID, cleanHwId);
-        return cleanHwId;
-      }
-    } catch (_) {
-      // Platform channel unavailable (e.g. non-Android/web/test)
-    }
+  Future<String> getDeviceID() => _deviceIdentityService.canonicalId();
 
-    // 2. Read existing cached device ID
-    String? deviceID = await _read(_keyDeviceID);
-    if (deviceID == null || deviceID.isEmpty || deviceID.contains('DEMO')) {
-      final rand = Random.secure();
-      final hex = List.generate(8, (_) => rand.nextInt(16).toRadixString(16)).join().toUpperCase();
-      deviceID = 'ANDROID-SM-$hex';
-      await _write(_keyDeviceID, deviceID);
-    }
-    return deviceID;
+  Future<String?> getDeviceKeyKind() async => await _read(_keyDeviceKeyKind);
+  Future<String?> getDeviceKeyRef() async => await _read(_keyDeviceKeyRef);
+
+  Future<void> saveDeviceKeyState({required String kind, required String keyRef}) async {
+    await _write(_keyDeviceKeyKind, kind);
+    await _write(_keyDeviceKeyRef, keyRef);
   }
 
-  Future<void> setDeviceID(String deviceID) async {
-    if (deviceID.isNotEmpty && !deviceID.contains('DEMO')) {
-      await _write(_keyDeviceID, deviceID);
-    }
-  }
-
-  // --- FCM Device Push Token ---
-
-  Future<void> saveFCMToken(String token) async {
-    if (token.isNotEmpty) {
-      await _write(_keyFCMToken, token);
-    }
-  }
-
-  Future<String?> getFCMToken() async {
-    return await _read(_keyFCMToken);
+  Future<void> clearDeviceKeyState() async {
+    await _delete(_keyDeviceKeyKind);
+    await _delete(_keyDeviceKeyRef);
   }
 }
-

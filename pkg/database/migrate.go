@@ -17,28 +17,15 @@ import (
 	"gorm.io/gorm"
 )
 
-// Versioned schema migrations (replaces GORM AutoMigrate — audit DMB-028).
-//
-//   - Migrations are plain SQL files embedded in the binary (pkg/database/migrations),
-//     named NNNN_description.sql and applied in order, each in its own transaction.
-//   - schema_migrations records version, name and SHA-256 checksum. An applied file
-//     whose content changed, or a database newer than the binary, is an error.
-//   - Migrations are run explicitly by an operator with the schema-owner role
-//     (go run ./cmd/migrate up). The API server only VERIFIES the schema at startup
-//     (EnsureSchemaCurrent) and never executes DDL.
-
 //go:embed migrations/*.sql
 var migrationFiles embed.FS
 
-// migrationLockID serialises concurrent migration runs.
 const migrationLockID = 7203112602
 
 var migrationName = regexp.MustCompile(`^(\d{4})_([a-z0-9_]+)\.sql$`)
 
-// ErrSchemaNotCurrent means pending or unknown migrations exist.
 var ErrSchemaNotCurrent = errors.New("skema database belum sesuai versi aplikasi")
 
-// Migration is one embedded SQL migration.
 type Migration struct {
 	Version  int
 	Name     string
@@ -46,13 +33,11 @@ type Migration struct {
 	Checksum string
 }
 
-// MigrationStatus describes one migration and whether it is applied.
 type MigrationStatus struct {
 	Migration
 	AppliedAt *time.Time
 }
 
-// LoadMigrations returns the embedded migrations ordered by version.
 func LoadMigrations() ([]Migration, error) {
 	entries, err := migrationFiles.ReadDir("migrations")
 	if err != nil {
@@ -114,7 +99,6 @@ func readApplied(ctx context.Context, q interface {
 	return out, rows.Err()
 }
 
-// verify compares applied rows with the embedded migrations.
 func verify(migs []Migration, applied map[int]appliedRow) (pending []Migration, err error) {
 	known := map[int]bool{}
 	for _, m := range migs {
@@ -136,7 +120,6 @@ func verify(migs []Migration, applied map[int]appliedRow) (pending []Migration, 
 	return pending, nil
 }
 
-// MigrateUp applies all pending migrations. It must be run with the schema-owner role.
 func MigrateUp(ctx context.Context, db *gorm.DB) ([]Migration, error) {
 	migs, err := LoadMigrations()
 	if err != nil {
@@ -190,7 +173,6 @@ func MigrateUp(ctx context.Context, db *gorm.DB) ([]Migration, error) {
 	return done, nil
 }
 
-// MigrationStatusList reports every embedded migration and its applied time.
 func MigrationStatusList(ctx context.Context, db *gorm.DB) ([]MigrationStatus, error) {
 	migs, err := LoadMigrations()
 	if err != nil {
@@ -225,8 +207,6 @@ func MigrationStatusList(ctx context.Context, db *gorm.DB) ([]MigrationStatus, e
 	return out, nil
 }
 
-// EnsureSchemaCurrent fails unless every embedded migration is applied unchanged.
-// The API server calls it at startup instead of migrating.
 func EnsureSchemaCurrent(ctx context.Context, db *gorm.DB) error {
 	st, err := MigrationStatusList(ctx, db)
 	if err != nil {
@@ -240,9 +220,6 @@ func EnsureSchemaCurrent(ctx context.Context, db *gorm.DB) error {
 	return nil
 }
 
-// ApplyRolePrivileges re-runs the idempotent grant migrations (0004 role_privileges and
-// every later *_privileges migration) — used after the DBA creates the roles on a
-// database that was migrated earlier.
 func ApplyRolePrivileges(ctx context.Context, db *gorm.DB) error {
 	migs, err := LoadMigrations()
 	if err != nil {

@@ -1,13 +1,3 @@
-// Package otp implements one-time-password challenge state (audit DMB-002, DMB-012).
-//
-// Properties:
-//   - No static/master code: only the code generated for the session verifies.
-//   - The code is stored as HMAC-SHA256 (keyed), never in plaintext.
-//   - Limited attempts (MaxAttempts); the session is destroyed when exceeded.
-//   - Short TTL; single use (Consume deletes the session).
-//   - Bound to the device that requested it.
-//   - State lives in Redis (shared across instances / restarts) with an
-//     in-memory fallback for single-instance development.
 package otp
 
 import (
@@ -17,7 +7,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"mbanking-bpr/pkg/redis"
@@ -26,12 +18,11 @@ import (
 )
 
 const (
-	// DefaultTTL matches the validity stated in the OTP message sent to customers.
-	DefaultTTL = 3 * time.Minute
-	// VerifiedTTL is the window to finish the flow after a successful verification.
+	DefaultTTL  = 3 * time.Minute
 	VerifiedTTL = 10 * time.Minute
-	// MaxAttempts is the number of wrong codes tolerated per session.
 	MaxAttempts = 5
+
+	attemptsPrefix = "otp:attempts:"
 
 	PurposeActivation     = "ACTIVATION"
 	PurposeForgotPassword = "FORGOT_PASSWORD"
@@ -48,7 +39,6 @@ var (
 	ErrDeviceMismatch  = errors.New("sesi verifikasi harus diselesaikan dari perangkat yang sama")
 )
 
-// Session is the state of an OTP challenge.
 type Session struct {
 	ID          string    `json:"id"`
 	Purpose     string    `json:"purpose"`
@@ -63,13 +53,11 @@ type Session struct {
 	ExpiresAt   time.Time `json:"expires_at"`
 }
 
-// Store persists OTP sessions.
 type Store struct {
 	kv  *redis.Client
 	key []byte
 }
 
-// NewStore creates a store. hmacKey must be a server secret (not sent to clients).
 func NewStore(kv *redis.Client, hmacKey string) *Store {
 	h := hmac.New(sha256.New, []byte(hmacKey))
 	h.Write([]byte("dmb-otp-hmac-v1"))
@@ -111,21 +99,19 @@ func (s *Store) load(ctx context.Context, id string) (*Session, error) {
 	return &sess, nil
 }
 
-// Create stores a new challenge for code and returns the session id.
 func (s *Store) Create(ctx context.Context, sess Session, code string) (string, error) {
+	ttl := SessionTTL()
 	sess.ID = uuid.NewString()
 	sess.CodeHash = s.hash(sess.ID, code)
 	sess.Attempts = 0
 	sess.Verified = false
-	sess.ExpiresAt = time.Now().Add(DefaultTTL)
-	if err := s.save(ctx, &sess, DefaultTTL); err != nil {
+	sess.ExpiresAt = time.Now().Add(ttl)
+	if err := s.save(ctx, &sess, ttl); err != nil {
 		return "", err
 	}
 	return sess.ID, nil
 }
 
-// Verify checks code for the session. Wrong codes consume an attempt; the session
-// is destroyed after MaxAttempts failures.
 func (s *Store) Verify(ctx context.Context, id, purpose, deviceID, code string) (*Session, error) {
 	sess, err := s.load(ctx, id)
 	if err != nil {
@@ -142,19 +128,26 @@ func (s *Store) Verify(ctx context.Context, id, purpose, deviceID, code string) 
 	}
 	candidate := s.hash(sess.ID, code)
 	if !hmac.Equal([]byte(candidate), []byte(sess.CodeHash)) {
-		sess.Attempts++
-		if sess.Attempts >= MaxAttempts {
-			_ = s.kv.Del(ctx, keyPrefix+id)
-			return nil, ErrTooManyAttempts
-		}
 		remaining := time.Until(sess.ExpiresAt)
 		if remaining <= 0 {
 			return nil, ErrSessionNotFound
 		}
-		if err := s.save(ctx, sess, remaining); err != nil {
+		// SECURITY (audit D-06): the wrong-guess counter is an atomic INCR on its own key, so
+		// parallel guesses cannot each read the same count and exceed the attempt limit.
+		n, err := s.kv.IncrWithTTL(ctx, attemptsPrefix+id, remaining)
+		if err != nil {
 			return nil, err
 		}
+		if n >= int64(MaxAttemptsPolicy()) {
+			_ = s.kv.Del(ctx, keyPrefix+id, attemptsPrefix+id)
+			return nil, ErrTooManyAttempts
+		}
 		return nil, ErrInvalidCode
+	}
+	if n, err := s.kv.Get(ctx, attemptsPrefix+id); err == nil && attemptsExhausted(n) {
+		// A correct code racing with the last wrong guesses is still refused.
+		_ = s.kv.Del(ctx, keyPrefix+id, attemptsPrefix+id)
+		return nil, ErrTooManyAttempts
 	}
 	sess.Verified = true
 	sess.ExpiresAt = time.Now().Add(VerifiedTTL)
@@ -164,11 +157,12 @@ func (s *Store) Verify(ctx context.Context, id, purpose, deviceID, code string) 
 	return sess, nil
 }
 
-// Consume returns a verified session and deletes it (single use).
+// Consume atomically takes a verified session (GETDEL): a session can be used once even
+// under concurrent requests (audit D-06).
 func (s *Store) Consume(ctx context.Context, id, purpose, deviceID string) (*Session, error) {
 	sess, err := s.load(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, ErrSessionNotFound
 	}
 	if sess.Purpose != purpose {
 		return nil, ErrPurposeMismatch
@@ -179,8 +173,54 @@ func (s *Store) Consume(ctx context.Context, id, purpose, deviceID string) (*Ses
 	if !sess.Verified {
 		return nil, ErrNotVerified
 	}
-	if err := s.kv.Del(ctx, keyPrefix+id); err != nil {
-		return nil, err
+	b, err := s.kv.GetDel(ctx, keyPrefix+id)
+	if err != nil {
+		return nil, ErrSessionNotFound
 	}
-	return sess, nil
+	_ = s.kv.Del(ctx, attemptsPrefix+id)
+	var consumed Session
+	if err := json.Unmarshal(b, &consumed); err != nil || time.Now().After(consumed.ExpiresAt) {
+		return nil, ErrSessionNotFound
+	}
+	if !consumed.Verified {
+		return nil, ErrNotVerified
+	}
+	return &consumed, nil
+}
+
+// OTP policy (OTP_TTL_MINUTES / OTP_MAX_ATTEMPTS). Defaults are the previous constants.
+var (
+	policyTTL      atomic.Int64
+	policyAttempts atomic.Int64
+)
+
+// SetPolicy configures the OTP lifetime and wrong-guess limit (called once at startup).
+func SetPolicy(ttl time.Duration, maxAttempts int) {
+	if ttl > 0 {
+		policyTTL.Store(int64(ttl))
+	}
+	if maxAttempts > 0 {
+		policyAttempts.Store(int64(maxAttempts))
+	}
+}
+
+// SessionTTL is the validity of a freshly sent OTP.
+func SessionTTL() time.Duration {
+	if v := policyTTL.Load(); v > 0 {
+		return time.Duration(v)
+	}
+	return DefaultTTL
+}
+
+// MaxAttemptsPolicy is the number of wrong codes after which the session is destroyed.
+func MaxAttemptsPolicy() int {
+	if v := policyAttempts.Load(); v > 0 {
+		return int(v)
+	}
+	return MaxAttempts
+}
+
+func attemptsExhausted(raw []byte) bool {
+	n, err := strconv.Atoi(strings.TrimSpace(string(raw)))
+	return err == nil && n >= MaxAttemptsPolicy()
 }

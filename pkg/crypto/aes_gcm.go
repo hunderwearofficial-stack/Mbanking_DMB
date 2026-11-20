@@ -14,28 +14,10 @@ import (
 	"sync"
 )
 
-// Column-level encryption for customer PII (UU PDP).
-//
-// SECURITY (audit DMB-008):
-//   - There is NO built-in default key. The process must call InitKeys with a
-//     key supplied from the secret manager; Encrypt/Decrypt fail otherwise.
-//   - Ciphertext format v2: "enc:v2:" + base64(nonce|ciphertext|tag), encrypted
-//     with the ACTIVE key.
-//   - Legacy format v1 ("enc:v1:") was produced with a key that was published in
-//     the repository. v1 values are decrypted with the PREVIOUS key (if set) or
-//     the active key, and are re-encrypted to v2 on the next write or by running
-//     `go run ./cmd/rekey`.
-//   - Decryption failures are returned as errors (fail-closed), never silently
-//     replaced by raw ciphertext.
-
 const (
-	// AESKeyLength is 32 bytes for AES-256
-	AESKeyLength = 32
-	// GCMNonceLength standard 12 bytes for AES-GCM
-	GCMNonceLength = 12
-	// CipherPrefix identifies the current ciphertext format (active key).
-	CipherPrefix = "enc:v2:"
-	// LegacyCipherPrefix identifies ciphertext produced before key rotation.
+	AESKeyLength       = 32
+	GCMNonceLength     = 12
+	CipherPrefix       = "enc:v2:"
 	LegacyCipherPrefix = "enc:v1:"
 )
 
@@ -50,8 +32,6 @@ var (
 	ErrKeyLengthInvalid  = errors.New("kunci enkripsi AES-256 harus tepat 32 byte (64 karakter hex atau base64 32 byte)")
 )
 
-// ParseKey decodes a 256-bit key given as 64 hex characters or base64 of 32 bytes.
-// Raw passphrases are rejected: keys must be generated randomly (e.g. `openssl rand -hex 32`).
 func ParseKey(raw string) ([]byte, error) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
@@ -68,8 +48,6 @@ func ParseKey(raw string) ([]byte, error) {
 	return nil, ErrKeyLengthInvalid
 }
 
-// parseLegacyKey additionally accepts the historical 32-character raw-string key
-// format, ONLY for decrypting legacy enc:v1 data during rotation.
 func parseLegacyKey(raw string) ([]byte, error) {
 	if k, err := ParseKey(raw); err == nil {
 		return k, nil
@@ -81,8 +59,6 @@ func parseLegacyKey(raw string) ([]byte, error) {
 	return nil, ErrKeyLengthInvalid
 }
 
-// InitKeys configures the active key (required) and an optional previous key
-// (decrypt-only, used for legacy/rotated ciphertext).
 func InitKeys(active, previous string) error {
 	ak, err := ParseKey(active)
 	if err != nil {
@@ -124,7 +100,6 @@ func newGCM(key []byte) (cipher.AEAD, error) {
 	return cipher.NewGCM(block)
 }
 
-// Encrypt encrypts plaintext with the active key (format v2).
 func Encrypt(plaintext []byte) (string, error) {
 	if len(plaintext) == 0 {
 		return "", nil
@@ -157,15 +132,11 @@ func openWith(key []byte, raw []byte) ([]byte, error) {
 	return plaintext, nil
 }
 
-// NeedsReencryption reports whether a stored value is plaintext or legacy v1.
 func NeedsReencryption(v string) bool {
 	t := strings.TrimSpace(v)
 	return t != "" && !strings.HasPrefix(t, CipherPrefix)
 }
 
-// Decrypt decrypts v2 (active key) or v1 (previous key, then active key).
-// Values without any prefix are legacy plaintext and returned unchanged so the
-// rekey migration can encrypt them; they are reported by NeedsReencryption.
 func Decrypt(ciphertextStr string) ([]byte, error) {
 	trimmed := strings.TrimSpace(ciphertextStr)
 	if trimmed == "" {
@@ -205,7 +176,6 @@ func Decrypt(ciphertextStr string) ([]byte, error) {
 	return openWith(active, raw)
 }
 
-// EncryptString is a convenience helper for string plaintext
 func EncryptString(plaintext string) (string, error) {
 	if plaintext == "" {
 		return "", nil
@@ -213,7 +183,6 @@ func EncryptString(plaintext string) (string, error) {
 	return Encrypt([]byte(plaintext))
 }
 
-// DecryptString is a convenience helper for string ciphertext
 func DecryptString(ciphertext string) (string, error) {
 	if ciphertext == "" {
 		return "", nil
@@ -225,16 +194,8 @@ func DecryptString(ciphertext string) (string, error) {
 	return string(b), nil
 }
 
-// ============================================================================
-// GORM Custom Data Type: EncryptedString
-// ============================================================================
-
-// EncryptedString is a GORM-compatible string type that automatically encrypts
-// on INSERT/UPDATE (Valuer) and automatically decrypts on SELECT (Scanner).
 type EncryptedString string
 
-// Value implements driver.Valuer interface for GORM / database writes.
-// Values are always written in the current (v2) format.
 func (e EncryptedString) Value() (driver.Value, error) {
 	val := string(e)
 	if val == "" {
@@ -257,7 +218,6 @@ func (e EncryptedString) Value() (driver.Value, error) {
 	return encrypted, nil
 }
 
-// Scan implements sql.Scanner interface for GORM / database reads (fail-closed).
 func (e *EncryptedString) Scan(value interface{}) error {
 	if value == nil {
 		*e = ""

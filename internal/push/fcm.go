@@ -1,5 +1,3 @@
-// Package push sends customer notifications through Firebase Cloud Messaging (HTTP v1),
-// manages device tokens, Firebase integration settings and delivery records.
 package push
 
 import (
@@ -21,17 +19,14 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// Google endpoints (overridden only in tests).
 const (
 	defaultTokenURL = "https://oauth2.googleapis.com/token"
 	defaultFCMBase  = "https://fcm.googleapis.com"
 	fcmScope        = "https://www.googleapis.com/auth/firebase.messaging"
 )
 
-// ErrInvalidCredential is returned for a service-account file that can not be used.
 var ErrInvalidCredential = errors.New("credential Firebase tidak valid")
 
-// Credential is the part of a Firebase service-account JSON needed for FCM.
 type Credential struct {
 	ProjectID   string
 	ClientEmail string
@@ -39,7 +34,6 @@ type Credential struct {
 	Fingerprint string // SHA-256 of the private key id + client email (not secret)
 }
 
-// ParseCredential validates a service-account JSON. Nothing from it is logged.
 func ParseCredential(raw []byte) (*Credential, error) {
 	if len(raw) == 0 || len(raw) > 16*1024 {
 		return nil, fmt.Errorf("%w: ukuran berkas tidak wajar", ErrInvalidCredential)
@@ -68,7 +62,6 @@ func ParseCredential(raw []byte) (*Credential, error) {
 	return &Credential{ProjectID: sa.ProjectID, ClientEmail: sa.ClientEmail, key: key, Fingerprint: hex.EncodeToString(sum[:])}, nil
 }
 
-// SendError is a classified FCM failure.
 type SendError struct {
 	HTTPStatus int
 	Code       string // FCM error code, e.g. UNREGISTERED, INVALID_ARGUMENT, UNAVAILABLE
@@ -79,24 +72,19 @@ func (e *SendError) Error() string {
 	return fmt.Sprintf("FCM %d %s: %s", e.HTTPStatus, e.Code, e.Message)
 }
 
-// InvalidToken: the registration token is no longer valid and must be removed.
 func (e *SendError) InvalidToken() bool {
 	return e.Code == "UNREGISTERED" || (e.HTTPStatus == http.StatusNotFound && e.Code == "NOT_FOUND")
 }
 
-// Retryable: temporary condition on the FCM side.
 func (e *SendError) Retryable() bool {
 	return e.HTTPStatus == http.StatusTooManyRequests || e.HTTPStatus >= 500 || e.Code == "UNAVAILABLE" || e.Code == "INTERNAL" || e.Code == "QUOTA_EXCEEDED"
 }
 
-// AuthProblem: the credential or project is not accepted.
 func (e *SendError) AuthProblem() bool {
 	return e.HTTPStatus == http.StatusUnauthorized || e.HTTPStatus == http.StatusForbidden ||
 		e.Code == "SENDER_ID_MISMATCH" || e.Code == "THIRD_PARTY_AUTH_ERROR" || e.Code == "PERMISSION_DENIED"
 }
 
-// Message is what is sent to one device. Only generic, non-sensitive text is allowed
-// here (see notification.PushBody); details stay in the in-app inbox.
 type Message struct {
 	Token    string
 	Title    string
@@ -105,7 +93,6 @@ type Message struct {
 	Ref      string // delivery id, echoed back by the app when the notification is opened
 }
 
-// Client talks to FCM HTTP v1 with one service account.
 type Client struct {
 	cred     *Credential
 	http     *http.Client
@@ -117,7 +104,6 @@ type Client struct {
 	expiresAt   time.Time
 }
 
-// NewClient creates a client; tokenURL/fcmBase empty = Google production endpoints.
 func NewClient(cred *Credential, tokenURL, fcmBase string) *Client {
 	if tokenURL == "" {
 		tokenURL = defaultTokenURL
@@ -128,7 +114,6 @@ func NewClient(cred *Credential, tokenURL, fcmBase string) *Client {
 	return &Client{cred: cred, tokenURL: tokenURL, fcmBase: strings.TrimRight(fcmBase, "/"), http: &http.Client{Timeout: 10 * time.Second}}
 }
 
-// token returns a cached OAuth2 access token (JWT bearer grant, RS256).
 func (c *Client) token(ctx context.Context) (string, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -183,11 +168,8 @@ func firstNonEmpty(v ...string) string {
 	return ""
 }
 
-// AndroidChannelID must equal the channel created by the Flutter app.
 const AndroidChannelID = "dmb_notification_channel"
 
-// Send delivers one message. validateOnly asks FCM to validate without delivering.
-// It returns the FCM message name on acceptance.
 func (c *Client) Send(ctx context.Context, m Message, validateOnly bool) (string, error) {
 	tok, err := c.token(ctx)
 	if err != nil {

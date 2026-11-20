@@ -7,7 +7,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Bank DMB - Backoffice & Portal Admin M-Banking</title>
+  <title>Bank DMB - Backoffice &amp; Portal Admin M-Banking</title>
 
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -48,25 +48,25 @@
 
 <body class="text-slate-800 antialiased min-h-screen flex flex-col">
 
-  <!-- Toast Notification Container (z-index tertinggi agar selalu muncul di atas modal/backdrop) -->
-  <div id="toastContainer" class="fixed top-5 right-5 z-[99999] flex flex-col gap-2 pointer-events-none" style="z-index: 99999;"></div>
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="fixed top-5 right-5 z-[99999] flex flex-col gap-2 pointer-events-none"
+    style="z-index: 99999;"></div>
 
   <!-- ==================== MODERN ENTERPRISE LOGIN SCREEN ==================== -->
   <div id="loginScreen" class="fixed inset-0 z-50 overflow-y-auto flex">
 
-    <!-- FULL-SCREEN BACKGROUND IMAGE (Custom Canvas: 3D Artwork on Left, Clean Space on Right) -->
+    <!-- FULL-SCREEN BACKGROUND IMAGE -->
     <div class="fixed inset-0 z-0 select-none pointer-events-none">
       <img src="images/bank_login_bg.jpg" alt="Bank DMB Digital Banking"
         class="w-full h-full object-cover object-left lg:object-center">
     </div>
 
-    <!-- RIGHT SIDE: Login Section Sitting Directly on the Canvas -->
+    <!-- RIGHT SIDE: Login Section -->
     <div
-      class="w-full lg:w-[42%] xl:w-[40%] min-h-screen ml-auto flex flex-col justify-center px-8 sm:px-14 lg:px-16 xl:px-20 py-10 relative z-10">
+      class="w-full lg:w-[42%] xl:w-[40%] min-h-screen ml-auto flex flex-col justify-center px-8 sm:px-14 lg:px-16 xl:px-20 py-10 relative z-10 bg-white/90 lg:bg-transparent backdrop-blur-xs lg:backdrop-blur-none">
 
-      <!-- DUAL BRANDING HEADER WITH VERTICAL DIVIDER (Logo | PT BPR DANA MANDIRI BOGOR) -->
+      <!-- DUAL BRANDING HEADER WITH VERTICAL DIVIDER -->
       <div class="flex items-center gap-4 mb-8">
-        <!-- Official Bank Uploaded Logo -->
         <img id="loginLogoImg" src="images/bank_logo.png" alt="Logo Bank"
           class="h-12 sm:h-14 w-auto max-w-[170px] object-contain drop-shadow-xs"
           onerror="this.classList.add('hidden'); document.getElementById('loginLogoFallback').classList.remove('hidden');">
@@ -75,10 +75,8 @@
           DMB
         </div>
 
-        <!-- Vertical Divider Hairline | -->
         <div class="h-10 w-[1.5px] bg-slate-300"></div>
 
-        <!-- Corporate Entity Name -->
         <div class="overflow-hidden">
           <div class="text-xs sm:text-sm font-extrabold text-slate-800 tracking-tight leading-tight uppercase"
             id="loginBankSub">PT BPR DANA MANDIRI BOGOR</div>
@@ -111,7 +109,7 @@
 
         <div class="flex items-center justify-start pt-1">
           <a href="javascript:void(0)"
-            onclick="toast('Silakan hubungi Tim IT / Super Admin BPR untuk reset kata sandi.', 'info')"
+            onclick="showToast('Silakan hubungi Tim IT / Super Admin BPR untuk reset kata sandi.', 'info')"
             class="text-xs text-[#00897B] hover:underline font-medium">
             Lupa kata sandi ?
           </a>
@@ -133,81 +131,98 @@
   </div>
 
   <!-- ==================== MAIN DASHBOARD LAYOUT ==================== -->
-  <div id="mainLayout" class="flex-1 flex flex-col md:flex-row min-h-screen hidden">
+  <div id="mainLayout" class="flex-1 flex flex-col lg:flex-row min-h-screen hidden relative">
 
-    <!-- SIDEBAR (Modern Clean White & Teal Theme matching Login) -->
-    <aside
-      class="w-full md:w-64 bg-white text-slate-800 flex flex-col border-r border-slate-200/90 shadow-sm select-none">
+    <!-- MOBILE / TABLET DRAWER BACKDROP OVERLAY (< 1024px) -->
+    <div id="sidebarBackdrop" onclick="closeMobileSidebar()"
+      class="fixed inset-0 z-30 bg-slate-900/50 backdrop-blur-xs hidden lg:hidden transition-opacity"></div>
+
+    <!-- SIDEBAR (Responsive Slide-Over Drawer on <1024px, Fixed Column on >=1024px) -->
+    <aside id="adminSidebar"
+      class="fixed lg:static inset-y-0 left-0 z-40 w-72 lg:w-64 bg-white text-slate-800 flex flex-col border-r border-slate-200/90 shadow-xl lg:shadow-sm select-none transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out">
 
       <!-- App Header with Dynamic Uploaded Bank Logo -->
-      <div class="p-4 px-5 flex items-center border-b border-slate-100 bg-[#FBFDFE]">
-        <!-- Live Uploaded Bank Logo Image -->
-        <img id="sidebarLogoImg" src="images/bank_logo.png" alt="Logo Bank"
-          class="h-10 w-auto max-w-[200px] object-contain drop-shadow-xs"
-          onerror="this.classList.add('hidden'); document.getElementById('sidebarLogoFallback').classList.remove('hidden');">
-        <!-- Fallback if logo not loaded -->
-        <div id="sidebarLogoFallback"
-          class="w-10 h-10 rounded-xl bg-teal-50 text-[#00897B] border border-teal-200 flex items-center justify-center font-black text-sm hidden">
-          DMB
+      <div class="p-4 px-5 flex items-center justify-between border-b border-slate-100 bg-[#FBFDFE]">
+        <div class="flex items-center gap-2">
+          <img id="sidebarLogoImg" src="images/bank_logo.png" alt="Logo Bank"
+            class="h-10 w-auto max-w-[180px] object-contain drop-shadow-xs"
+            onerror="this.classList.add('hidden'); document.getElementById('sidebarLogoFallback').classList.remove('hidden');">
+          <div id="sidebarLogoFallback"
+            class="w-10 h-10 rounded-xl bg-teal-50 text-[#00897B] border border-teal-200 flex items-center justify-center font-black text-sm hidden">
+            DMB
+          </div>
+          <span id="sidebarBankTitle" class="hidden"></span>
+          <span id="sidebarBankSub" class="hidden"></span>
         </div>
-        <!-- Hidden labels to preserve script compatibility -->
-        <span id="sidebarBankTitle" class="hidden"></span>
-        <span id="sidebarBankSub" class="hidden"></span>
+        <!-- Close Drawer Button on Mobile/Tablet -->
+        <button type="button" onclick="closeMobileSidebar()"
+          class="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
       </div>
 
       <!-- Navigation Links -->
-      <nav class="flex-1 p-3.5 space-y-1 overflow-y-auto">
+      <nav class="flex-1 p-3.5 space-y-1 overflow-y-auto custom-scrollbar">
         <div class="px-3 pt-2 pb-1.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Ringkasan</div>
-        <button onclick="switchTab('dashboard')" id="nav-dashboard"
+        <button type="button" onclick="switchTab('dashboard')" id="nav-dashboard"
           class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 transition">
           <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
           <span>Dashboard</span>
         </button>
-        <div class="px-3 pt-4 pb-1.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Layanan Nasabah</div>
-        <button onclick="switchTab('customers')" id="nav-customers"
+
+        <div id="nav-group-layanan"
+          class="px-3 pt-4 pb-1.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Layanan Nasabah
+        </div>
+        <button type="button" onclick="switchTab('customers')" id="nav-customers"
           class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 transition">
           <i data-lucide="users" class="w-4 h-4"></i>
-          <span>Nasabah &amp; Perangkat</span>
+          <span id="navCustomersLabel">Nasabah &amp; Perangkat</span>
         </button>
-        <button onclick="switchTab('transactions')" id="nav-transactions"
-          class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 transition">
-          <i data-lucide="receipt" class="w-4 h-4"></i>
-          <span>Transaksi &amp; Audit Trail</span>
-        </button>
-        <div class="px-3 pt-4 pb-1.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Konten &amp; Dokumen</div>
-        <button onclick="switchTab('content')" id="nav-content"
+
+        <div id="nav-group-konten"
+          class="px-3 pt-4 pb-1.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Konten &amp;
+          Dokumen</div>
+        <button type="button" onclick="switchTab('content')" id="nav-content"
           class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 transition">
           <i data-lucide="layout-template" class="w-4 h-4"></i>
           <span>Konten Aplikasi</span>
         </button>
-        <button onclick="switchTab('terms')" id="nav-terms"
+        <button type="button" onclick="switchTab('terms')" id="nav-terms"
           class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 transition">
           <i data-lucide="file-check" class="w-4 h-4"></i>
           <span>Syarat &amp; Ketentuan</span>
         </button>
-        <button onclick="switchTab('push')" id="nav-push"
+        <button type="button" onclick="switchTab('push')" id="nav-push"
           class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 transition">
           <i data-lucide="bell" class="w-4 h-4"></i>
           <span>Notifikasi Push</span>
         </button>
-        <div class="px-3 pt-4 pb-1.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Administrasi</div>
-        <button onclick="switchTab('admin-users')" id="nav-admin-users"
+
+        <div id="nav-group-tatakelola"
+          class="px-3 pt-4 pb-1.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Tata Kelola &amp;
+          Sistem</div>
+        <button type="button" onclick="switchTab('audit')" id="nav-audit"
+          class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 transition">
+          <i data-lucide="scroll-text" class="w-4 h-4"></i>
+          <span>Audit Trail</span>
+        </button>
+        <button type="button" onclick="switchTab('admin-users')" id="nav-admin-users"
           class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 transition">
           <i data-lucide="shield-check" class="w-4 h-4"></i>
           <span>Petugas &amp; Hak Akses</span>
         </button>
-        <button onclick="switchTab('settings')" id="nav-settings"
+        <button type="button" onclick="switchTab('settings')" id="nav-settings"
           class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 transition">
           <i data-lucide="settings" class="w-4 h-4"></i>
           <span>Pengaturan Operasional</span>
         </button>
       </nav>
 
-      <!-- User Profile & Logout -->
-      <div class="p-3.5 border-t border-slate-200/80 bg-slate-50/70">
-        <div class="flex items-center gap-3 mb-3 p-2.5 rounded-xl bg-white border border-slate-200/80 shadow-xs">
+      <!-- User Profile, Change My Password & Logout -->
+      <div class="p-3.5 border-t border-slate-200/80 bg-slate-50/70 space-y-2">
+        <div class="flex items-center gap-3 p-2.5 rounded-xl bg-white border border-slate-200/80 shadow-xs">
           <div id="adminAvatarInitial"
-            class="w-9 h-9 rounded-xl bg-[#00897B] text-white flex items-center justify-center font-black text-xs shadow-sm">
+            class="w-9 h-9 rounded-xl bg-[#00897B] text-white flex items-center justify-center font-black text-xs shadow-sm shrink-0">
             AD
           </div>
           <div class="overflow-hidden">
@@ -216,8 +231,13 @@
               class="inline-block text-[9px] text-[#00897B] font-extrabold px-1.5 py-0.5 rounded bg-teal-50 border border-teal-200 uppercase tracking-wider">SUPER_ADMIN</span>
           </div>
         </div>
-        <button onclick="handleLogout()"
-          class="w-full py-2 px-3 rounded-xl text-xs font-bold text-slate-600 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 transition flex items-center justify-center gap-2">
+        <button type="button" onclick="openChangeMyPasswordModal()"
+          class="w-full py-2 px-3 rounded-xl text-xs font-bold text-slate-700 hover:text-[#00897B] hover:bg-teal-50/80 bg-white border border-slate-200 hover:border-teal-200 transition flex items-center justify-center gap-2">
+          <i data-lucide="key-round" class="w-3.5 h-3.5"></i>
+          <span>Ganti Password Saya</span>
+        </button>
+        <button type="button" onclick="handleLogout()"
+          class="w-full py-2 px-3 rounded-xl text-xs font-bold text-slate-600 hover:text-rose-600 hover:bg-rose-50 bg-white border border-slate-200 hover:border-rose-200 transition flex items-center justify-center gap-2">
           <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
           <span>Keluar Sistem</span>
         </button>
@@ -225,33 +245,41 @@
     </aside>
 
     <!-- MAIN CONTENT AREA -->
-    <main class="flex-1 flex flex-col overflow-y-auto bg-[#F4F9FA]">
+    <main class="flex-1 flex flex-col overflow-y-auto bg-[#F4F9FA] min-w-0">
       <!-- Topbar -->
       <header
-        class="h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-6 sm:px-8 flex items-center justify-between sticky top-0 z-20 shadow-xs">
-        <div class="flex items-center gap-3">
-          <h2 id="pageTitle" class="text-base sm:text-lg font-black text-slate-900 tracking-tight">Dashboard</h2>
+        class="h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 lg:px-8 flex items-center justify-between sticky top-0 z-20 shadow-xs">
+        <div class="flex items-center gap-3 min-w-0">
+          <!-- Mobile Hamburger Trigger (<1024px) -->
+          <button type="button" onclick="toggleMobileSidebar()" aria-label="Buka Menu Navigasi"
+            class="lg:hidden p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/80">
+            <i data-lucide="menu" class="w-5 h-5"></i>
+          </button>
+          <img id="mobileTopbarLogoImg" src="images/bank_logo.png" alt="Logo"
+            class="h-7 w-auto object-contain lg:hidden" onerror="this.classList.add('hidden')">
+          <h2 id="pageTitle" class="text-sm sm:text-base lg:text-lg font-black text-slate-900 tracking-tight truncate">
+            Dashboard</h2>
           <span id="headerRoleBadge"
-            class="hidden md:inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold bg-slate-50 text-slate-600 border border-slate-200"></span>
+            class="hidden md:inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold bg-slate-50 text-slate-600 border border-slate-200 shrink-0"></span>
         </div>
 
-        <div class="flex items-center gap-3">
-          <!-- Live Date & Clock -->
+        <div class="flex items-center gap-3 shrink-0">
+          <!-- Live Date & Clock (initialized dynamically without hardcoded date) -->
           <div id="liveClockDisplay"
-            class="flex items-center gap-1.5 text-xs text-slate-600 font-semibold px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/80">
+            class="flex items-center gap-1.5 text-[11px] sm:text-xs text-slate-600 font-semibold px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/80">
             <i data-lucide="clock" class="w-3.5 h-3.5 text-[#00897B]"></i>
-            <span id="currentDateTime">Kamis, 05 Nov 2026</span>
+            <span id="currentDateTime">-</span>
           </div>
         </div>
       </header>
 
       <!-- CONTENT BODY -->
-      <div class="p-6 space-y-6 flex-1">
+      <div class="p-4 sm:p-6 space-y-6 flex-1">
 
         <!-- ==================== TAB 1: DASHBOARD ==================== -->
         <section id="tab-dashboard" class="space-y-6">
           <!-- Metric Cards -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <!-- Card 1 -->
             <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs card-hover">
               <div class="flex items-center justify-between mb-3">
@@ -276,24 +304,10 @@
                 </div>
               </div>
               <div class="text-2xl font-black text-slate-900 tracking-tight" id="statTotalAccounts">0</div>
-              <p class="text-xs text-slate-500 mt-1 font-medium">Tabungan & Deposito DMB</p>
+              <p class="text-xs text-slate-500 mt-1 font-medium">Tabungan &amp; Deposito DMB</p>
             </div>
 
             <!-- Card 3 -->
-            <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs card-hover">
-              <div class="flex items-center justify-between mb-3">
-                <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Transaksi Sukses</span>
-                <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                  <i data-lucide="arrow-left-right" class="w-5 h-5"></i>
-                </div>
-              </div>
-              <div class="text-2xl font-black text-slate-900 tracking-tight" id="statTotalTransactions">0</div>
-              <p class="text-xs text-slate-500 mt-1 flex items-center gap-1 font-medium">
-                Volume: <span id="statTransactionVolume" class="font-bold text-slate-800">Rp 0</span>
-              </p>
-            </div>
-
-            <!-- Card 4 -->
             <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs card-hover">
               <div class="flex items-center justify-between mb-3">
                 <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Konten Aplikasi</span>
@@ -302,156 +316,296 @@
                 </div>
               </div>
               <div class="text-2xl font-black text-slate-900 tracking-tight" id="statContentVersion">-</div>
-              <p class="text-xs text-slate-500 mt-1 font-medium" id="statContentPending">Versi yang tampil di aplikasi</p>
+              <p class="text-xs text-slate-500 mt-1 font-medium" id="statContentPending">Versi yang tampil di aplikasi
+              </p>
             </div>
           </div>
 
-          <!-- Quick Actions & Recent Transactions -->
-          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- Left 2 Cols: Activity Feed -->
-            <div class="lg:col-span-2 bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs">
-              <div class="flex items-center justify-between mb-4">
-                <div>
-                  <h3 class="text-sm font-bold text-slate-900">Transaksi Terkini</h3>
-                  <p class="text-xs text-slate-500">Log transaksi real-time dari Mobile Banking</p>
+          <!-- Status Koneksi Layanan Inti (CBS) Card on Dashboard (Visible for SUPER_ADMIN) -->
+          <div id="dashboardCbsCard" class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div class="flex items-start gap-3">
+                <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center shrink-0">
+                  <i data-lucide="server" class="w-5 h-5"></i>
                 </div>
-                <button onclick="switchTab('transactions')"
-                  class="text-xs font-bold text-[#00897B] hover:text-[#00796B] flex items-center gap-1">
-                  <span>Lihat Semua</span>
-                  <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                <div>
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <h3 class="text-sm font-bold text-slate-900">Status Koneksi Layanan Inti (Core Banking System / CBS)
+                    </h3>
+                    <span id="dashCbsHealthBadge"
+                      class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">Memeriksa...</span>
+                  </div>
+                  <p id="dashCbsHealthDetail" class="text-xs text-slate-500 mt-1">Memeriksa konektivitas dan token
+                    OAuth2 CBS OpenAPI...</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                <button type="button" onclick="checkCbsHealth()"
+                  class="px-3 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition flex items-center gap-1.5">
+                  <i data-lucide="activity" class="w-3.5 h-3.5 text-[#00897B]"></i>
+                  <span>Cek Kesehatan</span>
+                </button>
+                <button type="button" id="dashCbsRefreshTokenBtn" onclick="refreshCbsConnectionToken()"
+                  class="px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] transition flex items-center gap-1.5">
+                  <i data-lucide="key-round" class="w-3.5 h-3.5"></i>
+                  <span>Segarkan Token Koneksi</span>
                 </button>
               </div>
-              <div class="overflow-x-auto">
+            </div>
+          </div>
+
+          <!-- Quick Actions -->
+          <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs">
+            <h3 class="text-sm font-bold text-slate-900 mb-1">Aksi Cepat Operasional</h3>
+            <p class="text-xs text-slate-500 mb-4">Pintasan operasional sesuai hak akses petugas</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <button type="button" id="qaBtnCustomers" onclick="switchTab('customers')"
+                class="w-full p-3.5 rounded-xl bg-slate-50/80 hover:bg-teal-50/70 border border-slate-200 hover:border-teal-200 text-left transition flex items-center justify-between group">
+                <div class="flex items-center gap-3">
+                  <div
+                    class="w-9 h-9 rounded-lg bg-teal-50 text-[#00897B] flex items-center justify-center font-bold">
+                    <i data-lucide="smartphone" class="w-4 h-4"></i>
+                  </div>
+                  <div>
+                    <div class="text-xs font-bold text-slate-800 group-hover:text-[#00897B]">Manajemen Nasabah &amp;
+                      Pengajuan Produk</div>
+                    <div class="text-[10px] text-slate-500">Unbind Device ID, blokir akun, serta pengajuan Deposito
+                      &amp; Pinjaman</div>
+                  </div>
+                </div>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:text-[#00897B]"></i>
+              </button>
+
+              <button type="button" id="qaBtnContent" onclick="switchTab('content')"
+                class="w-full p-3.5 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 text-left transition flex items-center justify-between group">
+                <div class="flex items-center gap-3">
+                  <div class="w-9 h-9 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
+                    <i data-lucide="layout-template" class="w-4 h-4"></i>
+                  </div>
+                  <div>
+                    <div class="text-xs font-bold text-slate-800 group-hover:text-blue-700">Kelola Konten Aplikasi &amp;
+                      Galeri Aset</div>
+                    <div class="text-[10px] text-slate-500">Teks, gambar &amp; banner aplikasi dengan pratinjau visual
+                      HP</div>
+                  </div>
+                </div>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:text-blue-600"></i>
+              </button>
+
+              <button type="button" id="qaBtnAudit" onclick="switchTab('audit')"
+                class="w-full p-3.5 rounded-xl bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 text-left transition flex items-center justify-between group">
+                <div class="flex items-center gap-3">
+                  <div
+                    class="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                    <i data-lucide="scroll-text" class="w-4 h-4"></i>
+                  </div>
+                  <div>
+                    <div class="text-xs font-bold text-slate-800 group-hover:text-emerald-700">Audit Trail &amp; Log
+                      Keamanan OJK</div>
+                    <div class="text-[10px] text-slate-500">Pantau rantai hash integritas aktivitas nasabah, admin &amp;
+                      sistem</div>
+                  </div>
+                </div>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:text-emerald-600"></i>
+              </button>
+
+              <button type="button" id="qaBtnSettings" onclick="switchTab('settings')"
+                class="w-full p-3.5 rounded-xl bg-slate-50 hover:bg-purple-50 border border-slate-200 hover:border-purple-200 text-left transition flex items-center justify-between group">
+                <div class="flex items-center gap-3">
+                  <div
+                    class="w-9 h-9 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+                    <i data-lucide="settings" class="w-4 h-4"></i>
+                  </div>
+                  <div>
+                    <div class="text-xs font-bold text-slate-800 group-hover:text-purple-700">Pengaturan Operasional
+                      Bank</div>
+                    <div class="text-[10px] text-slate-500">Identitas bank, keamanan login, OTP &amp; koneksi Core
+                      Banking</div>
+                  </div>
+                </div>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:text-purple-600"></i>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== TAB 2: NASABAH, PERANGKAT & PENGAJUAN PRODUK ==================== -->
+        <section id="tab-customers" class="hidden space-y-5">
+
+          <!-- Sub-Tabs Navigation Switcher -->
+          <div id="customerSubTabsBar" class="flex flex-wrap items-center gap-2">
+            <button type="button" id="subTabBtnCustomers" onclick="switchCustomerSubTab('customers')"
+              class="px-4 py-2 rounded-xl text-xs font-bold bg-[#00897B] text-white shadow-xs transition flex items-center gap-2">
+              <i data-lucide="users" class="w-4 h-4"></i>
+              <span>Data Nasabah &amp; Ikatan Perangkat</span>
+            </button>
+            <button type="button" id="subTabBtnApplications" onclick="switchCustomerSubTab('applications')"
+              class="px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition flex items-center gap-2">
+              <i data-lucide="briefcase" class="w-4 h-4"></i>
+              <span>Pengajuan Produk (Deposito &amp; Pinjaman)</span>
+              <span id="productAppsCountBadge"
+                class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800">0</span>
+            </button>
+          </div>
+
+          <!-- SECTION 1: DATA NASABAH & IKATAN PERANGKAT -->
+          <div id="customerDataSection" class="space-y-5">
+            <!-- Device binding kriptografis: ringkasan pemantauan -->
+            <div id="deviceBindingSummary" class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm">
+              <div class="flex items-center justify-between mb-3">
+                <div>
+                  <h3 class="text-sm font-bold text-slate-800">Kunci Keamanan Perangkat</h3>
+                  <p class="text-[11px] text-slate-500">Status device binding kriptografis dan kegagalan 24 jam terakhir
+                  </p>
+                </div>
+                <span id="dbModeBadge"
+                  class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">-</span>
+              </div>
+              <div id="dbProtectionAlert" role="alert"
+                class="hidden mb-3 rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-[11px] font-bold text-rose-800">
+              </div>
+              <div id="dbSummaryGrid" class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs text-slate-500">Memuat...
+              </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
+              <!-- Search & Filter Header -->
+              <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div>
+                  <h3 class="text-base font-bold text-slate-800">Manajemen Nasabah &amp; Device Binding</h3>
+                  <p class="text-xs text-slate-500">Kelola akun, pantau gagal login/PIN, status blokir, dan buka ikatan
+                    perangkat (Unbind Device ID)</p>
+                </div>
+
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                  <div class="relative flex-1 sm:w-72">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                      <i data-lucide="search" class="w-4 h-4"></i>
+                    </span>
+                    <input type="text" id="customerSearchInput" placeholder="Cari nama, CIF, atau no HP..."
+                      onkeyup="if(event.key==='Enter') loadCustomers(true)"
+                      class="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B] bg-slate-50 focus:bg-white">
+                  </div>
+                  <button type="button" onclick="loadCustomers(true)"
+                    class="px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] transition">
+                    Cari
+                  </button>
+                </div>
+              </div>
+
+              <!-- Customers Table -->
+              <div class="overflow-x-auto rounded-xl border border-slate-200/70">
                 <table class="w-full text-left text-xs">
                   <thead
-                    class="bg-slate-50/80 text-slate-600 uppercase tracking-wider font-bold border-y border-slate-200/60">
+                    class="bg-slate-50 text-slate-600 uppercase tracking-wider font-bold border-b border-slate-200">
                     <tr>
-                      <th class="py-2.5 px-3">Waktu</th>
-                      <th class="py-2.5 px-3">Tipe</th>
-                      <th class="py-2.5 px-3">Dari &bull; Ke</th>
-                      <th class="py-2.5 px-3">Nominal</th>
-                      <th class="py-2.5 px-3">Status</th>
+                      <th class="py-3 px-4">Nasabah</th>
+                      <th class="py-3 px-4">Kontak &amp; Rekening</th>
+                      <th class="py-3 px-4">Status Aktivasi &amp; Login</th>
+                      <th class="py-3 px-4">Perangkat &amp; Kunci Hardware</th>
+                      <th class="py-3 px-4">Status Akun</th>
+                      <th class="py-3 px-4 text-center">Aksi</th>
                     </tr>
                   </thead>
-                  <tbody id="dashboardRecentTxBody" class="divide-y divide-slate-100 font-medium">
+                  <tbody id="customersTableBody" class="divide-y divide-slate-100">
                     <tr>
-                      <td colspan="5" class="py-6 text-center text-slate-400">Memuat transaksi...</td>
+                      <td colspan="6" class="py-8 text-center text-slate-400">Memuat data nasabah...</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Full Pagination Controls -->
+              <div
+                class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-slate-100 text-xs">
+                <div class="flex items-center gap-3">
+                  <span id="customerPaginationInfo" class="font-semibold text-slate-600">Halaman 1 dari 1 • Total 0
+                    Nasabah</span>
+                  <div class="flex items-center gap-1.5">
+                    <label for="customerPageSizeSelect" class="text-slate-400">Baris:</label>
+                    <select id="customerPageSizeSelect" onchange="changeCustomerPageSize(this.value)"
+                      class="px-2 py-1 rounded-lg border border-slate-200 bg-slate-50 font-bold text-slate-700 focus:outline-none">
+                      <option value="20">20 / halaman</option>
+                      <option value="50">50 / halaman</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button type="button" id="customerPrevPageBtn" onclick="changeCustomerPage(-1)" disabled
+                    class="px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 font-bold text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1">
+                    <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+                    <span>Sebelumnya</span>
+                  </button>
+                  <button type="button" id="customerNextPageBtn" onclick="changeCustomerPage(1)" disabled
+                    class="px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 font-bold text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1">
+                    <span>Berikutnya</span>
+                    <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION 2: PENGAJUAN PRODUK NASABAH (DEPOSITO & PINJAMAN) -->
+          <div id="productApplicationsSection" class="hidden">
+            <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
+              <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h3 class="text-base font-bold text-slate-800">Pengajuan Produk Nasabah (Deposito &amp; Pinjaman)</h3>
+                  <p class="text-xs text-slate-500">Daftar pengajuan pembukaan Deposito Berjangka dan Kredit/Pinjaman
+                    dari aplikasi Mobile DMB</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <select id="appProductFilter" onchange="loadProductApplications()"
+                    class="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-slate-50 focus:outline-none focus:border-[#00897B]">
+                    <option value="ALL">Semua Produk (Deposito &amp; Pinjaman)</option>
+                    <option value="DEPOSITO">Deposito Berjangka</option>
+                    <option value="PINJAMAN">Pinjaman / Kredit</option>
+                  </select>
+                  <select id="appStatusFilter" onchange="loadProductApplications()"
+                    class="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-slate-50 focus:outline-none focus:border-[#00897B]">
+                    <option value="ALL">Semua Status</option>
+                    <option value="PENDING">PENDING (Menunggu CS)</option>
+                    <option value="CONTACTED">CONTACTED (Dihubungi CS)</option>
+                    <option value="APPROVED">APPROVED (Disetujui)</option>
+                    <option value="REJECTED">REJECTED (Ditolak)</option>
+                  </select>
+                  <button type="button" onclick="loadProductApplications()"
+                    class="px-3.5 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-700 transition flex items-center gap-1.5">
+                    <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+                    <span>Muat Ulang</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="overflow-x-auto rounded-xl border border-slate-200/70">
+                <table class="w-full text-left text-xs">
+                  <thead
+                    class="bg-slate-50 text-slate-600 uppercase tracking-wider font-bold border-b border-slate-200">
+                    <tr>
+                      <th class="py-3 px-4">Waktu Pengajuan</th>
+                      <th class="py-3 px-4">Nasabah</th>
+                      <th class="py-3 px-4">Jenis &amp; Nama Produk</th>
+                      <th class="py-3 px-4">Nominal &amp; Tenor</th>
+                      <th class="py-3 px-4">Estimasi Bunga / Angsuran</th>
+                      <th class="py-3 px-4">Status &amp; Catatan</th>
+                      <th class="py-3 px-4 text-center">Tindak Lanjut</th>
+                    </tr>
+                  </thead>
+                  <tbody id="productApplicationsTableBody" class="divide-y divide-slate-100">
+                    <tr>
+                      <td colspan="7" class="py-8 text-center text-slate-400">Memuat pengajuan produk...</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
             </div>
-
-            <!-- Right 1 Col: Quick Control Shortcuts -->
-            <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between">
-              <div>
-                <h3 class="text-sm font-bold text-slate-900 mb-1">Aksi Cepat Admin</h3>
-                <p class="text-xs text-slate-500 mb-4">Pintasan operasional harian IT & CS</p>
-
-                <div class="space-y-2.5">
-                  <button onclick="switchTab('customers')"
-                    class="w-full p-3 rounded-xl bg-slate-50/80 hover:bg-teal-50/70 border border-slate-200 hover:border-teal-200 text-left transition flex items-center justify-between group">
-                    <div class="flex items-center gap-3">
-                      <div
-                        class="w-8 h-8 rounded-lg bg-teal-50 text-[#00897B] flex items-center justify-center font-bold">
-                        <i data-lucide="smartphone" class="w-4 h-4"></i>
-                      </div>
-                      <div>
-                        <div class="text-xs font-bold text-slate-800 group-hover:text-[#00897B]">Reset Device ID
-                          Nasabah
-                        </div>
-                        <div class="text-[10px] text-slate-500">Buka ikatan perangkat yang terkunci</div>
-                      </div>
-                    </div>
-                    <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:text-[#00897B]"></i>
-                  </button>
-
-                  <button onclick="switchTab('content')"
-                    class="w-full p-3 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 text-left transition flex items-center justify-between group">
-                    <div class="flex items-center gap-3">
-                      <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
-                        <i data-lucide="layout-template" class="w-4 h-4"></i>
-                      </div>
-                      <div>
-                        <div class="text-xs font-bold text-slate-800 group-hover:text-blue-700">Kelola Konten Aplikasi</div>
-                        <div class="text-[10px] text-slate-500">Teks, gambar &amp; banner per layar aplikasi</div>
-                      </div>
-                    </div>
-                    <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:text-blue-600"></i>
-                  </button>
-
-                  <button onclick="switchTab('settings')"
-                    class="w-full p-3 rounded-xl bg-slate-50 hover:bg-purple-50 border border-slate-200 hover:border-purple-200 text-left transition flex items-center justify-between group">
-                    <div class="flex items-center gap-3">
-                      <div
-                        class="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
-                        <i data-lucide="settings" class="w-4 h-4"></i>
-                      </div>
-                      <div>
-                        <div class="text-xs font-bold text-slate-800 group-hover:text-purple-700">Pengaturan Operasional
-                          Bank</div>
-                        <div class="text-[10px] text-slate-500">Identitas bank, limit transaksi &amp; OTP</div>
-                      </div>
-                    </div>
-                    <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:text-purple-600"></i>
-                  </button>
-                </div>
-              </div>
-            </div>
           </div>
+
         </section>
 
-        <!-- ==================== TAB 2: NASABAH & DEVICE ==================== -->
-        <section id="tab-customers" class="hidden space-y-6">
-          <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm">
-            <!-- Search & Filter Header -->
-            <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
-              <div>
-                <h3 class="text-base font-bold text-slate-800">Manajemen Nasabah & Device Binding</h3>
-                <p class="text-xs text-slate-500">Kelola akun, status blokir, dan buka ikatan perangkat (Unbind Device
-                  ID) nasabah</p>
-              </div>
-
-              <div class="flex items-center gap-3 w-full sm:w-auto">
-                <div class="relative flex-1 sm:w-64">
-                  <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                    <i data-lucide="search" class="w-4 h-4"></i>
-                  </span>
-                  <input type="text" id="customerSearchInput" placeholder="Cari nama, CIF, atau no HP..."
-                    onkeyup="if(event.key==='Enter') loadCustomers()"
-                    class="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 bg-slate-50 focus:bg-white">
-                </div>
-                <button onclick="loadCustomers()"
-                  class="px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] transition">
-                  Cari
-                </button>
-              </div>
-            </div>
-
-            <!-- Table -->
-            <div class="overflow-x-auto rounded-xl border border-slate-200/70">
-              <table class="w-full text-left text-xs">
-                <thead class="bg-slate-50 text-slate-600 uppercase tracking-wider font-bold border-b border-slate-200">
-                  <tr>
-                    <th class="py-3 px-4">Nasabah</th>
-                    <th class="py-3 px-4">CIF / No. HP</th>
-                    <th class="py-3 px-4">Device Binding (ID)</th>
-                    <th class="py-3 px-4">Status Akun</th>
-                    <th class="py-3 px-4 text-center">Aksi Cepat</th>
-                  </tr>
-                </thead>
-                <tbody id="customersTableBody" class="divide-y divide-slate-100">
-                  <tr>
-                    <td colspan="5" class="py-8 text-center text-slate-400">Memuat data nasabah...</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-
-
-                <!-- ==================== TAB: KONTEN APLIKASI (registri elemen Flutter, versi & maker-checker) ==================== -->
+        <!-- ==================== TAB 3: KONTEN APLIKASI (Maker-Checker + Live Mobile Mockup + Asset Gallery) ==================== -->
         <section id="tab-content" class="hidden space-y-5">
           <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
             <div>
@@ -463,16 +617,24 @@
               </p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
+              <button type="button" onclick="switchContentView('editor')"
+                class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition flex items-center gap-1.5">
+                <i data-lucide="smartphone" class="w-4 h-4 text-[#00897B]"></i><span>Editor &amp; Pratinjau HP</span>
+              </button>
+              <button type="button" onclick="switchContentView('assets')" id="contentAssetsBtn"
+                class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition flex items-center gap-1.5">
+                <i data-lucide="images" class="w-4 h-4 text-blue-600"></i><span>Galeri Aset &amp; Gambar Server</span>
+              </button>
               <button type="button" onclick="switchContentView('history')" id="contentHistoryBtn"
-                class="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition flex items-center gap-2">
-                <i data-lucide="history" class="w-4 h-4"></i><span>Riwayat Versi</span>
+                class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition flex items-center gap-1.5">
+                <i data-lucide="history" class="w-4 h-4 text-amber-600"></i><span>Riwayat Versi</span>
               </button>
             </div>
           </div>
 
-          <!-- Status publikasi & tindakan -->
-          <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex flex-col xl:flex-row xl:items-center gap-4">
-            <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <!-- Status publikasi, Catatan Perubahan & Tindakan -->
+          <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 space-y-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Tampil di aplikasi</p>
                 <p id="contentLiveInfo" class="text-xs text-slate-700 mt-1">Memuat...</p>
@@ -482,34 +644,141 @@
                 <p id="contentOpenInfo" class="text-xs text-slate-700 mt-1">-</p>
               </div>
             </div>
-            <div class="flex flex-wrap gap-2" id="contentActions">
-              <button type="button" id="contentSaveBtn" onclick="saveContentDraft()"
-                class="px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-slate-800 hover:bg-slate-900 transition disabled:opacity-40 disabled:cursor-not-allowed">Simpan Draf</button>
-              <button type="button" id="contentSubmitBtn" onclick="submitContent()"
-                class="px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition disabled:opacity-40 disabled:cursor-not-allowed">Ajukan Persetujuan</button>
-              <button type="button" id="contentApproveBtn" onclick="approveContent()"
-                class="px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] transition disabled:opacity-40 disabled:cursor-not-allowed">Setujui &amp; Publikasikan</button>
-              <button type="button" id="contentRejectBtn" onclick="rejectContent()"
-                class="px-4 py-2.5 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 transition disabled:opacity-40 disabled:cursor-not-allowed">Kembalikan ke Draf</button>
-              <button type="button" id="contentDiscardBtn" onclick="discardContent()"
-                class="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition disabled:opacity-40 disabled:cursor-not-allowed">Buang Draf</button>
+
+            <div
+              class="pt-3 border-t border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+              <div class="flex-1 flex flex-col sm:flex-row sm:items-center gap-2">
+                <label for="contentRevisionNote"
+                  class="text-xs font-bold text-slate-700 whitespace-nowrap flex items-center gap-1">
+                  <i data-lucide="file-text" class="w-3.5 h-3.5 text-[#00897B]"></i>
+                  <span>Catatan Perubahan:</span>
+                </label>
+                <input type="text" id="contentRevisionNote" maxlength="250"
+                  oninput="onRevisionNoteInput(this.value)"
+                  placeholder="Tuliskan ringkasan alasan perubahan draf ini (terekam di Riwayat Versi)..."
+                  class="flex-1 px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B] bg-slate-50 focus:bg-white">
+              </div>
+
+              <div class="flex flex-wrap gap-2" id="contentActions">
+                <button type="button" id="contentSaveBtn" onclick="saveContentDraft()"
+                  class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-slate-800 hover:bg-slate-900 transition disabled:opacity-40 disabled:cursor-not-allowed">Simpan
+                  Draf</button>
+                <button type="button" id="contentSubmitBtn" onclick="submitContent()"
+                  class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition disabled:opacity-40 disabled:cursor-not-allowed">Ajukan
+                  Persetujuan</button>
+                <button type="button" id="contentApproveBtn" onclick="approveContent()"
+                  class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] transition disabled:opacity-40 disabled:cursor-not-allowed">Setujui
+                  &amp; Publikasikan</button>
+                <button type="button" id="contentRejectBtn" onclick="rejectContent()"
+                  class="px-4 py-2 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 transition disabled:opacity-40 disabled:cursor-not-allowed">Kembalikan
+                  ke Draf</button>
+                <button type="button" id="contentDiscardBtn" onclick="discardContent()"
+                  class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition disabled:opacity-40 disabled:cursor-not-allowed">Buang
+                  Draf</button>
+              </div>
             </div>
           </div>
 
-          <!-- Editor: daftar layar + formulir -->
+          <!-- Editor: daftar layar (3 cols) + formulir (5 cols) + Live Visual Mobile Mockup Preview (4 cols) -->
           <div id="contentEditorView" class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-            <nav id="contentPageList" class="lg:col-span-3 bg-white rounded-2xl border border-slate-200/80 shadow-xs p-2 space-y-1"></nav>
-            <div class="lg:col-span-9 space-y-4">
+            <nav id="contentPageList"
+              class="lg:col-span-3 bg-white rounded-2xl border border-slate-200/80 shadow-xs p-2 space-y-1"></nav>
+
+            <div class="lg:col-span-5 space-y-4">
               <div id="contentPageHeader" class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5"></div>
               <form id="contentForm" class="space-y-4" onsubmit="event.preventDefault(); saveContentDraft();"></form>
+            </div>
+
+            <!-- Live Visual Mobile Mockup Preview Card -->
+            <div class="lg:col-span-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 sticky top-20">
+              <div class="flex items-center justify-between mb-3">
+                <div>
+                  <h4 class="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <i data-lucide="smartphone" class="w-4 h-4 text-[#00897B]"></i>
+                    <span>Pratinjau Layar Aplikasi</span>
+                  </h4>
+                  <p class="text-[11px] text-slate-400">Simulasi real-time perubahan draf</p>
+                </div>
+                <span id="mobileMockupPageBadge"
+                  class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 text-[#00897B] border border-teal-200">Layar</span>
+              </div>
+
+              <div class="flex justify-center py-2">
+                <div class="mobile-mockup-frame">
+                  <div class="mobile-mockup-notch"></div>
+                  <div id="mobileMockupScreen" class="flex-1 overflow-hidden"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Galeri Aset & Gambar Server -->
+          <div id="contentAssetsView"
+            class="hidden bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-4">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-slate-100">
+              <div>
+                <h4 class="text-sm font-bold text-slate-900">Galeri Aset &amp; Gambar Server</h4>
+                <p class="text-xs text-slate-500">Kelola seluruh gambar yang diunggah ke server (Logo, Banner Promosi,
+                  Latar Splash, Onboarding, dan Login). Hanya mendukung PNG, JPG, atau WebP (maks. 5 MB).</p>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <select id="galleryUploadCategory"
+                  class="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-slate-50">
+                  <option value="banner">Kategori: Banner Beranda</option>
+                  <option value="logo">Kategori: Logo Bank</option>
+                  <option value="splash_bg">Kategori: Latar Splash</option>
+                  <option value="onboarding_bg">Kategori: Ilustrasi Onboarding</option>
+                  <option value="login_bg">Kategori: Latar Login</option>
+                </select>
+                <label
+                  class="px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] cursor-pointer transition flex items-center gap-1.5">
+                  <i data-lucide="upload-cloud" class="w-4 h-4"></i>
+                  <span>Unggah Gambar Baru</span>
+                  <input type="file" accept="image/png,image/jpeg,image/webp" class="hidden"
+                    onchange="uploadNewGalleryAsset(this)">
+                </label>
+                <button type="button" onclick="loadServerAssets()"
+                  class="px-3 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200">Muat
+                  Ulang</button>
+              </div>
+            </div>
+
+            <!-- Slot Selection Info Banner -->
+            <div id="assetSelectTargetBanner"
+              class="hidden p-3 rounded-xl bg-teal-50 border border-teal-200 text-xs text-teal-900"></div>
+
+            <!-- Category Filter Pills -->
+            <div class="flex flex-wrap items-center gap-1.5">
+              <button type="button" onclick="filterServerAssets('ALL')"
+                class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700">Semua
+                Kategori</button>
+              <button type="button" onclick="filterServerAssets('logo')"
+                class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700">Logo</button>
+              <button type="button" onclick="filterServerAssets('banner')"
+                class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700">Banner</button>
+              <button type="button" onclick="filterServerAssets('splash_bg')"
+                class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700">Splash
+                BG</button>
+              <button type="button" onclick="filterServerAssets('onboarding_bg')"
+                class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700">Onboarding
+                BG</button>
+              <button type="button" onclick="filterServerAssets('login_bg')"
+                class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700">Login
+                BG</button>
+            </div>
+
+            <!-- Gallery Grid -->
+            <div id="serverAssetsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
             </div>
           </div>
 
           <!-- Riwayat versi -->
-          <div id="contentHistoryView" class="hidden bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <div id="contentHistoryView"
+            class="hidden bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
             <div class="flex items-center justify-between p-4 border-b border-slate-100">
               <h4 class="text-sm font-bold text-slate-800">Riwayat Versi Konten</h4>
-              <button type="button" onclick="switchContentView('editor')" class="text-xs font-bold text-[#00897B] hover:underline">Kembali ke editor</button>
+              <button type="button" onclick="switchContentView('editor')"
+                class="text-xs font-bold text-[#00897B] hover:underline">Kembali ke editor</button>
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-left text-xs">
@@ -520,7 +789,7 @@
                     <th class="py-3 px-4">Dibuat</th>
                     <th class="py-3 px-4">Diajukan</th>
                     <th class="py-3 px-4">Disetujui &amp; dipublikasikan</th>
-                    <th class="py-3 px-4">Catatan</th>
+                    <th class="py-3 px-4">Catatan Perubahan</th>
                     <th class="py-3 px-4 text-right">Aksi</th>
                   </tr>
                 </thead>
@@ -531,97 +800,121 @@
           </div>
         </section>
 
-        <!-- ==================== TAB: SYARAT & KETENTUAN (versi, PDF, maker-checker) ==================== -->
+        <!-- ==================== TAB 4: SYARAT & KETENTUAN (Structured Visual Form Builder + Maker-Checker) ==================== -->
         <section id="tab-terms" class="hidden space-y-5">
           <div>
             <h3 class="text-lg font-black text-slate-900 tracking-tight">Syarat &amp; Ketentuan Layanan</h3>
-            <p class="text-xs text-slate-500 mt-1 max-w-2xl">Dokumen PDF yang wajib dibaca dan disetujui nasabah sebelum login. Setiap perubahan menjadi versi baru dan disetujui petugas lain.</p>
+            <p class="text-xs text-slate-500 mt-1 max-w-2xl">Dokumen PDF yang wajib dibaca dan disetujui nasabah sebelum
+              login. Setiap perubahan menjadi versi baru dan disetujui petugas lain (Maker-Checker).</p>
           </div>
           <div class="space-y-5 max-w-5xl">
 
-                <!-- Syarat & Ketentuan: versi, PDF, maker-checker (internal/legaldoc). Dokumen
-                     dibuat oleh backend dari isi yang dikelola di sini — tidak ada unggah PDF bebas. -->
-                <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
-                  <div class="flex items-center justify-between gap-3">
-                    <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-                      <i data-lucide="file-check" class="w-4 h-4 text-blue-600"></i>
-                      <span>Syarat dan Ketentuan Layanan Mobile Banking</span>
-                    </h4>
-                    <button type="button" onclick="loadTermsVersions()"
-                      class="text-[11px] font-bold text-[#00897B] hover:underline flex items-center gap-1">
-                      <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i><span>Muat ulang</span>
-                    </button>
-                  </div>
-                  <p class="text-xs text-slate-500">
-                    Hanya versi berstatus <b>PUBLISHED</b> yang ditampilkan ke nasabah (PDF A4 dibuat backend). Alur:
-                    buat draf &rarr; ubah isi &rarr; buat PDF draf &amp; periksa &rarr; ajukan &rarr; disetujui petugas
-                    <b>lain</b> (maker-checker) &rarr; terbit. Versi terbit tidak dapat diubah; perubahan selalu menjadi versi baru,
-                    dan nasabah diminta menyetujui ulang setelah versi baru berlaku.
-                  </p>
-                  <div id="termsActiveInfo" class="text-xs text-slate-500">Memuat...</div>
-                  <div id="termsVersionList" class="space-y-2"></div>
-                  <div class="flex flex-wrap gap-2 pt-1">
-                    <button type="button" id="termsNewDraftBtn" onclick="createTermsDraft()"
-                      class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] transition flex items-center gap-2">
-                      <i data-lucide="file-plus" class="w-4 h-4"></i><span>Buat Draf Versi Baru (salin versi terakhir)</span>
-                    </button>
-                  </div>
-                </div>
+            <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
+              <div class="flex items-center justify-between gap-3">
+                <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                  <i data-lucide="file-check" class="w-4 h-4 text-blue-600"></i>
+                  <span>Syarat dan Ketentuan Layanan Mobile Banking</span>
+                </h4>
+                <button type="button" onclick="loadTermsVersions()"
+                  class="text-[11px] font-bold text-[#00897B] hover:underline flex items-center gap-1">
+                  <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i><span>Muat ulang</span>
+                </button>
+              </div>
+              <p class="text-xs text-slate-500">
+                Hanya versi berstatus <b>PUBLISHED</b> yang ditampilkan ke nasabah (PDF A4 dibuat backend). Alur:
+                buat draf &rarr; ubah isi dengan Editor Visual Terstruktur &rarr; buat PDF draf &amp; periksa &rarr;
+                ajukan &rarr; disetujui petugas <b>lain</b> (maker-checker) &rarr; terbit.
+              </p>
+              <div id="termsActiveInfo" class="text-xs text-slate-500">Memuat...</div>
+              <div id="termsVersionList" class="space-y-2"></div>
+              <div class="flex flex-wrap gap-2 pt-1">
+                <button type="button" id="termsNewDraftBtn" onclick="createTermsDraft()"
+                  class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+                  <i data-lucide="file-plus" class="w-4 h-4"></i><span>Buat Draf Versi Baru (salin versi
+                    terakhir)</span>
+                </button>
+              </div>
+            </div>
 
-                <!-- Editor draf (JSON terstruktur; teks tidak diubah otomatis) -->
-                <div id="termsEditorCard" class="hidden bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
-                  <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-                    <i data-lucide="pencil" class="w-4 h-4 text-amber-600"></i>
-                    <span id="termsEditorTitle">Ubah Draf</span>
-                  </h4>
-                  <p class="text-[11px] text-slate-500">
-                    Isi berupa JSON terstruktur: <code>title</code>, <code>date_note</code>, <code>intro</code>,
-                    <code>sections[].heading</code>, <code>sections[].fields[] {label, value}</code>,
-                    <code>sections[].blocks[] {text, items[]}</code>, <code>consent_heading</code>,
-                    <code>consent_instruction</code>, <code>consent_statements[]</code> (1–5 kotak centang di aplikasi).
-                    Penomoran pasal/ayat ditulis di dalam teks. Perubahan substansi wajib disetujui pihak bank.
-                  </p>
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label class="block text-xs font-bold text-slate-700 mb-1">Nomor Dokumen Resmi (opsional)</label>
-                      <input type="text" id="termsDocNumber" maxlength="100" placeholder="Kosongkan bila belum ada nomor resmi"
-                        class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
-                    </div>
-                    <div>
-                      <label class="block text-xs font-bold text-slate-700 mb-1">Ringkasan Perubahan</label>
-                      <input type="text" id="termsChangeSummary" maxlength="500"
-                        class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
-                    </div>
-                  </div>
-                  <textarea id="termsContentJson" rows="18" spellcheck="false"
-                    class="w-full px-3.5 py-2.5 text-[11px] font-mono rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]"></textarea>
-                  <div class="flex flex-wrap gap-2">
-                    <button type="button" onclick="saveTermsDraft()"
-                      class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-slate-800 hover:bg-slate-900 transition">Simpan Draf</button>
-                    <button type="button" onclick="closeTermsEditor()"
-                      class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition">Tutup</button>
-                  </div>
+            <!-- Editor draf: Structured Visual Section & Block Builder + Mode JSON Lanjutan -->
+            <div id="termsEditorCard"
+              class="hidden bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
+              <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                  <i data-lucide="pencil" class="w-4 h-4 text-amber-600"></i>
+                  <span id="termsEditorTitle">Ubah Draf</span>
+                </h4>
+                <div class="flex items-center gap-1.5">
+                  <button type="button" id="termsModeVisualBtn" onclick="toggleTermsEditorMode('visual')"
+                    class="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#00897B] text-white shadow-xs">
+                    Editor Visual Terstruktur
+                  </button>
+                  <button type="button" id="termsModeJsonBtn" onclick="toggleTermsEditorMode('json')"
+                    class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">
+                    Mode JSON Lanjutan
+                  </button>
                 </div>
+              </div>
 
-                <!-- Bukti persetujuan nasabah -->
-                <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-3">
-                  <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-                    <i data-lucide="check-square" class="w-4 h-4 text-emerald-600"></i>
-                    <span>Riwayat Persetujuan (Bukti)</span>
-                  </h4>
-                  <div class="flex gap-2">
-                    <input type="text" id="termsAcceptUserId" placeholder="ID nasabah (opsional)"
-                      class="flex-1 px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
-                    <button type="button" onclick="loadTermsAcceptances()"
-                      class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] transition">Tampilkan</button>
-                  </div>
-                  <div id="termsAcceptanceList" class="text-xs text-slate-500">Hanya SUPER_ADMIN dan COMPLIANCE.</div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Nomor Dokumen Resmi (opsional)</label>
+                  <input type="text" id="termsDocNumber" maxlength="100"
+                    placeholder="Kosongkan bila belum ada nomor resmi"
+                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
                 </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Ringkasan Perubahan</label>
+                  <input type="text" id="termsChangeSummary" maxlength="500"
+                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
+                </div>
+              </div>
+
+              <!-- Visual Form Builder Container -->
+              <div id="termsVisualEditorWrap" class="space-y-4"></div>
+
+              <!-- Raw JSON Fallback Container -->
+              <div id="termsJsonEditorWrap" class="hidden space-y-2">
+                <p class="text-[11px] text-slate-500">
+                  Mode JSON Lanjutan: <code>title</code>, <code>date_note</code>, <code>intro</code>,
+                  <code>sections[].heading</code>, <code>sections[].fields[] {label, value}</code>,
+                  <code>sections[].blocks[] {text, items[]}</code>, <code>consent_heading</code>,
+                  <code>consent_instruction</code>, <code>consent_statements[]</code>.
+                </p>
+                <textarea id="termsContentJson" rows="18" spellcheck="false"
+                  class="w-full px-3.5 py-2.5 text-[11px] font-mono rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]"></textarea>
+              </div>
+
+              <div class="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
+                <button type="button" onclick="saveTermsDraft()"
+                  class="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] transition">Simpan
+                  Draf Dokumen</button>
+                <button type="button" onclick="closeTermsEditor()"
+                  class="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition">Tutup
+                  Editor</button>
+              </div>
+            </div>
+
+            <!-- Bukti persetujuan nasabah -->
+            <div id="termsAcceptancesCard" class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-3">
+              <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                <i data-lucide="check-square" class="w-4 h-4 text-emerald-600"></i>
+                <span>Riwayat Persetujuan Nasabah (Bukti Audit)</span>
+              </h4>
+              <div class="flex gap-2">
+                <input type="text" id="termsAcceptUserId" placeholder="Filter ID nasabah (opsional)"
+                  class="flex-1 px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
+                <button type="button" onclick="loadTermsAcceptances()"
+                  class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] transition">Tampilkan</button>
+              </div>
+              <div id="termsAcceptanceList" class="text-xs text-slate-500">Klik Tampilkan untuk memuat bukti persetujuan
+                nasabah.</div>
+            </div>
 
           </div>
         </section>
 
-        <!-- ==================== TAB: NOTIFIKASI (Firebase Cloud Messaging HTTP v1) ==================== -->
+        <!-- ==================== TAB 5: NOTIFIKASI PUSH (Firebase Cloud Messaging HTTP v1) ==================== -->
         <section id="tab-push" class="hidden space-y-5">
           <div>
             <h3 class="text-lg font-black text-slate-900 tracking-tight">Notifikasi Push</h3>
@@ -636,18 +929,23 @@
           <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 space-y-4">
             <div class="flex flex-wrap items-center justify-between gap-3">
               <h4 class="text-sm font-bold text-slate-800">Integrasi Firebase</h4>
-              <span id="pushStatusBadge" class="px-2.5 py-1 rounded-full border text-[11px] font-bold bg-slate-50 text-slate-500 border-slate-200">Memuat...</span>
+              <span id="pushStatusBadge"
+                class="px-2.5 py-1 rounded-full border text-[11px] font-bold bg-slate-50 text-slate-500 border-slate-200">Memuat...</span>
             </div>
             <dl id="pushSettingsGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 text-xs"></dl>
-            <div id="pushErrorBox" class="hidden p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800"></div>
+            <div id="pushErrorBox"
+              class="hidden p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800"></div>
             <div id="pushAdminActions" class="hidden border-t border-slate-100 pt-4 space-y-3">
               <div class="flex flex-wrap items-center gap-2">
-                <label class="px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-slate-800 hover:bg-slate-900 cursor-pointer">
+                <label
+                  class="px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-slate-800 hover:bg-slate-900 cursor-pointer">
                   Unggah / Ganti Credential Admin SDK (.json)
-                  <input type="file" id="pushCredentialFile" accept="application/json,.json" class="hidden" onchange="uploadPushCredential(this)">
+                  <input type="file" id="pushCredentialFile" accept="application/json,.json" class="hidden"
+                    onchange="uploadPushCredential(this)">
                 </label>
                 <button type="button" id="pushTestBtn" onclick="testPushConnection()"
-                  class="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40">Uji Koneksi</button>
+                  class="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40">Uji
+                  Koneksi</button>
                 <button type="button" id="pushEnableBtn" onclick="togglePushEnabled()"
                   class="px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] disabled:opacity-40">Aktifkan</button>
               </div>
@@ -662,31 +960,37 @@
           <!-- Buat notifikasi -->
           <div id="pushComposeCard" class="hidden bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5">
             <h4 class="text-sm font-bold text-slate-800 mb-3">Buat Notifikasi</h4>
-            <form id="pushComposeForm" class="grid grid-cols-1 lg:grid-cols-2 gap-4" onsubmit="createPushCampaign(event)">
+            <form id="pushComposeForm" class="grid grid-cols-1 lg:grid-cols-2 gap-4"
+              onsubmit="createPushCampaign(event)">
               <div class="space-y-3">
                 <div>
-                  <label for="pushTitle" class="block text-xs font-bold text-slate-700 mb-1">Judul <span class="text-rose-500">*</span></label>
+                  <label for="pushTitle" class="block text-xs font-bold text-slate-700 mb-1">Judul <span
+                      class="text-rose-500">*</span></label>
                   <input id="pushTitle" type="text" maxlength="100" required
                     class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
                 </div>
                 <div>
-                  <label for="pushBody" class="block text-xs font-bold text-slate-700 mb-1">Isi <span class="text-rose-500">*</span></label>
+                  <label for="pushBody" class="block text-xs font-bold text-slate-700 mb-1">Isi <span
+                      class="text-rose-500">*</span></label>
                   <textarea id="pushBody" rows="4" maxlength="500" required
                     class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]"></textarea>
-                  <p class="text-[10.5px] text-slate-400 mt-1">Maks. 500 karakter. Jangan menulis data nasabah, saldo, nomor rekening, PIN, atau OTP.</p>
+                  <p class="text-[10.5px] text-slate-400 mt-1">Maks. 500 karakter. Jangan menulis data nasabah, saldo,
+                    nomor rekening, PIN, atau OTP.</p>
                 </div>
               </div>
               <div class="space-y-3">
                 <div>
                   <label for="pushCategory" class="block text-xs font-bold text-slate-700 mb-1">Kategori</label>
-                  <select id="pushCategory" class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
+                  <select id="pushCategory"
+                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
                     <option value="INFO">Informasi</option>
                     <option value="PROMO">Promo</option>
                   </select>
                 </div>
                 <div>
                   <label for="pushTarget" class="block text-xs font-bold text-slate-700 mb-1">Penerima</label>
-                  <select id="pushTarget" onchange="document.getElementById('pushTargetUserWrap').classList.toggle('hidden', this.value !== 'USER')"
+                  <select id="pushTarget"
+                    onchange="document.getElementById('pushTargetUserWrap').classList.toggle('hidden', this.value !== 'USER')"
                     class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
                     <option value="ALL">Semua nasabah aktif</option>
                     <option value="USER">Satu nasabah</option>
@@ -697,7 +1001,9 @@
                   <input id="pushTargetUser" type="text" maxlength="36" placeholder="ID dari menu Nasabah & Perangkat"
                     class="w-full px-3.5 py-2.5 text-xs font-mono rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
                 </div>
-                <button type="submit" class="px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-slate-800 hover:bg-slate-900">Simpan &amp; Ajukan Persetujuan</button>
+                <button type="submit"
+                  class="px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-slate-800 hover:bg-slate-900">Simpan
+                  &amp; Ajukan Persetujuan</button>
               </div>
             </form>
           </div>
@@ -706,7 +1012,8 @@
           <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
             <div class="flex items-center justify-between p-4 border-b border-slate-100">
               <h4 class="text-sm font-bold text-slate-800">Riwayat Notifikasi</h4>
-              <button type="button" onclick="loadPush()" class="text-xs font-bold text-[#00897B] hover:underline">Muat ulang</button>
+              <button type="button" onclick="loadPush()"
+                class="text-xs font-bold text-[#00897B] hover:underline">Muat ulang</button>
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-left text-xs">
@@ -727,116 +1034,130 @@
           </div>
         </section>
 
-        <!-- ==================== TAB 4: AUDIT TRANSAKSI & AUDIT TRAIL KEAMANAN OJK ==================== -->
-        <section id="tab-transactions" class="hidden space-y-6">
-          <!-- Card 1: Security & Operational Audit Trail (POJK MRTI Compliance) -->
-          <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <!-- ==================== TAB 6: AUDIT TRAIL KEAMANAN OJK ==================== -->
+        <section id="tab-audit" class="hidden space-y-6">
+          <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div>
-                <div class="flex items-center gap-2">
-                  <h3 class="text-base font-bold text-slate-800">Audit Trail & Log Keamanan Sistem (Kepatuhan OJK)</h3>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <h3 class="text-base font-bold text-slate-800">Audit Trail &amp; Log Keamanan Sistem (Kepatuhan OJK)
+                  </h3>
                   <span
                     class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-teal-50 text-[#00897B] border border-teal-200">POJK
-                    MRTI</span>
+                    MRTI &bull; SHA-256 Hash Chain</span>
+                  <span id="auditCountBadge"
+                    class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">0 Entri</span>
                 </div>
-                <p class="text-xs text-slate-500">Rekam jejak aktivitas login nasabah, perpindahan perangkat
-                  (Auto-Logout), gagal PIN/Password, dan aksi petugas admin</p>
+                <p class="text-xs text-slate-500 mt-0.5">Rekam jejak berantai hash kriptografis atas aktivitas nasabah,
+                  petugas admin, dan proses sistem</p>
               </div>
               <div class="flex items-center gap-2">
-                <select id="auditActorFilter" onchange="loadAuditLogs()"
-                  class="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-slate-50 focus:outline-none">
-                  <option value="ALL">Semua Aktivitas</option>
-                  <option value="NASABAH">Aktivitas Nasabah</option>
-                  <option value="ADMIN">Aktivitas Petugas Admin</option>
-                </select>
-                <button onclick="exportAuditLogsCSV()"
-                  class="px-3 py-1.5 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-xs font-bold text-emerald-800 transition flex items-center gap-1.5">
+                <button type="button" onclick="exportAuditLogsCSV()"
+                  class="px-3.5 py-2 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-xs font-bold text-emerald-800 transition flex items-center gap-1.5">
                   <i data-lucide="download" class="w-3.5 h-3.5"></i>
                   <span>Export CSV</span>
                 </button>
-                <button onclick="loadTransactions(); loadAuditLogs();"
-                  class="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-700 transition flex items-center gap-1.5">
+                <button type="button" onclick="loadAuditLogs(false)"
+                  class="px-3.5 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-700 transition flex items-center gap-1.5">
                   <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
                   <span>Refresh</span>
                 </button>
               </div>
             </div>
 
+            <!-- Filter Bar: Actor Type, Search Box, Date Range (Dari & Sampai Tanggal) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
+              <div class="lg:col-span-3">
+                <label for="auditActorFilter" class="block text-[10px] font-extrabold text-slate-500 uppercase mb-1">Tipe
+                  Aktor</label>
+                <select id="auditActorFilter" onchange="loadAuditLogs(false)"
+                  class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white focus:outline-none focus:border-[#00897B]">
+                  <option value="ALL">SEMUA AKTOR</option>
+                  <option value="NASABAH">NASABAH</option>
+                  <option value="ADMIN">ADMIN (PETUGAS)</option>
+                  <option value="SYSTEM">SYSTEM</option>
+                </select>
+              </div>
+              <div class="lg:col-span-4">
+                <label for="auditSearchInput"
+                  class="block text-[10px] font-extrabold text-slate-500 uppercase mb-1">Pencarian Kata Kunci</label>
+                <input type="text" id="auditSearchInput"
+                  placeholder="Cari aksi, nama aktor, target, IP, atau rincian..."
+                  onkeyup="if(event.key==='Enter') loadAuditLogs(false)"
+                  class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:border-[#00897B]">
+              </div>
+              <div class="lg:col-span-2">
+                <label for="auditFromDate" class="block text-[10px] font-extrabold text-slate-500 uppercase mb-1">Dari
+                  Tanggal</label>
+                <input type="date" id="auditFromDate" onchange="loadAuditLogs(false)"
+                  class="w-full px-2.5 py-2 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:border-[#00897B]">
+              </div>
+              <div class="lg:col-span-2">
+                <label for="auditToDate" class="block text-[10px] font-extrabold text-slate-500 uppercase mb-1">Sampai
+                  Tanggal</label>
+                <input type="date" id="auditToDate" onchange="loadAuditLogs(false)"
+                  class="w-full px-2.5 py-2 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:border-[#00897B]">
+              </div>
+              <div class="lg:col-span-1 flex items-end gap-1">
+                <button type="button" onclick="loadAuditLogs(false)" title="Terapkan Filter"
+                  class="flex-1 py-2 px-2.5 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] transition">
+                  Filter
+                </button>
+                <button type="button" onclick="resetAuditFilters()" title="Reset Filter"
+                  class="py-2 px-2 rounded-xl text-xs font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100">
+                  Reset
+                </button>
+              </div>
+            </div>
+
             <div class="overflow-x-auto rounded-xl border border-slate-200/70">
               <table class="w-full text-left text-xs">
                 <thead class="bg-slate-50 text-slate-600 uppercase tracking-wider font-bold border-b border-slate-200">
                   <tr>
-                    <th class="py-3 px-4 whitespace-nowrap">Waktu</th>
-                    <th class="py-3 px-4 whitespace-nowrap">Aktor</th>
-                    <th class="py-3 px-4 whitespace-nowrap">Aksi / Event</th>
-                    <th class="py-3 px-4">Target / Objek</th>
-                    <th class="py-3 px-4 whitespace-nowrap">Perangkat (Device ID)</th>
-                    <th class="py-3 px-4 min-w-[280px]">Rincian Aktivitas</th>
-                    <th class="py-3 px-4 whitespace-nowrap text-right">Status</th>
+                    <th class="py-3 px-3.5 whitespace-nowrap">No. Urut</th>
+                    <th class="py-3 px-3.5 whitespace-nowrap">Waktu</th>
+                    <th class="py-3 px-3.5 whitespace-nowrap">Aktor &amp; Peran</th>
+                    <th class="py-3 px-3.5 whitespace-nowrap">Aksi &amp; Target</th>
+                    <th class="py-3 px-3.5 whitespace-nowrap">IP &amp; Perangkat</th>
+                    <th class="py-3 px-3.5 min-w-[260px]">Detail Perubahan (Before/After)</th>
+                    <th class="py-3 px-3.5 whitespace-nowrap">Hash Integritas</th>
+                    <th class="py-3 px-3.5 whitespace-nowrap text-right">Status</th>
                   </tr>
                 </thead>
                 <tbody id="auditLogsTableBody" class="divide-y divide-slate-100">
                   <tr>
-                    <td colspan="7" class="py-8 text-center text-slate-400">Memuat data audit trail keamanan...</td>
+                    <td colspan="8" class="py-8 text-center text-slate-400">Memuat data audit trail keamanan...</td>
                   </tr>
                 </tbody>
               </table>
             </div>
-          </div>
 
-          <!-- Card 2: Financial Transaction Log -->
-          <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm">
-            <div class="flex items-center justify-between mb-6">
-              <div>
-                <h3 class="text-base font-bold text-slate-800">Audit & Log Transaksi Finansial M-Banking</h3>
-                <p class="text-xs text-slate-500">Pencatatan riwayat transaksi transfer dan pembayaran melalui sistem
-                  middleware</p>
-              </div>
-              <button onclick="loadTransactions()"
-                class="px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-700 transition flex items-center gap-1.5">
-                <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
-                <span>Refresh Log</span>
+            <!-- Keyset Pagination: Muat Lebih Banyak (before_seq) -->
+            <div id="auditLoadMoreWrap" class="hidden pt-2 flex justify-center">
+              <button type="button" id="auditLoadMoreBtn" onclick="loadAuditLogs(true)"
+                class="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition flex items-center gap-1.5">
+                <i data-lucide="chevrons-down" class="w-3.5 h-3.5"></i>
+                <span>Muat Lebih Banyak (100 Sebelumnya)</span>
               </button>
-            </div>
-
-            <div class="overflow-x-auto rounded-xl border border-slate-200/70">
-              <table class="w-full text-left text-xs">
-                <thead class="bg-slate-50 text-slate-600 uppercase tracking-wider font-bold border-b border-slate-200">
-                  <tr>
-                    <th class="py-3 px-4">Waktu</th>
-                    <th class="py-3 px-4">Tipe Transaksi</th>
-                    <th class="py-3 px-4">Rekening Asal</th>
-                    <th class="py-3 px-4">Rekening Tujuan</th>
-                    <th class="py-3 px-4">Nominal</th>
-                    <th class="py-3 px-4">Ref CBS</th>
-                    <th class="py-3 px-4">Status</th>
-                  </tr>
-                </thead>
-                <tbody id="transactionsTableBody" class="divide-y divide-slate-100">
-                  <tr>
-                    <td colspan="7" class="py-8 text-center text-slate-400">Memuat transaksi...</td>
-                  </tr>
-                </tbody>
-              </table>
             </div>
           </div>
         </section>
 
-        <!-- ==================== TAB 5: MANAJEMEN PETUGAS & HAK AKSES (RBAC) ==================== -->
+        <!-- ==================== TAB 7: MANAJEMEN PETUGAS & HAK AKSES (RBAC) ==================== -->
         <section id="tab-admin-users" class="hidden space-y-6">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h3 class="text-base font-bold text-slate-800">Manajemen Petugas Admin & Hak Akses (RBAC)</h3>
-              <p class="text-xs text-slate-500">Kelola akun operasional bank, peran petugas (*Roles*), dan pembagian
-                wewenang sistem</p>
+              <h3 class="text-base font-bold text-slate-800">Manajemen Petugas Admin &amp; Hak Akses (RBAC)</h3>
+              <p class="text-xs text-slate-500">Kelola akun operasional bank, peran petugas (Roles), reset sandi, dan
+                pembagian wewenang sistem</p>
             </div>
             <div class="flex items-center gap-2">
-              <button onclick="loadAdminUsers()"
+              <button type="button" onclick="loadAdminUsers()"
                 class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition flex items-center gap-1.5 shadow-sm">
                 <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
                 <span>Refresh</span>
               </button>
-              <button onclick="openCreateAdminModal()"
+              <button type="button" onclick="openCreateAdminModal()"
                 class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] active:scale-[0.99] shadow-md shadow-teal-700/20 transition flex items-center gap-1.5">
                 <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
                 <span>Tambah Petugas</span>
@@ -844,7 +1165,7 @@
             </div>
           </div>
 
-          <!-- Role Explanation Cards -->
+          <!-- Role Explanation Cards (Updated without stale standalone CMS Banner references) -->
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm relative overflow-hidden">
               <div class="w-1.5 h-full bg-purple-500 absolute left-0 top-0"></div>
@@ -854,8 +1175,8 @@
                 </div>
                 <h5 class="text-xs font-extrabold text-slate-800">Super Admin</h5>
               </div>
-              <p class="text-[11px] text-slate-500 pl-2 leading-relaxed">Kewenangan penuh: Konfigurasi bank, manajemen
-                petugas, monitoring transaksi, dan kontrol sistem.</p>
+              <p class="text-[11px] text-slate-500 pl-2 leading-relaxed">Kewenangan penuh atas seluruh modul:
+                Konfigurasi operasional, manajemen petugas, audit trail, konten, SK, push, dan koneksi CBS.</p>
             </div>
 
             <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm relative overflow-hidden">
@@ -866,8 +1187,8 @@
                 </div>
                 <h5 class="text-xs font-extrabold text-slate-800">Customer Service</h5>
               </div>
-              <p class="text-[11px] text-slate-500 pl-2 leading-relaxed">Layanan nasabah: Reset/Unbind Device ID
-                smartphone nasabah, aktivasi akun, dan buka/tutup blokir.</p>
+              <p class="text-[11px] text-slate-500 pl-2 leading-relaxed">Layanan nasabah: Unbind Device ID smartphone,
+                buka/tutup blokir akun, proses pengajuan produk, dan baca versi SK layanan.</p>
             </div>
 
             <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm relative overflow-hidden">
@@ -878,8 +1199,8 @@
                 </div>
                 <h5 class="text-xs font-extrabold text-slate-800">Marketing</h5>
               </div>
-              <p class="text-[11px] text-slate-500 pl-2 leading-relaxed">Konten visual: Mengelola banner promosi
-                deposito, CSR, dan tautan promo yang tayang di aplikasi.</p>
+              <p class="text-[11px] text-slate-500 pl-2 leading-relaxed">Konten &amp; kampanye: Mengelola Konten
+                Aplikasi Mobile (termasuk carousel banner beranda), Notifikasi Push, dan Pengajuan Produk.</p>
             </div>
 
             <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm relative overflow-hidden">
@@ -890,18 +1211,31 @@
                 </div>
                 <h5 class="text-xs font-extrabold text-slate-800">Auditor / Kepatuhan</h5>
               </div>
-              <p class="text-[11px] text-slate-500 pl-2 leading-relaxed">Audit IT & OJK: Akses Read-Only untuk
-                memantau
-                aktivitas transaksi dan kepatuhan operasional.</p>
+              <p class="text-[11px] text-slate-500 pl-2 leading-relaxed">Pengawasan OJK: Memantau Audit Trail,
+                mengelola/menyetujui versi Syarat &amp; Ketentuan, checker Konten &amp; Push, serta pantau nasabah
+                (Read-Only).</p>
             </div>
           </div>
 
-          <!-- Admin Users Table Card -->
+          <!-- Admin Users Table Card with Search & Role Filter -->
           <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-            <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+            <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div class="font-bold text-xs text-slate-700 uppercase tracking-wider flex items-center gap-2">
                 <i data-lucide="users" class="w-4 h-4 text-emerald-600"></i>
-                <span>Daftar Petugas & Pengelola Backoffice</span>
+                <span>Daftar Petugas &amp; Pengelola Backoffice</span>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <input type="text" id="adminUserSearchInput" oninput="filterAdminUsersTable()"
+                  placeholder="Cari nama, username, email..."
+                  class="px-3 py-1.5 rounded-xl border border-slate-200 text-xs bg-slate-50 focus:bg-white focus:outline-none focus:border-[#00897B]">
+                <select id="adminUserRoleFilter" onchange="filterAdminUsersTable()"
+                  class="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-slate-50 focus:outline-none focus:border-[#00897B]">
+                  <option value="ALL">Semua Peran</option>
+                  <option value="SUPER_ADMIN">SUPER_ADMIN</option>
+                  <option value="CS">CUSTOMER SERVICE (CS)</option>
+                  <option value="MARKETING">MARKETING</option>
+                  <option value="COMPLIANCE">COMPLIANCE / AUDITOR</option>
+                </select>
               </div>
             </div>
 
@@ -913,7 +1247,7 @@
                     <th class="p-4">Petugas Admin</th>
                     <th class="p-4">Username</th>
                     <th class="p-4">Hak Akses / Peran</th>
-                    <th class="p-4">Status Akun</th>
+                    <th class="p-4">Status Akun &amp; Keamanan</th>
                     <th class="p-4">Terdaftar</th>
                     <th class="p-4 text-right">Aksi</th>
                   </tr>
@@ -926,20 +1260,53 @@
           </div>
         </section>
 
-        <!-- ==================== TAB 6: LOGO & PENGATURAN ==================== -->
+        <!-- ==================== TAB 8: PENGATURAN OPERASIONAL & KONEKSI CBS ==================== -->
         <section id="tab-settings" class="hidden space-y-6">
           <div class="flex items-center justify-between">
             <div>
-              <h3 class="text-base font-bold text-slate-800">Pengaturan Logo, Identitas Bank & Kebijakan M-Banking
-              </h3>
-              <p class="text-xs text-slate-500">Ubah logo institusi, informasi kontak helpdesk, limit transaksi, dan
-                status pemeliharaan</p>
+              <h3 class="text-base font-bold text-slate-800">Pengaturan Logo, Identitas Bank, Keamanan &amp; Core
+                Banking</h3>
+              <p class="text-xs text-slate-500">Kelola logo institusi, kontak helpdesk, kebijakan keamanan login, OTP
+                SMS, dan koneksi CBS</p>
             </div>
             <button type="button" onclick="loadConfig()"
               class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition flex items-center gap-1.5">
               <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
               <span>Muat Ulang</span>
             </button>
+          </div>
+
+          <!-- Status Koneksi Layanan Inti (CBS) Operational Card -->
+          <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div class="flex items-start gap-3.5">
+                <div class="w-11 h-11 rounded-2xl bg-blue-50 text-blue-700 border border-blue-200 flex items-center justify-center shrink-0">
+                  <i data-lucide="server" class="w-5 h-5"></i>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2.5 flex-wrap">
+                    <h4 class="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Status Koneksi Layanan
+                      Inti (CBS)</h4>
+                    <span id="cbsHealthBadge"
+                      class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200">Memeriksa...</span>
+                  </div>
+                  <p id="cbsHealthDetail" class="text-xs text-slate-500 mt-1">Memeriksa status konektivitas endpoint
+                    OpenAPI Core Banking System...</p>
+                </div>
+              </div>
+              <div class="flex flex-wrap items-center gap-2 shrink-0">
+                <button type="button" onclick="checkCbsHealth()"
+                  class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition flex items-center gap-1.5">
+                  <i data-lucide="activity" class="w-3.5 h-3.5 text-[#00897B]"></i>
+                  <span>Periksa Kesehatan CBS</span>
+                </button>
+                <button type="button" id="cbsRefreshTokenBtn" onclick="refreshCbsConnectionToken()"
+                  class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] transition flex items-center gap-1.5 shadow-sm">
+                  <i data-lucide="key-round" class="w-3.5 h-3.5"></i>
+                  <span>Segarkan Token Koneksi</span>
+                </button>
+              </div>
+            </div>
           </div>
 
           <form id="configForm" onsubmit="handleSaveConfig(event)" class="space-y-6">
@@ -951,8 +1318,7 @@
                 <div
                   class="w-24 h-24 rounded-2xl bg-slate-50 border-2 border-dashed border-slate-200 flex items-center justify-center p-2 mb-4 overflow-hidden relative shadow-inner">
                   <img id="cfgLogoPreview" src="images/bank_logo.png" alt="Logo Bank"
-                    class="max-h-full max-w-full object-contain"
-                    onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'><text y=\'.9em\' font-size=\'90\'>🏦</text></svg>';">
+                    class="max-h-full max-w-full object-contain">
                 </div>
                 <h4 id="cfgBankShortNameDisplay" class="text-sm font-extrabold text-slate-900">Bank DMB</h4>
                 <p id="cfgTaglineDisplay" class="text-[11px] text-slate-500 mt-0.5">Mitra Terpercaya Menuju Sejahtera
@@ -962,15 +1328,15 @@
                   id="cfgBankNameBadge">
                   PT BPR DANA MANDIRI BOGOR
                 </div>
-                <p class="text-[10px] text-slate-400 mt-3">Logo & identitas ini disinkronkan ke aplikasi M-Banking &
-                  dashboard admin.</p>
+                <p class="text-[10px] text-slate-400 mt-3">Logo &amp; identitas ini disinkronkan langsung ke aplikasi
+                  M-Banking &amp; dashboard admin.</p>
               </div>
 
               <!-- Card 2: Form Identitas & URL Logo -->
               <div class="lg:col-span-2 bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
                 <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-2">
                   <i data-lucide="building" class="w-4 h-4 text-emerald-600"></i>
-                  <span>Identitas & Logo Institusi</span>
+                  <span>Identitas &amp; Logo Institusi</span>
                 </h4>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -984,7 +1350,7 @@
                   <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Nama Singkat / Brand Aplikasi *</label>
                     <input type="text" id="cfgBankShortName" required placeholder="Bank DMB"
-                      oninput="document.getElementById('cfgBankShortNameDisplay').innerText=this.value; document.getElementById('sidebarBankTitle').innerText=this.value + ' Portal'"
+                      oninput="document.getElementById('cfgBankShortNameDisplay').innerText=this.value"
                       class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500">
                   </div>
                 </div>
@@ -997,14 +1363,14 @@
                 </div>
 
                 <div>
-                  <label class="block text-xs font-bold text-slate-700 mb-1">Logo Resmi Bank (Unggah File PNG / WebP /
-                    SVG) *</label>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Logo Resmi Bank (PNG, JPG, atau WebP •
+                    Maks. 5MB) *</label>
 
                   <div id="logoUploadBox"
                     class="border-2 border-dashed border-emerald-300 hover:border-emerald-500 bg-emerald-50/40 hover:bg-emerald-50/80 rounded-2xl p-5 text-center transition cursor-pointer relative group"
                     onclick="document.getElementById('logoFileInput').click()">
-                    <input type="file" id="logoFileInput" accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                      class="hidden" onchange="handleLogoUpload(this)">
+                    <input type="file" id="logoFileInput" accept="image/png,image/jpeg,image/webp" class="hidden"
+                      onchange="handleLogoUpload(this)">
                     <div class="flex flex-col items-center justify-center space-y-2" id="logoUploadText">
                       <div
                         class="w-12 h-12 rounded-2xl bg-white shadow-sm border border-emerald-100 flex items-center justify-center text-emerald-600 group-hover:scale-105 transition">
@@ -1013,9 +1379,7 @@
                       <div class="text-xs font-bold text-slate-700">
                         Klik untuk Memilih File Gambar Logo Bank
                       </div>
-                      <p class="text-[11px] text-slate-500">Mendukung format PNG, WebP, SVG transparan, atau JPG
-                        (Maks.
-                        5MB)</p>
+                      <p class="text-[11px] text-slate-500">PNG, JPG, atau WebP • Maks. 5MB</p>
                     </div>
                   </div>
 
@@ -1023,7 +1387,7 @@
                     <span class="text-[11px] font-semibold text-slate-500">Tautan Gambar:</span>
                     <input type="text" id="cfgLogoUrl" required placeholder="/admin/uploads/logo... atau https://..."
                       oninput="document.getElementById('cfgLogoPreview').src=this.value"
-                      class="flex-1 px-3 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-500 font-mono text-[11px] bg-slate-50">
+                      class="flex-1 px-3 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-500 font-mono text-[11px] bg-white">
                   </div>
                 </div>
 
@@ -1039,7 +1403,7 @@
             <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
               <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-2">
                 <i data-lucide="headphones" class="w-4 h-4 text-blue-600"></i>
-                <span>Kontak Layanan Nasabah & Pusat Bantuan (Helpdesk)</span>
+                <span>Kontak Layanan Nasabah &amp; Pusat Bantuan (Helpdesk)</span>
               </h4>
 
               <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1066,35 +1430,18 @@
               </div>
             </div>
 
-            <!-- Keamanan, Limit Transaksi & Maintenance (Full Width) -->
+            <!-- Keamanan & Maintenance -->
             <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
               <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-2">
                 <i data-lucide="shield" class="w-4 h-4 text-purple-600"></i>
-                <span>Kebijakan Limit Transaksi, Keamanan Sistem & Maintenance Mode</span>
+                <span>Kebijakan Keamanan Sistem &amp; Maintenance Mode</span>
               </h4>
 
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-xs font-bold text-slate-700 mb-1">Minimal Nominal Sekali Transfer
-                    (Rp)</label>
-                  <input type="number" id="cfgMinTransfer" value="10000" min="1000" step="1000"
-                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 font-bold text-slate-800">
-                </div>
-                <div>
-                  <label class="block text-xs font-bold text-slate-700 mb-1">Batas Maksimal Limit Transfer Harian
-                    Nasabah (Rp)</label>
-                  <input type="number" id="cfgDailyLimit" value="25000000" min="100000" step="500000"
-                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 font-bold text-slate-800">
-                </div>
-              </div>
-
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div class="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-200/80">
                   <div>
                     <div class="text-xs font-bold text-slate-800">Wajibkan Device Binding</div>
-                    <div class="text-[10px] text-slate-500">Kunci 1 akun hanya dapat login pada 1 perangkat HP
-                      terdaftar
-                    </div>
+                    <div class="text-[10px] text-slate-500">Kunci 1 akun hanya pada 1 perangkat HP terdaftar</div>
                   </div>
                   <input type="checkbox" id="cfgEnforceDevice"
                     class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500">
@@ -1103,30 +1450,42 @@
                 <div class="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-200/80">
                   <div>
                     <div class="text-xs font-bold text-slate-800">Mode Pemeliharaan (Maintenance)</div>
-                    <div class="text-[10px] text-slate-500">Tampilkan notifikasi pemeliharaan sistem pada aplikasi
-                      nasabah</div>
+                    <div class="text-[10px] text-slate-500">Tampilkan notifikasi pemeliharaan pada aplikasi nasabah
+                    </div>
                   </div>
-                  <input type="checkbox" id="cfgMaintenance" class="w-4 h-4 rounded text-rose-600 focus:ring-rose-500">
+                  <input type="checkbox" id="cfgMaintenance"
+                    class="w-4 h-4 rounded text-rose-600 focus:ring-rose-500">
+                </div>
+
+                <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between gap-3">
+                  <div>
+                    <label for="cfgMaxLoginAttempts" class="block text-xs font-bold text-slate-800">Batas Maks. Gagal
+                      Login</label>
+                    <div class="text-[10px] text-slate-500">Blokir akun otomatis setelah gagal (1–10x)</div>
+                  </div>
+                  <input type="number" id="cfgMaxLoginAttempts" min="1" max="10" value="5" required
+                    class="w-20 px-3 py-2 text-xs font-extrabold text-center rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-emerald-500">
                 </div>
               </div>
 
               <div>
                 <label class="block text-xs font-bold text-slate-700 mb-1">Pesan Saat Pemeliharaan</label>
-                <input type="text" id="cfgMaintenanceMsg" placeholder="Sistem sedang dalam peningkatan layanan berkala."
+                <input type="text" id="cfgMaintenanceMsg"
+                  placeholder="Sistem sedang dalam peningkatan layanan berkala."
                   class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500">
               </div>
             </div>
 
-            <!-- Integrasi OTP WhatsApp / SMS Gateway & Firebase Push Notification -->
+            <!-- Integrasi OTP SMS Gateway -->
             <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
               <div class="flex items-center justify-between">
                 <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
                   <i data-lucide="message-square-lock" class="w-4 h-4 text-emerald-600"></i>
-                  <span>Gateway OTP WhatsApp / SMS</span>
+                  <span>Gateway OTP SMS Masking</span>
                 </h4>
                 <span
                   class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Real-Time
-                  OTP & Push</span>
+                  OTP &amp; Push</span>
               </div>
 
               <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1134,24 +1493,22 @@
                   <label class="block text-xs font-bold text-slate-700 mb-1">Provider Pengiriman OTP</label>
                   <select id="cfgOtpProvider"
                     class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 bg-white font-semibold">
-                    <option value="SANDBOX">SANDBOX (Mode Ujicoba / OTP 123456)</option>
-                    <option value="FONNTE">FONNTE WhatsApp Gateway</option>
-                    <option value="WABLAS">WABLAS WhatsApp Gateway</option>
-                    <option value="CUSTOM_WEBHOOK">Custom SMS / WA Webhook API</option>
+                    <option value="SANDBOX">SANDBOX (Mode Ujicoba / Cetak ke Terminal)</option>
+                    <option value="JATIS">Jatis Mobile SMS Gateway (SMS Masking)</option>
+                    <option value="SMS_GATEWAY">SMS Gateway (Generic REST API)</option>
                   </select>
                 </div>
                 <div>
-                  <label class="block text-xs font-bold text-slate-700 mb-1">Endpoint URL Gateway OTP</label>
-                  <input type="text" id="cfgOtpGatewayUrl" placeholder="https://api.fonnte.com/send"
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Endpoint URL Gateway SMS</label>
+                  <input type="text" id="cfgOtpGatewayUrl" placeholder="https://api.jatismobile.com/v1/sms/send"
                     class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 font-mono">
                 </div>
                 <div>
-                  <label class="block text-xs font-bold text-slate-700 mb-1">API Token / Secret Key WA Gateway</label>
-                  <input type="password" id="cfgOtpGatewayToken" placeholder="Masukkan Token Fonnte / Wablas"
+                  <label class="block text-xs font-bold text-slate-700 mb-1">API Key / Token SMS Gateway</label>
+                  <input type="password" id="cfgOtpGatewayToken" placeholder="Masukkan API Key / Token SMS Gateway"
                     class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 font-mono">
                 </div>
               </div>
-
             </div>
 
             <!-- Submit Button Bar -->
@@ -1159,7 +1516,7 @@
               <button type="submit" id="saveConfigBtn"
                 class="px-6 py-3 rounded-xl font-bold text-xs text-white bg-[#00897B] hover:bg-[#00796B] active:scale-[0.99] shadow-lg shadow-teal-700/20 transition flex items-center gap-2">
                 <i data-lucide="check" class="w-4 h-4"></i>
-                <span>Simpan Seluruh Pengaturan & Logo</span>
+                <span>Simpan Seluruh Pengaturan &amp; Logo</span>
               </button>
             </div>
           </form>
@@ -1167,18 +1524,157 @@
 
       </div>
 
-      <!-- FOOTER WITH REGULATORY LOGOS -->
+      <!-- FOOTER -->
       <footer
         class="p-6 border-t border-slate-200/80 bg-white text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div>
-          &copy; 2026 <strong class="text-slate-700">PT BPR Dana Mandiri Bogor</strong>. Konsol Administrasi &
+          &copy; 2026 <strong class="text-slate-700">PT BPR Dana Mandiri Bogor</strong>. Konsol Administrasi &amp;
           Backoffice M-Banking.
         </div>
         <div class="text-xs text-slate-400">
-          Versi v1.0.0
+          Versi v2.0.0 Enterprise
         </div>
       </footer>
     </main>
+  </div>
+
+  <!-- ==================== REUSABLE ENTERPRISE CONFIRMATION & INPUT MODAL ==================== -->
+  <div id="enterpriseConfirmModal" role="dialog" aria-modal="true"
+    class="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-xs hidden flex items-center justify-center p-4">
+    <div
+      class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 border border-slate-100 space-y-4 modal-fade-in">
+      <div class="flex items-start gap-3.5">
+        <div id="ecmIconWrap"
+          class="w-10 h-10 rounded-2xl bg-teal-50 text-[#00897B] border border-teal-200 flex items-center justify-center shrink-0">
+          <i id="ecmIcon" data-lucide="check-circle-2" class="w-5 h-5"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <h3 id="ecmTitle" class="text-sm font-extrabold text-slate-900 leading-snug">Konfirmasi Tindakan</h3>
+          <p id="ecmMessage" class="text-xs text-slate-600 mt-1 leading-relaxed whitespace-pre-line"></p>
+        </div>
+      </div>
+
+      <!-- Optional Select Field -->
+      <div id="ecmSelectWrap" class="hidden space-y-1">
+        <label id="ecmSelectLabel" for="ecmSelectField" class="block text-xs font-bold text-slate-700">Pilih
+          Status</label>
+        <select id="ecmSelectField"
+          class="w-full px-3.5 py-2.5 text-xs font-bold rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-[#00897B]">
+        </select>
+      </div>
+
+      <!-- Optional Input / Textarea / Datetime-local Field -->
+      <div id="ecmInputWrap" class="hidden space-y-1.5">
+        <label id="ecmInputLabel" for="ecmInputField" class="block text-xs font-bold text-slate-700">Keterangan</label>
+        <input id="ecmInputField" type="text"
+          class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
+        <textarea id="ecmTextareaField" rows="3"
+          class="hidden w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]"></textarea>
+        <p id="ecmInputHelp" class="hidden text-[10.5px] text-slate-400"></p>
+        <p id="ecmInputError" class="hidden text-[11px] font-bold text-rose-600"></p>
+      </div>
+
+      <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+        <button type="button" id="ecmCancelBtn"
+          class="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition">
+          Batal
+        </button>
+        <button type="button" id="ecmConfirmBtn"
+          class="px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] shadow-sm transition flex items-center gap-1.5">
+          Konfirmasi
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== IDLE SESSION AUTO-LOGOUT WARNING MODAL ==================== -->
+  <div id="idleSessionWarningModal" role="alertdialog" aria-modal="true"
+    class="fixed inset-0 z-[9998] bg-slate-900/60 backdrop-blur-xs hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 border border-amber-200 space-y-4 modal-fade-in">
+      <div class="flex items-start gap-3.5">
+        <div
+          class="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center shrink-0">
+          <i data-lucide="clock-alert" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h3 class="text-sm font-extrabold text-slate-900">Peringatan Sesi Tidak Aktif</h3>
+          <p class="text-xs text-slate-600 mt-1 leading-relaxed">
+            Tidak ada aktivitas terdeteksi selama lebih dari 13 menit. Demi keamanan sistem perbankan (Kepatuhan OJK),
+            sesi Anda akan dikeluarkan otomatis dalam 90 detik.
+          </p>
+        </div>
+      </div>
+      <div class="pt-2 border-t border-slate-100 flex items-center justify-end gap-2">
+        <button type="button" onclick="performLogout('Anda telah keluar dari sistem.')"
+          class="px-4 py-2.5 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition">
+          Keluar Sekarang
+        </button>
+        <button type="button" onclick="extendIdleSession()"
+          class="px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] transition">
+          Tetap Masuk (Perpanjang Sesi)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SELF-SERVICE CHANGE MY PASSWORD MODAL ==================== -->
+  <div id="changeMyPasswordModal"
+    class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 border border-slate-100 modal-fade-in">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-teal-50 text-[#00897B] flex items-center justify-center">
+            <i data-lucide="key-round" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-slate-800">Ganti Password Saya</h3>
+            <p class="text-[11px] text-slate-500">Perbarui kata sandi akun petugas Anda</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeChangeMyPasswordModal()"
+          class="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="changeMyPasswordForm" onsubmit="handleChangeMyPassword(event)" class="space-y-3.5">
+        <div id="changeMyPasswordError"
+          class="hidden p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700"></div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Kata Sandi Saat Ini *</label>
+          <input type="password" id="myOldPassword" required placeholder="Masukkan kata sandi saat ini"
+            class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Kata Sandi Baru *</label>
+          <input type="password" id="myNewPassword" required minlength="12"
+            placeholder="Minimal 12 karakter (kombinasi huruf & angka)"
+            class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
+          <p class="text-[10px] text-slate-400 mt-1">Wajib minimal 12 karakter dengan kombinasi huruf dan angka.</p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Konfirmasi Kata Sandi Baru *</label>
+          <input type="password" id="myConfirmPassword" required minlength="12"
+            placeholder="Ulangi kata sandi baru"
+            class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
+        </div>
+
+        <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+          <button type="button" onclick="closeChangeMyPasswordModal()"
+            class="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition">
+            Batal
+          </button>
+          <button type="submit" id="submitChangeMyPasswordBtn"
+            class="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] shadow-sm transition flex items-center gap-1.5">
+            <i data-lucide="key-round" class="w-4 h-4"></i>
+            <span>Simpan Kata Sandi Baru</span>
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <!-- ==================== CREATE ADMIN MODAL ==================== -->
@@ -1193,10 +1689,10 @@
           </div>
           <div>
             <h3 class="text-base font-bold text-slate-800">Tambah Petugas Admin Baru</h3>
-            <p class="text-[11px] text-slate-500">Tentukan identitas dan hak akses petugas (*Role*)</p>
+            <p class="text-[11px] text-slate-500">Tentukan identitas dan hak akses petugas (Role)</p>
           </div>
         </div>
-        <button onclick="closeCreateAdminModal()"
+        <button type="button" onclick="closeCreateAdminModal()"
           class="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100">
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
@@ -1212,7 +1708,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">Username Login *</label>
-            <input type="text" id="newAdminUsername" required placeholder="Contoh: sitics"
+            <input type="text" id="newAdminUsername" required minlength="4" maxlength="50" placeholder="Contoh: sitics"
               class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 font-mono">
           </div>
           <div>
@@ -1224,25 +1720,26 @@
 
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Password Awal *</label>
-          <input type="password" id="newAdminPassword" required placeholder="Minimal 6 karakter"
+          <input type="password" id="newAdminPassword" required minlength="12"
+            placeholder="Minimal 12 karakter (kombinasi huruf & angka)"
             class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500">
-          <p class="text-[10px] text-slate-400 mt-1">Petugas disarankan mengganti password setelah login pertama.</p>
+          <p class="text-[10px] text-slate-400 mt-1">Minimal 12 karakter kombinasi huruf &amp; angka. Petugas disarankan
+            mengganti password setelah login pertama.</p>
         </div>
 
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Hak Akses / Peran (Role) *</label>
           <select id="newAdminRole" required onchange="updateRoleDescription()"
             class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 bg-white font-semibold">
-            <option value="CS">CUSTOMER_SERVICE - Operasional Nasabah & Reset Device</option>
+            <option value="CS">CUSTOMER_SERVICE - Operasional Nasabah &amp; Reset Device</option>
             <option value="SUPER_ADMIN">SUPER_ADMIN - Administrator Penuh (Seluruh Modul)</option>
-            <option value="MARKETING">MARKETING - Manajemen Konten & Banner Promosi</option>
-            <option value="COMPLIANCE">COMPLIANCE - Audit & Pengawasan Kepatuhan (Read-Only)</option>
+            <option value="MARKETING">MARKETING - Konten Aplikasi, Push Notification &amp; Pengajuan Produk</option>
+            <option value="COMPLIANCE">COMPLIANCE - Audit Trail, SK Layanan &amp; Pengawasan Kepatuhan</option>
           </select>
         </div>
 
         <div id="roleDescBox"
           class="p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] text-slate-600 leading-relaxed">
-          <!-- Dynamic Role Description -->
         </div>
 
         <div class="flex items-center gap-2 pt-1">
@@ -1267,18 +1764,88 @@
     </div>
   </div>
 
+  <!-- ==================== EDIT ADMIN / RESET PASSWORD MODAL ==================== -->
+  <div id="editAdminModal"
+    class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div
+      class="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 border border-slate-100 overflow-y-auto max-h-[90vh] modal-fade-in">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-teal-50 text-[#00897B] flex items-center justify-center">
+            <i data-lucide="user-cog" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-800">Edit Petugas &amp; Reset Kata Sandi</h3>
+            <p class="text-[11px] text-slate-500">Akun: <span id="editAdminUsernameDisplay"
+                class="font-mono font-bold text-slate-700">@admin</span></p>
+          </div>
+        </div>
+        <button type="button" onclick="closeEditAdminModal()"
+          class="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="editAdminForm" onsubmit="handleEditAdminSubmit(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap Petugas *</label>
+          <input type="text" id="editAdminFullName" required
+            class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Email Resmi</label>
+          <input type="email" id="editAdminEmail"
+            class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Hak Akses / Peran (Role) *</label>
+          <select id="editAdminRole" required
+            class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B] bg-white font-semibold">
+            <option value="CS">CUSTOMER_SERVICE - Operasional Nasabah &amp; Reset Device</option>
+            <option value="SUPER_ADMIN">SUPER_ADMIN - Administrator Penuh (Seluruh Modul)</option>
+            <option value="MARKETING">MARKETING - Konten Aplikasi, Push Notification &amp; Pengajuan Produk</option>
+            <option value="COMPLIANCE">COMPLIANCE - Audit Trail, SK Layanan &amp; Pengawasan Kepatuhan</option>
+          </select>
+        </div>
+
+        <div class="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200/80 space-y-1.5">
+          <label class="block text-xs font-bold text-amber-900">Reset Kata Sandi (Opsional — Buka Kunci Akun)</label>
+          <input type="password" id="editAdminPassword"
+            placeholder="Kosongkan bila tidak ingin mengubah sandi (Min. 12 karakter huruf & angka)"
+            class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-amber-200 bg-white focus:outline-none focus:border-[#00897B]">
+          <p class="text-[10.5px] text-amber-800">Mengisi kata sandi baru akan sekaligus membuka penguncian (lockout)
+            dan me-reset gagal login petugas ini.</p>
+        </div>
+
+        <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+          <button type="button" onclick="closeEditAdminModal()"
+            class="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition">
+            Batal
+          </button>
+          <button type="submit" id="submitEditAdminBtn"
+            class="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] shadow-sm transition flex items-center gap-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>Simpan Perubahan</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- ==================== MODULAR JAVASCRIPT ARCHITECTURE (CACHE BUSTED) ==================== -->
-  <script src="js/api.js?v=20261116_01"></script>
-  <script src="js/auth.js?v=20261116_01"></script>
-  <script src="js/dashboard.js?v=20261116_01"></script>
-  <script src="js/customers.js?v=20261116_01"></script>
-  <script src="js/transactions.js?v=20261116_02"></script>
-  <script src="js/admin_users.js?v=20261116_01"></script>
-  <script src="js/settings.js?v=20261116_01"></script>
-  <script src="js/legal_terms.js?v=20261116_01"></script>
-  <script src="js/content.js?v=20261116_01"></script>
-  <script src="js/push.js?v=20261116_01"></script>
-  <script src="js/app.js?v=20261116_01"></script>
+  <script src="js/api.js?v=20261119_02"></script>
+  <script src="js/auth.js?v=20261119_02"></script>
+  <script src="js/dashboard.js?v=20261119_02"></script>
+  <script src="js/customers.js?v=20261119_02"></script>
+  <script src="js/audit_logs.js?v=20261119_02"></script>
+  <script src="js/admin_users.js?v=20261119_02"></script>
+  <script src="js/settings.js?v=20261119_02"></script>
+  <script src="js/legal_terms.js?v=20261119_02"></script>
+  <script src="js/content.js?v=20261119_02"></script>
+  <script src="js/push.js?v=20261119_02"></script>
+  <script src="js/app.js?v=20261119_02"></script>
 </body>
 
 </html>

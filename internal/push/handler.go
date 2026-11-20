@@ -14,7 +14,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Handler exposes customer device endpoints and the back-office notification module.
 type Handler struct{ svc *Service }
 
 func NewHandler(svc *Service) *Handler { return &Handler{svc: svc} }
@@ -35,18 +34,15 @@ func writeErr(c *gin.Context, err error) {
 	}
 }
 
-// ---- customer (authenticated, device-bound) ---------------------------------------------
-
 type tokenRequest struct {
 	FCMToken string `json:"fcm_token" binding:"required"`
 	Platform string `json:"platform"`
 }
 
-// RegisterToken handles POST /notifications/fcm-token.
 func (h *Handler) RegisterToken(c *gin.Context) {
 	var req tokenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "fcm_token wajib diisi", nil)
+		response.BadRequest(c, "Token notifikasi perangkat wajib diisi", nil)
 		return
 	}
 	if err := h.svc.RegisterDevice(c.Request.Context(), c.GetString(middleware.CtxUserID), c.GetString(middleware.CtxDeviceID), req.FCMToken, req.Platform); err != nil {
@@ -56,7 +52,6 @@ func (h *Handler) RegisterToken(c *gin.Context) {
 	response.Success(c, "Perangkat terdaftar untuk notifikasi", gin.H{"registered": true})
 }
 
-// UnregisterToken handles DELETE /notifications/fcm-token.
 func (h *Handler) UnregisterToken(c *gin.Context) {
 	if err := h.svc.UnregisterDevice(c.Request.Context(), c.GetString(middleware.CtxUserID), c.GetString(middleware.CtxDeviceID), "LOGOUT"); err != nil {
 		writeErr(c, err)
@@ -65,8 +60,6 @@ func (h *Handler) UnregisterToken(c *gin.Context) {
 	response.Success(c, "Perangkat dilepas dari notifikasi", gin.H{"registered": false})
 }
 
-// DetachOnLogout is placed before the logout handler: the device stops receiving pushes
-// even if the app could not call UnregisterToken.
 func (h *Handler) DetachOnLogout(c *gin.Context) {
 	if err := h.svc.UnregisterDevice(c.Request.Context(), c.GetString(middleware.CtxUserID), c.GetString(middleware.CtxDeviceID), "LOGOUT"); err != nil {
 		logger.GetLogger().Warn("Gagal melepas perangkat push saat logout", map[string]interface{}{"error": err.Error()})
@@ -74,7 +67,6 @@ func (h *Handler) DetachOnLogout(c *gin.Context) {
 	c.Next()
 }
 
-// Opened handles POST /notifications/opened (the app reports a tapped notification).
 func (h *Handler) Opened(c *gin.Context) {
 	var req struct {
 		Ref string `json:"ref" binding:"required"`
@@ -90,8 +82,6 @@ func (h *Handler) Opened(c *gin.Context) {
 	response.Success(c, "OK", gin.H{"recorded": true})
 }
 
-// ---- back office: Firebase integration ---------------------------------------------------
-
 func (h *Handler) view(c *gin.Context, v *SettingsView, err error, msg string) {
 	if err != nil {
 		writeErr(c, err)
@@ -100,15 +90,11 @@ func (h *Handler) view(c *gin.Context, v *SettingsView, err error, msg string) {
 	response.Success(c, msg, v)
 }
 
-// GetSettings handles GET /admin/push/settings.
 func (h *Handler) GetSettings(c *gin.Context) {
 	v, err := h.svc.GetSettings(c.Request.Context())
 	h.view(c, v, err, "Status integrasi Firebase")
 }
 
-// UploadCredential handles POST /admin/push/credential (multipart "file": the Firebase
-// service-account JSON). The content is validated against Google and stored encrypted;
-// it is never returned by any endpoint.
 func (h *Handler) UploadCredential(c *gin.Context) {
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 64*1024)
 	fh, err := c.FormFile("file")
@@ -131,13 +117,11 @@ func (h *Handler) UploadCredential(c *gin.Context) {
 	h.view(c, v, err, "Credential Firebase tervalidasi dan disimpan terenkripsi. Aktifkan integrasi untuk mulai mengirim.")
 }
 
-// Test handles POST /admin/push/test.
 func (h *Handler) Test(c *gin.Context) {
 	v, err := h.svc.TestConnection(c.Request.Context())
 	h.view(c, v, err, "Uji koneksi selesai")
 }
 
-// SetEnabled handles PUT /admin/push/settings.
 func (h *Handler) SetEnabled(c *gin.Context) {
 	var req struct {
 		Enabled *bool `json:"enabled"`
@@ -150,8 +134,6 @@ func (h *Handler) SetEnabled(c *gin.Context) {
 	h.view(c, v, err, "Pengaturan disimpan")
 }
 
-// ---- back office: notifications ----------------------------------------------------------
-
 func (h *Handler) campaign(c *gin.Context, v *Campaign, err error, msg string) {
 	if err != nil {
 		writeErr(c, err)
@@ -160,7 +142,6 @@ func (h *Handler) campaign(c *gin.Context, v *Campaign, err error, msg string) {
 	response.Success(c, msg, v)
 }
 
-// ListCampaigns handles GET /admin/push/campaigns.
 func (h *Handler) ListCampaigns(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.Query("limit"))
 	out, err := h.svc.ListCampaigns(c.Request.Context(), limit)
@@ -171,7 +152,6 @@ func (h *Handler) ListCampaigns(c *gin.Context) {
 	response.Success(c, "Riwayat notifikasi", out)
 }
 
-// CreateCampaign handles POST /admin/push/campaigns.
 func (h *Handler) CreateCampaign(c *gin.Context) {
 	var in CampaignInput
 	if err := c.ShouldBindJSON(&in); err != nil {
@@ -182,19 +162,16 @@ func (h *Handler) CreateCampaign(c *gin.Context) {
 	h.campaign(c, v, err, "Draf notifikasi dibuat")
 }
 
-// Submit handles POST /admin/push/campaigns/:id/submit.
 func (h *Handler) Submit(c *gin.Context) {
 	v, err := h.svc.SubmitCampaign(c.Request.Context(), c.Param("id"))
 	h.campaign(c, v, err, "Diajukan untuk persetujuan")
 }
 
-// Approve handles POST /admin/push/campaigns/:id/approve.
 func (h *Handler) Approve(c *gin.Context) {
 	v, err := h.svc.ApproveCampaign(c.Request.Context(), c.Param("id"))
 	h.campaign(c, v, err, "Disetujui. Pengiriman sedang diproses.")
 }
 
-// Reject handles POST /admin/push/campaigns/:id/reject.
 func (h *Handler) Reject(c *gin.Context) {
 	var req struct {
 		Reason string `json:"reason"`
@@ -204,7 +181,6 @@ func (h *Handler) Reject(c *gin.Context) {
 	h.campaign(c, v, err, "Notifikasi ditolak")
 }
 
-// Deliveries handles GET /admin/push/campaigns/:id/deliveries.
 func (h *Handler) Deliveries(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.Query("limit"))
 	out, err := h.svc.CampaignDeliveries(c.Request.Context(), c.Param("id"), limit)

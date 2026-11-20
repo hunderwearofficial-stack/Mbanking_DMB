@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/api_endpoints.dart';
+import '../content/app_content.dart';
 import '../network/api_client.dart';
 import '../utils/app_logger.dart';
 
-/// Data model representing server-driven dynamic mobile branding & configuration.
 class DynamicAppConfig {
   final String bankName;
   final String bankShortName;
@@ -32,7 +32,6 @@ class DynamicAppConfig {
   final bool maintenanceMode;
   final String maintenanceMessage;
 
-  /// Published mobile content revision (back office draft → publish); 0 = none yet.
   final int contentVersion;
 
   const DynamicAppConfig({
@@ -63,7 +62,6 @@ class DynamicAppConfig {
     this.contentVersion = 0,
   });
 
-  /// Default baseline configuration.
   factory DynamicAppConfig.defaults() {
     return const DynamicAppConfig(
       bankName: 'PT BPR DANA MANDIRI BOGOR',
@@ -83,8 +81,6 @@ class DynamicAppConfig {
       termsPdfUrl: '',
       privacyPdfUrl: '',
       quickMenuConfig: '',
-      // Contacts are never invented on the device: empty until the bank publishes them
-      // (screens then use the single in-app source, BankContact).
       callCenter: '',
       whatsappCs: '',
       emailCs: '',
@@ -156,14 +152,12 @@ class DynamicAppConfig {
     };
   }
 
-  /// Resolve relative upload URLs to full accessible backend URLs.
   String resolveUrl(String? rawUrl) {
     if (rawUrl == null || rawUrl.trim().isEmpty) return '';
     final url = rawUrl.trim();
     if (url.startsWith('http://') || url.startsWith('https://')) {
       return url;
     }
-    // Prepend API Base URL
     final base = ApiEndpoints.baseUrl.replaceAll(RegExp(r'/+$'), '');
     final cleanPath = url.startsWith('/') ? url : '/$url';
     return '$base$cleanPath';
@@ -177,9 +171,6 @@ class DynamicAppConfig {
   String get resolvedPrivacyPdfUrl => resolveUrl(privacyPdfUrl);
 }
 
-/// Central Singleton for Dynamic Server-Driven Branding & Configuration with Persistent Disk Cache.
-/// Crucial requirement: When offline, the app NEVER reverts to bundled stock assets.
-/// It retains and loads the latest saved configuration from disk cache.
 class DynamicConfigService extends ChangeNotifier with WidgetsBindingObserver {
   static final DynamicConfigService _instance = DynamicConfigService._internal();
   factory DynamicConfigService() => _instance;
@@ -191,7 +182,6 @@ class DynamicConfigService extends ChangeNotifier with WidgetsBindingObserver {
   DynamicAppConfig _config = DynamicAppConfig.defaults();
   DynamicAppConfig get config => _config;
 
-  /// Helper to resolve relative upload URLs to full backend URLs
   String resolveUrl(String? rawUrl) => _config.resolveUrl(rawUrl);
 
   bool _isServerConnected = true;
@@ -200,24 +190,20 @@ class DynamicConfigService extends ChangeNotifier with WidgetsBindingObserver {
   bool _isInitialized = false;
   bool get isInitialized => _isInitialized;
 
-  // ---- Managed content (GET /api/v1/content, see lib/core/content/app_content.dart) ----
   static const String _contentKey = 'dmb_app_content_v1';
   Map<String, String> _content = const {};
   int _contentVersion = -1;
   DateTime? _contentFetchedAt;
   ApiClient? _apiClient;
 
-  /// Published content version applied in the app (-1 = none downloaded yet).
   int get contentVersion => _contentVersion;
 
-  /// Applies a downloaded content payload (tests).
   @visibleForTesting
   void applyContentForTest(Map<String, dynamic> data) {
     _applyContent(data);
     notifyListeners();
   }
 
-  /// Raw published value of a content element (validated by AppContent before use).
   String? contentItem(String key) => _content[key];
 
   void _applyContent(dynamic data) {
@@ -233,7 +219,6 @@ class DynamicConfigService extends ChangeNotifier with WidgetsBindingObserver {
     _contentVersion = version.toInt();
   }
 
-  /// Downloads the published content; applied and cached only when the version changed.
   Future<bool> refreshContent({ApiClient? apiClient}) async {
     final client = apiClient ?? _apiClient;
     if (client == null) return false;
@@ -249,16 +234,15 @@ class DynamicConfigService extends ChangeNotifier with WidgetsBindingObserver {
           logDebug('DynamicConfigService: error persisting content cache: $e');
         }
         notifyListeners();
+        RemoteImageCache.warmUpAllContentImages();
       }
       return true;
     } catch (e) {
-      // Keep what is shown (cache or built-in values); never substitute other content.
       logDebug('DynamicConfigService: content not refreshed ($e)');
       return false;
     }
   }
 
-  // Refresh when the app comes back to the foreground (no polling), at most once a minute.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) return;
@@ -267,7 +251,6 @@ class DynamicConfigService extends ChangeNotifier with WidgetsBindingObserver {
     refreshContent();
   }
 
-  /// Initialize and load persistent cache from disk storage immediately.
   Future<void> initialize({ApiClient? apiClient}) async {
     if (_isInitialized) return;
     _apiClient = apiClient;
@@ -285,6 +268,7 @@ class DynamicConfigService extends ChangeNotifier with WidgetsBindingObserver {
       final cachedContent = prefs.getString(_contentKey);
       if (cachedContent != null && cachedContent.isNotEmpty) {
         _applyContent(jsonDecode(cachedContent));
+        await RemoteImageCache.preloadStartupImages();
       }
     } catch (e) {
       logDebug('DynamicConfigService init cache read error: $e');
@@ -292,14 +276,23 @@ class DynamicConfigService extends ChangeNotifier with WidgetsBindingObserver {
 
     _isInitialized = true;
     notifyListeners();
-
-    // Asynchronously fetch latest config from server
-    refreshFromServer(apiClient: apiClient);
-    refreshContent(apiClient: apiClient);
   }
 
-  /// Fetch the latest configuration from the server and persist to disk.
-  /// If offline or server unreachable, maintains disk cache and updates connectivity state.
+  /// Sinkronisasi konfigurasi & konten saat aplikasi dibuka.
+  /// Mengembalikan `true` jika layanan dapat dihubungi, atau `false` jika offline/timeout.
+  Future<bool> syncStartup() async {
+    final results = await Future.wait([
+      refreshFromServer(apiClient: _apiClient),
+      refreshContent(apiClient: _apiClient),
+    ]);
+    final ok = results[0] && results[1];
+    if (ok) {
+      await RemoteImageCache.warmUpAllContentImages();
+      notifyListeners();
+    }
+    return ok;
+  }
+
   Future<bool> refreshFromServer({ApiClient? apiClient}) async {
     try {
       final client = apiClient;
@@ -308,7 +301,6 @@ class DynamicConfigService extends ChangeNotifier with WidgetsBindingObserver {
       if (client != null) {
         res = await client.get(ApiEndpoints.appConfig);
       } else {
-        // Fallback using direct Dio
         final tempClient = ApiClient.createSecureDio(baseUrl: ApiEndpoints.baseUrl);
         final raw = await tempClient.get(ApiEndpoints.appConfig);
         res = raw.data;
@@ -327,7 +319,6 @@ class DynamicConfigService extends ChangeNotifier with WidgetsBindingObserver {
         _config = DynamicAppConfig.fromJson(dataMap);
         _isServerConnected = true;
 
-        // Persist to disk cache
         try {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString(_storageKey, jsonEncode(_config.toJson()));
@@ -347,7 +338,6 @@ class DynamicConfigService extends ChangeNotifier with WidgetsBindingObserver {
     return false;
   }
 
-  /// Manually set connectivity status (e.g. from network interceptor or health probe).
   void setServerConnected(bool connected) {
     if (_isServerConnected != connected) {
       _isServerConnected = connected;
@@ -355,7 +345,6 @@ class DynamicConfigService extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  /// Actively test server health endpoint.
   Future<bool> checkHealth() async {
     try {
       final dio = ApiClient.createSecureDio(

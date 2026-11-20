@@ -30,14 +30,12 @@ func TestComputeHashDeterministic(t *testing.T) {
 		t.Fatalf("ComputeHash is not deterministic: %s != %s", h1, h2)
 	}
 
-	// Modifying details must change the hash
 	entry.Details = "Reset password via CS (modified)"
 	h3 := ComputeHash("prev-hash-abc", entry)
 	if h1 == h3 {
 		t.Fatalf("ComputeHash collision: hash didn't change when details changed")
 	}
 
-	// Modifying status must change the hash
 	entry.Details = "Reset password via CS"
 	entry.Status = "FAILED"
 	h4 := ComputeHash("prev-hash-abc", entry)
@@ -45,7 +43,6 @@ func TestComputeHashDeterministic(t *testing.T) {
 		t.Fatalf("ComputeHash collision: hash didn't change when status changed")
 	}
 
-	// Modifying previous hash must change the hash
 	entry.Status = "SUCCESS"
 	h5 := ComputeHash("different-prev-hash", entry)
 	if h1 == h5 {
@@ -56,7 +53,6 @@ func TestComputeHashDeterministic(t *testing.T) {
 func TestHashChainDetectsTampering(t *testing.T) {
 	fixedTime := time.Date(2026, 11, 13, 10, 0, 0, 0, time.UTC)
 
-	// Simulate linear sequence of audit logs
 	logs := []model.AuditLog{
 		{
 			ID: "log-1", ActorType: "ADMIN", ActorID: "adm-1", ActorName: "Admin Satu",
@@ -66,9 +62,9 @@ func TestHashChainDetectsTampering(t *testing.T) {
 		},
 		{
 			ID: "log-2", ActorType: "NASABAH", ActorID: "usr-1", ActorName: "Nasabah Uji",
-			Action: "TRANSFER_SUCCESS", Target: "0000000000000001", Status: "SUCCESS",
+			Action: "CHANGE_PIN_SUCCESS", Target: "0000000000000001", Status: "SUCCESS",
 			IPAddress: "192.168.1.50", UserAgent: "DMBMobile/1.0", DeviceID: "dev-uuid-1",
-			Details: "Transfer Rp 50.000", CreatedAt: fixedTime.Add(1 * time.Minute),
+			Details: "Ganti PIN transaksi", CreatedAt: fixedTime.Add(1 * time.Minute),
 		},
 		{
 			ID: "log-3", ActorType: "NASABAH", ActorID: "usr-1", ActorName: "Nasabah Uji",
@@ -78,7 +74,6 @@ func TestHashChainDetectsTampering(t *testing.T) {
 		},
 	}
 
-	// Build linear hash chain
 	prev := ""
 	for i := range logs {
 		logs[i].PrevHash = prev
@@ -86,7 +81,6 @@ func TestHashChainDetectsTampering(t *testing.T) {
 		prev = logs[i].Hash
 	}
 
-	// Validate untampered chain
 	validateChain := func(entries []model.AuditLog) (bool, int) {
 		p := ""
 		for idx, e := range entries {
@@ -106,8 +100,7 @@ func TestHashChainDetectsTampering(t *testing.T) {
 		t.Fatalf("expected valid chain of 3 entries, got ok=%v, count=%d", ok, count)
 	}
 
-	// Tamper log-2 details
-	logs[1].Details = "Tampered transfer amount Rp 50.000.000"
+	logs[1].Details = "Tampered audit detail"
 	ok, brokenIdx := validateChain(logs)
 	if ok || brokenIdx != 1 {
 		t.Fatalf("expected tampering detected at index 1, got ok=%v, brokenIdx=%d", ok, brokenIdx)

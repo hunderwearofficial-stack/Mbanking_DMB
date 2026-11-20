@@ -1,8 +1,3 @@
-// Package rekey re-encrypts customer PII columns to the current key (audit DMB-008).
-//
-// It converts legacy plaintext values and legacy "enc:v1:" ciphertext (produced
-// with the key that was published in the repository) to "enc:v2:" under the
-// active DB_ENCRYPTION_KEY. Plaintext values are never logged.
 package rekey
 
 import (
@@ -14,10 +9,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// Columns of the users table holding encrypted PII.
-var Columns = []string{"nik", "email", "alamat", "tgl_lahir", "tempat_lahir", "nama_ibu_kandung"}
+var Columns = []string{"email", "tgl_lahir", "tempat_lahir", "nama_ibu_kandung"}
 
-// Stats summarizes a run.
 type Stats struct {
 	Scanned       int
 	NeedsRekey    int
@@ -30,7 +23,6 @@ type row struct {
 	Values map[string]string
 }
 
-// Run scans all users; when apply is true, rewrites values that need re-encryption.
 func Run(ctx context.Context, db *gorm.DB, apply bool, batchSize int) (Stats, error) {
 	var st Stats
 	if batchSize <= 0 {

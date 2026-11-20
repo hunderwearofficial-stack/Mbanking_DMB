@@ -1,6 +1,3 @@
-// Pengiriman kode OTP melalui gateway WhatsApp/SMS yang dikonfigurasi di app_configs.
-// State/verifikasi OTP ada di store.go (audit DMB-002, DMB-011, DMB-012).
-
 package otp
 
 import (
@@ -10,36 +7,63 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 	"sync/atomic"
 	"time"
 
 	"mbanking-bpr/internal/model"
+	"mbanking-bpr/pkg/crypto"
 	"mbanking-bpr/pkg/logger"
 
 	"gorm.io/gorm"
 )
 
 var (
-	// ErrOTPGatewayNotConfigured is returned in production when no real gateway is configured.
 	ErrOTPGatewayNotConfigured = errors.New("layanan pengiriman OTP belum dikonfigurasi. Silakan hubungi Customer Service Bank DMB")
-	// ErrOTPSendFailed is returned when the gateway rejects or cannot be reached.
-	ErrOTPSendFailed = errors.New("kode OTP gagal dikirim. Silakan coba beberapa saat lagi")
-	// ErrRandomUnavailable is returned if the CSPRNG fails (never fall back to a predictable source).
-	ErrRandomUnavailable = errors.New("sumber angka acak kriptografis tidak tersedia")
+	ErrOTPSendFailed           = errors.New("kode OTP gagal dikirim. Silakan coba beberapa saat lagi")
+	ErrRandomUnavailable       = errors.New("sumber angka acak kriptografis tidak tersedia")
 )
 
 var productionMode atomic.Bool
 
-// Configure sets environment-dependent behaviour (call once at startup).
 func Configure(isProduction bool) { productionMode.Store(isProduction) }
 
-// Generate generates a cryptographically random 6-digit code.
-// SECURITY (audit DMB-002): no time-based fallback; failure is an error.
+// gatewayHostAllowed is the OTP_GATEWAY_ALLOWED_HOSTS check (audit E-03). nil = any host.
+var gatewayHostAllowed atomic.Value // func(string) bool
+
+// ConfigureGateway installs the allowlist check for OTP gateway hosts.
+func ConfigureGateway(allowed func(host string) bool) { gatewayHostAllowed.Store(allowed) }
+
+func hostAllowed(host string) bool {
+	if f, ok := gatewayHostAllowed.Load().(func(string) bool); ok && f != nil {
+		return f(host)
+	}
+	return true
+}
+
+// gatewayRejected reports a JSON body that explicitly signals failure despite HTTP 2xx
+// ("success": false, or "status": "error"/"failed") — audit D-13.
+func gatewayRejected(body []byte) bool {
+	var m map[string]interface{}
+	if json.Unmarshal(body, &m) != nil {
+		return false
+	}
+	if v, ok := m["success"].(bool); ok && !v {
+		return true
+	}
+	if v, ok := m["status"].(string); ok {
+		switch strings.ToLower(strings.TrimSpace(v)) {
+		case "error", "failed", "fail", "rejected":
+			return true
+		}
+	}
+	return false
+}
+
 func Generate() (string, error) {
 	n, err := rand.Int(rand.Reader, big.NewInt(1000000))
 	if err != nil {
@@ -55,9 +79,15 @@ func maskPhone(p string) string {
 	return p[:4] + "****" + p[len(p)-3:]
 }
 
-// Send generates a code, dispatches it through the configured gateway and returns it
-// so the caller can store its HMAC. In production, SANDBOX mode is refused and gateway
-// failures are returned as errors (audit DMB-011, DMB-012).
+func normalizeSMSPhone(phone string) string {
+	p := strings.TrimSpace(phone)
+	p = strings.TrimPrefix(p, "+")
+	if strings.HasPrefix(p, "08") {
+		p = "628" + p[2:]
+	}
+	return p
+}
+
 func Send(ctx context.Context, db *gorm.DB, phoneNumber, customerName, purpose string) (string, error) {
 	otpCode, err := Generate()
 	if err != nil {
@@ -70,7 +100,13 @@ func Send(ctx context.Context, db *gorm.DB, phoneNumber, customerName, purpose s
 	}
 
 	provider := strings.ToUpper(strings.TrimSpace(cfg.OTPProvider))
-	token := strings.TrimSpace(cfg.OTPGatewayToken)
+	// SECURITY (audit E-08): the token is stored AES-GCM encrypted; legacy plaintext is still read.
+	token, decErr := crypto.DecryptString(strings.TrimSpace(cfg.OTPGatewayToken))
+	if decErr != nil {
+		logger.GetLogger().Error("Token gateway OTP tidak dapat didekripsi", map[string]interface{}{"error": decErr.Error()})
+		return "", ErrOTPSendFailed
+	}
+	token = strings.TrimSpace(token)
 	gatewayURL := strings.TrimSpace(cfg.OTPGatewayURL)
 
 	if provider == "" || provider == "SANDBOX" || token == "" {
@@ -80,9 +116,6 @@ func Send(ctx context.Context, db *gorm.DB, phoneNumber, customerName, purpose s
 			})
 			return "", ErrOTPGatewayNotConfigured
 		}
-		// local/development/test only (staging & production return above). The structured
-		// logger masks OTP values, so the code is written directly to the console of the
-		// developer's own process — never to the log pipeline.
 		logger.GetLogger().Warn("[LOCAL/DEV] OTP mode SANDBOX: kode ditampilkan di konsol proses, tidak dikirim ke nasabah", map[string]interface{}{
 			"phone_masked": maskPhone(phoneNumber), "purpose": purpose,
 		})
@@ -94,55 +127,47 @@ func Send(ctx context.Context, db *gorm.DB, phoneNumber, customerName, purpose s
 	if bankName == "" {
 		bankName = "Bank DMB"
 	}
-	greeting := "Nasabah Yth"
-	if customerName != "" {
-		greeting = customerName
-	}
-	message := fmt.Sprintf(
-		"*[%s - KODE VERIFIKASI OTP]*\n\nHalo *%s*,\nKode OTP untuk *%s* di aplikasi Mobile DMB Anda adalah:\n\n*%s*\n\nBerlaku selama 3 menit. *JANGAN BERIKAN* kode rahasia ini kepada siapapun termasuk pihak %s.",
-		strings.ToUpper(bankName), greeting, purpose, otpCode, bankName,
-	)
+	ttlMinutes := int(SessionTTL().Minutes())
+	message := fmt.Sprintf("[%s] Kode OTP Anda: %s untuk %s. Berlaku %d mnt. JANGAN berikan kode ini kpd siapapun termasuk pihak Bank.", bankName, otpCode, purpose, ttlMinutes)
 
+	destPhone := normalizeSMSPhone(phoneNumber)
 	client := &http.Client{Timeout: 8 * time.Second}
 	var req *http.Request
 
 	switch provider {
-	case "FONNTE":
+	case "JATIS":
 		if gatewayURL == "" {
-			gatewayURL = "https://api.fonnte.com/send"
+			gatewayURL = "https://api.jatismobile.com/v1/sms/send"
 		}
-		form := url.Values{}
-		form.Set("target", phoneNumber)
-		form.Set("message", message)
-		form.Set("countryCode", "62")
-		req, err = http.NewRequestWithContext(ctx, http.MethodPost, gatewayURL, strings.NewReader(form.Encode()))
-		if err == nil {
-			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-			req.Header.Set("Authorization", token)
-		}
-	case "WABLAS":
-		if gatewayURL == "" {
-			gatewayURL = "https://pati.wablas.com/api/send-message"
-		}
-		form := url.Values{}
-		form.Set("phone", phoneNumber)
-		form.Set("message", message)
-		req, err = http.NewRequestWithContext(ctx, http.MethodPost, gatewayURL, strings.NewReader(form.Encode()))
-		if err == nil {
-			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-			req.Header.Set("Authorization", token)
-		}
-	default: // CUSTOM_WEBHOOK or SMS Gateway JSON
-		if gatewayURL == "" {
-			return "", ErrOTPGatewayNotConfigured
-		}
-		payload, _ := json.Marshal(map[string]string{
-			"phone": phoneNumber, "otp": otpCode, "purpose": purpose, "message": message,
+		payload, _ := json.Marshal(map[string]interface{}{
+			"sender":      bankName,
+			"destination": destPhone,
+			"msisdn":      destPhone,
+			"message":     message,
 		})
 		req, err = http.NewRequestWithContext(ctx, http.MethodPost, gatewayURL, bytes.NewReader(payload))
 		if err == nil {
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Authorization", "Bearer "+token)
+			req.Header.Set("apikey", token)
+		}
+	default: // SMS_GATEWAY or Generic REST
+		if gatewayURL == "" {
+			return "", ErrOTPGatewayNotConfigured
+		}
+		payload, _ := json.Marshal(map[string]interface{}{
+			"sender":      bankName,
+			"destination": destPhone,
+			"phone":       destPhone,
+			"message":     message,
+			"otp":         otpCode,
+			"purpose":     purpose,
+		})
+		req, err = http.NewRequestWithContext(ctx, http.MethodPost, gatewayURL, bytes.NewReader(payload))
+		if err == nil {
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", "Bearer "+token)
+			req.Header.Set("apikey", token)
 		}
 	}
 	if err != nil {
@@ -150,6 +175,10 @@ func Send(ctx context.Context, db *gorm.DB, phoneNumber, customerName, purpose s
 	}
 	if !strings.HasPrefix(strings.ToLower(req.URL.Scheme), "https") {
 		logger.GetLogger().Error("OTP gateway URL harus https", map[string]interface{}{"provider": provider})
+		return "", ErrOTPSendFailed
+	}
+	if !hostAllowed(req.URL.Hostname()) {
+		logger.GetLogger().Error("Host gateway OTP tidak ada di OTP_GATEWAY_ALLOWED_HOSTS", map[string]interface{}{"provider": provider, "host": req.URL.Hostname()})
 		return "", ErrOTPSendFailed
 	}
 
@@ -161,6 +190,10 @@ func Send(ctx context.Context, db *gorm.DB, phoneNumber, customerName, purpose s
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		logger.GetLogger().Error("Gateway OTP menolak permintaan", map[string]interface{}{"provider": provider, "status": resp.StatusCode})
+		return "", ErrOTPSendFailed
+	}
+	if body, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10)); gatewayRejected(body) {
+		logger.GetLogger().Error("Gateway OTP membalas 2xx tetapi menyatakan gagal", map[string]interface{}{"provider": provider})
 		return "", ErrOTPSendFailed
 	}
 	return otpCode, nil

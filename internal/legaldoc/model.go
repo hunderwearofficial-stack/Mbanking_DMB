@@ -2,10 +2,8 @@ package legaldoc
 
 import "time"
 
-// Document identifiers.
 const DocMobileTerms = "MOBILE_BANKING_TERMS"
 
-// Version statuses.
 const (
 	StatusDraft     = "DRAFT"
 	StatusPending   = "PENDING_APPROVAL"
@@ -13,14 +11,12 @@ const (
 	StatusArchived  = "ARCHIVED"
 )
 
-// Consent channels.
 const (
 	ChannelPreLogin   = "PRE_LOGIN"
 	ChannelLogin      = "LOGIN"
 	ChannelActivation = "ACTIVATION"
 )
 
-// Version maps legal_document_versions.
 type Version struct {
 	ID             string     `json:"id" gorm:"column:id;primaryKey;default:gen_random_uuid()"`
 	DocumentID     string     `json:"document_id" gorm:"column:document_id"`
@@ -48,7 +44,6 @@ type Version struct {
 
 func (Version) TableName() string { return "legal_document_versions" }
 
-// Acceptance maps legal_acceptances (append-only).
 type Acceptance struct {
 	ID                   string    `json:"id" gorm:"column:id;primaryKey;default:gen_random_uuid()"`
 	DocumentID           string    `json:"document_id" gorm:"column:document_id"`

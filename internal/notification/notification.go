@@ -1,6 +1,3 @@
-// Package notification menyimpan notifikasi in-app nasabah dan meneruskannya sebagai
-// push notification (FCM HTTP v1 melalui internal/push). Detail transaksi/keamanan hanya disimpan di inbox in-app;
-// kanal push pihak ketiga hanya menerima teks generik (minimisasi data, audit DMB-022).
 package notification
 
 import (
@@ -14,20 +11,15 @@ import (
 	"gorm.io/gorm"
 )
 
-// Kategori notifikasi yang dikenal aplikasi mobile.
 const (
 	CategoryTransaction = "TRANSACTION"
 	CategorySecurity    = "SECURITY"
 	CategoryInfo        = "INFO"
 	CategoryPromo       = "PROMO"
 
-	// Broadcast is the pseudo user id for notifications addressed to all customers.
 	Broadcast = "ALL"
 )
 
-// PushBody returns the text sent through the third-party push channel. Details of
-// security and transaction events (amounts, account numbers, device ids) stay in the
-// in-app inbox only (data minimisation, audit DMB-022).
 func PushBody(category, message string) string {
 	switch strings.ToUpper(category) {
 	case CategoryTransaction:
@@ -38,20 +30,14 @@ func PushBody(category, message string) string {
 	return message
 }
 
-// Pusher delivers a push notification to all active devices of one customer
-// (implemented by internal/push through FCM HTTP v1).
 type Pusher interface {
 	PushToUser(userID, notificationID, title, body, category string)
 }
 
 var pusher Pusher
 
-// SetPusher installs the push channel (called once at startup; nil = inbox only).
 func SetPusher(p Pusher) { pusher = p }
 
-// CreateAndPush stores the notification in the customer's in-app inbox and forwards a
-// generic text to the customer's registered devices. Sending happens in the background;
-// its outcome is recorded per device in push_deliveries (never assumed).
 func CreateAndPush(ctx context.Context, db *gorm.DB, userID, title, message, category string) {
 	if db == nil {
 		return

@@ -12,8 +12,6 @@ import (
 	gormlogger "gorm.io/gorm/logger"
 )
 
-// InitPostgres attempts to connect to PostgreSQL.
-// Returns an error if unreachable; the caller must stop (no standalone/mock mode).
 func InitPostgres(cfg *config.Config) (*gorm.DB, error) {
 	dsn := fmt.Sprintf(
 		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=Asia/Jakarta",
@@ -37,7 +35,6 @@ func InitPostgres(cfg *config.Config) (*gorm.DB, error) {
 		return nil, err
 	}
 
-	// Connection Pool Settings
 	sqlDB.SetMaxIdleConns(cfg.DBMaxIdleConns)
 	sqlDB.SetMaxOpenConns(cfg.DBMaxOpenConns)
 	sqlDB.SetConnMaxLifetime(time.Hour)

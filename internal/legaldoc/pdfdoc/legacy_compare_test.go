@@ -8,10 +8,6 @@ import (
 	"time"
 )
 
-// TestCompareWithLegacyScreen compares the Terms text that was hard-coded in the old
-// Flutter screen with the migrated content and with the PDF text. It runs only when
-// LEGACY_SK_DART (old terms_conditions_screen.dart) and LEGACY_BANK_CONTACT_DART (old
-// bank_contact.dart) point to the archived source files.
 func TestCompareWithLegacyScreen(t *testing.T) {
 	dartPath, contactPath := os.Getenv("LEGACY_SK_DART"), os.Getenv("LEGACY_BANK_CONTACT_DART")
 	if dartPath == "" || contactPath == "" {
@@ -35,8 +31,6 @@ func TestCompareWithLegacyScreen(t *testing.T) {
 	subst := strings.NewReplacer("${BankContact.callCenterDisplay}", constVal("callCenterDisplay"),
 		"${BankContact.whatsAppDisplay}", constVal("whatsAppDisplay"))
 
-	// String literals of the old page body (the build method), in source order. Literals
-	// of the removed fake "verified PDF" modal above build() are UI, not Terms text.
 	body := dart
 	if i := strings.Index(string(dart), "Widget build(BuildContext context)"); i > 0 {
 		body = dart[i:]
@@ -75,7 +69,6 @@ func TestCompareWithLegacyScreen(t *testing.T) {
 			t.Errorf("teks tidak ada / terpotong di PDF: %q", s)
 		}
 	}
-	// Every segment of the migrated content must come from the old screen (nothing added).
 	fromScreen := map[string]bool{}
 	for _, s := range migrated {
 		fromScreen[s] = true

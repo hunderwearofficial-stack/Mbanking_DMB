@@ -7,10 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// CORS allows cross-origin access only for explicitly configured origins
-// (CORS_ALLOWED_ORIGINS). The mobile app is not subject to CORS and the admin
-// console is served same-origin, so the default (empty list) emits no CORS
-// headers at all (audit DMB-032).
 func CORS(allowedOrigins []string) gin.HandlerFunc {
 	allowed := map[string]bool{}
 	for _, o := range allowedOrigins {
@@ -22,7 +18,7 @@ func CORS(allowedOrigins []string) gin.HandlerFunc {
 			h := c.Writer.Header()
 			h.Set("Access-Control-Allow-Origin", origin)
 			h.Set("Vary", "Origin")
-			h.Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Device-ID, Idempotency-Key, X-Request-ID")
+			h.Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Device-ID, X-Request-ID")
 			h.Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 			h.Set("Access-Control-Max-Age", "600")
 		}
@@ -34,10 +30,6 @@ func CORS(allowedOrigins []string) gin.HandlerFunc {
 	}
 }
 
-// SecurityHeaders sets defensive HTTP headers. The admin console CSP allows the
-// CDNs it currently loads (Tailwind CDN, lucide, Google Fonts); 'unsafe-inline'
-// is still required by the existing inline handlers and should be removed when
-// the console is refactored (see docs/SECURITY_AND_OJK.md).
 func SecurityHeaders() gin.HandlerFunc {
 	const adminCSP = "default-src 'self'; " +
 		"script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://unpkg.com; " +

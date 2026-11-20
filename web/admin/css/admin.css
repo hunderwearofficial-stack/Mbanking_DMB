@@ -31,7 +31,7 @@ body {
 
 /* Modal Animations */
 .modal-fade-in {
-  animation: modalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: modalFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes modalFadeIn {
@@ -66,4 +66,27 @@ tbody tr {
   box-shadow: 0 4px 20px -2px rgba(16, 185, 129, 0.12);
 }
 
+/* Mobile Smartphone Mockup Frame */
+.mobile-mockup-frame {
+  width: 280px;
+  height: 540px;
+  border-radius: 36px;
+  border: 10px solid #0F172A;
+  background-color: #F8FAFC;
+  box-shadow: 0 20px 35px -10px rgba(15, 23, 42, 0.22), inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
 
+.mobile-mockup-notch {
+  width: 110px;
+  height: 18px;
+  background-color: #0F172A;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 20;
+}

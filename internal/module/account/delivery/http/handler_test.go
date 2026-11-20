@@ -16,7 +16,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// fakeAccountService returns a fixed error for the data endpoints under test.
 type fakeAccountService struct {
 	service.AccountService
 	err error
@@ -50,8 +49,6 @@ func call(t *testing.T, svcErr error, path string, h func(*AccountHandler) gin.H
 	return w.Code, body
 }
 
-// Runtime outages must be reported as 503 with a retry message and NO data;
-// they must never look like "no data" (404) or leak technical details.
 func TestCBSOutageIsReportedAsServiceDisruption(t *testing.T) {
 	outage := errors.New("dial tcp 10.0.0.5:443: i/o timeout")
 	handlers := map[string]func(*AccountHandler) gin.HandlerFunc{

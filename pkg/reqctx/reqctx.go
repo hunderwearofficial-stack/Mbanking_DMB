@@ -1,7 +1,3 @@
-// Package reqctx carries verified request metadata (client IP, user agent,
-// request id and the authenticated backoffice actor) through context.Context so
-// that audit records are attributable (audit DMB-016) without threading extra
-// parameters through every service call.
 package reqctx
 
 import "context"
@@ -13,14 +9,12 @@ const (
 	adminKey
 )
 
-// Meta is request metadata captured by middleware.
 type Meta struct {
 	RequestID string
 	ClientIP  string
 	UserAgent string
 }
 
-// Admin is the authenticated backoffice user.
 type Admin struct {
 	ID       string
 	Username string

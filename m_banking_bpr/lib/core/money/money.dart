@@ -1,22 +1,13 @@
-/// Exact monetary value in sen (1/100 rupiah), stored as an integer.
-///
-/// Mirrors the backend `money.Amount` (audit DMB-015): values are never kept or
-/// computed as floating point. JSON numbers decoded by Dart as `double` are parsed
-/// through their shortest decimal representation, so `15000.5` stays exactly
-/// 1 500 050 sen. More than two decimals is rejected.
 class Money implements Comparable<Money> {
-  /// Amount in sen.
   final int sen;
 
   const Money.sen(this.sen);
   const Money.zero() : sen = 0;
 
-  /// Whole rupiah.
   factory Money.rupiah(int rupiah) => Money.sen(rupiah * 100);
 
   static final RegExp _decimal = RegExp(r'^(-?)(\d+)(?:\.(\d{1,2}))?$');
 
-  /// Parses an API value (int, double or numeric string). Throws [FormatException].
   static Money parse(dynamic value) {
     if (value is Money) return value;
     if (value is int) return Money.rupiah(value);
@@ -38,8 +29,6 @@ class Money implements Comparable<Money> {
     return Money.sen(m.group(1) == '-' ? -sen : sen);
   }
 
-  /// Like [parse] but returns null for a missing or malformed value — callers then
-  /// display "-" instead of inventing a zero amount.
   static Money? tryParse(dynamic value) {
     if (value == null) return null;
     try {
@@ -53,7 +42,6 @@ class Money implements Comparable<Money> {
   bool get isNegative => sen < 0;
   bool get isWholeRupiah => sen % 100 == 0;
 
-  /// Whole rupiah part (only meaningful when [isWholeRupiah]).
   int get wholeRupiah => sen ~/ 100;
 
   Money operator +(Money other) => Money.sen(sen + other.sen);
@@ -63,10 +51,8 @@ class Money implements Comparable<Money> {
   bool operator >(Money other) => sen > other.sen;
   bool operator >=(Money other) => sen >= other.sen;
 
-  /// Ratio for UI progress indicators only (not a monetary computation).
   double ratioOf(Money total) => total.sen == 0 ? 0 : (sen / total.sen).clamp(0, 1).toDouble();
 
-  /// Exact decimal string for the API ("15000", "15000.5").
   String toApiString() {
     final abs = sen.abs();
     var s = '${abs ~/ 100}';

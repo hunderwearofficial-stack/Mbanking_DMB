@@ -37,7 +37,6 @@ func GetLogger() *Logger {
 	return AppLogger
 }
 
-// LogEntry represents structured log record
 type LogEntry struct {
 	Timestamp string                 `json:"timestamp"`
 	Level     Level                  `json:"level"`
@@ -45,13 +44,8 @@ type LogEntry struct {
 	Fields    map[string]interface{} `json:"fields,omitempty"`
 }
 
-// sensitiveKeyPattern matches any key that may carry credentials, secrets or
-// personal data (audit DMB-011). Matching is by substring on the normalized key,
-// so variants such as new_password, otp_code, refresh_token, fcm_token,
-// nama_ibu_kandung or client_secret are all covered.
 var sensitiveKeyPattern = regexp.MustCompile(`(?i)(pass|pin|otp|token|secret|session|authorization|cookie|cvv|card|pan|nik|ibu|mother|signature|key)`)
 
-// IsSensitiveKey reports whether a field name must be masked in logs.
 func IsSensitiveKey(k string) bool {
 	return sensitiveKeyPattern.MatchString(k)
 }
@@ -73,7 +67,6 @@ func maskValueRec(v interface{}) interface{} {
 	}
 }
 
-// MaskSensitiveData returns a copy of data with sensitive keys masked (recursive).
 func MaskSensitiveData(data map[string]interface{}) map[string]interface{} {
 	if data == nil {
 		return nil
@@ -89,8 +82,6 @@ func MaskSensitiveData(data map[string]interface{}) map[string]interface{} {
 	return masked
 }
 
-// MaskJSONString parses a JSON document and masks sensitive keys. Anything that
-// is not valid JSON is not logged at all (returns a placeholder).
 func MaskJSONString(rawJSON string) string {
 	if strings.TrimSpace(rawJSON) == "" {
 		return ""
@@ -106,7 +97,6 @@ func MaskJSONString(rawJSON string) string {
 	return string(out)
 }
 
-// MaskQuery masks sensitive and identifying query parameters (account / CIF numbers).
 func MaskQuery(rawQuery string) string {
 	if rawQuery == "" {
 		return ""
@@ -137,7 +127,6 @@ func (l *Logger) log(level Level, msg string, fields map[string]interface{}) {
 		}
 	}
 
-	// Development format
 	fieldStr := ""
 	if len(entry.Fields) > 0 {
 		fBytes, _ := json.Marshal(entry.Fields)
