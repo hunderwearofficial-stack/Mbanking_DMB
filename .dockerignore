@@ -1,0 +1,12 @@
+# Never send local configuration, secrets, backups or binaries to the image build context
+m_banking_bpr/
+*.exe
+mbanking-server-linux
+.git/
+.env
+.env.*
+backups/
+*.dump
+*.pem
+*.key
+*.jks

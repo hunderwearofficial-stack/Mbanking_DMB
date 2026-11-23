@@ -1,0 +1,13 @@
+title = "MBanking DMB Gitleaks Configuration"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allowlist public Firebase client identifiers and deterministic unit/integration test keys"
+paths = [
+  '''^m_banking_bpr/android/app/google-services\.json$''',
+  '''^m_banking_bpr/lib/firebase_options\.dart$''',
+  '''^pkg/crypto/aes_gcm_test\.go$''',
+  '''^test/integration/security_regression_test\.go$''',
+]

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Production / staging: HTTPS only, system trust anchors. HTTP is never permitted.
+     Local/development builds use network_security_config_cleartext.xml (selected in
+     android/app/build.gradle.kts from the APP_FLAVOR dart-define). -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

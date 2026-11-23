@@ -1,0 +1,880 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/money/money.dart';
+import '../../../core/network/api_exception.dart';
+import '../../../core/services/dynamic_config_service.dart';
+import '../../../core/utils/currency_formatter.dart';
+import '../../../data/repositories/account_repository.dart';
+import '../../blocs/auth/auth_cubit.dart';
+import '../../blocs/auth/auth_state.dart';
+import '../../widgets/app_validation_feedback.dart';
+import '../helpdesk/helpdesk_screen.dart';
+import 'loan_application_bottom_sheet.dart';
+
+class LoanScreen extends StatefulWidget {
+  const LoanScreen({super.key});
+
+  @override
+  State<LoanScreen> createState() => _LoanScreenState();
+}
+
+class _LoanScreenState extends State<LoanScreen> {
+  static const Color primaryNavy = AppColors.primaryNavy;
+  static const Color royalBlue = AppColors.royalBlue;
+  static const Color dmbGreen = AppColors.dmbGreen;
+  static const Color titleDark = AppColors.titleDark;
+  static const Color textMuted = AppColors.textMuted;
+  static const Color borderLight = AppColors.borderLight;
+
+  bool _isLoading = true;
+  String? _errorMessage;
+  List<Map<String, dynamic>> _loans = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchLoanData();
+  }
+
+  Future<void> _fetchLoanData() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final authState = context.read<AuthCubit>().state;
+      String? cif;
+      if (authState is AuthAuthenticated) {
+        cif = authState.user.cif;
+      }
+      if (cif == null || cif.isEmpty) {
+        final storage = context.read<AuthCubit>().authRepository.secureStorage;
+        cif = await storage.getCIF();
+      }
+      if (cif == null || cif.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _loans = [];
+            _isLoading = false;
+          });
+        }
+        return;
+      }
+
+      if (!mounted) return;
+      final repo = context.read<AccountRepository>();
+      final loans = await repo.getLoans(cifNumber: cif);
+
+      if (mounted) {
+        setState(() {
+          _loans = loans;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = ApiException.humanize(
+            e,
+            fallback: 'Layanan sedang mengalami gangguan. Silakan coba kembali beberapa saat lagi.',
+          );
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _showToast(String message) {
+    AppToast.showSuccess(context, message);
+  }
+
+  String _field(Map<String, dynamic> item, List<String> keys) {
+    for (final k in keys) {
+      final v = item[k];
+      if (v != null && v.toString().trim().isNotEmpty && v.toString().trim() != 'null') {
+        return v.toString();
+      }
+    }
+    return '-';
+  }
+
+  void _showLoanDetailSheet(BuildContext context, Map<String, dynamic> initialLoan) {
+    final accNo = initialLoan['nomor_rekening']?.toString() ?? '-';
+    final repo = context.read<AccountRepository>();
+    final Future<Map<String, dynamic>?> detailFuture = (accNo != '-' && accNo.isNotEmpty)
+        ? repo.getLoanDetail(accNo).catchError((_) => null)
+        : Future.value(null);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => FutureBuilder<Map<String, dynamic>?>(
+        future: detailFuture,
+        builder: (ctx, snapshot) {
+          final loan = {
+            ...initialLoan,
+            if (snapshot.data != null) ...snapshot.data!,
+          };
+          final isLoadingDetail = snapshot.connectionState == ConnectionState.waiting;
+          final prodName = _field(loan, ['nama_produk', 'produk']);
+          final plafon = Money.tryParse(loan['plafon']);
+          final bakiDebet = Money.tryParse(loan['baki_debet']);
+          final pokokTerbayar = (plafon != null && bakiDebet != null && plafon >= bakiDebet) ? plafon - bakiDebet : null;
+          final statusKet = _field(loan, ['status_rekening_keterangan', 'status']);
+          final kolKet = _field(loan, ['kolektibilitas_keterangan']);
+          final kolNo = loan['kolektibilitas'];
+          final kolLabel = kolNo != null ? '$kolKet (Kol $kolNo)' : kolKet;
+          final isLancar = kolNo == 1 || kolKet.toLowerCase().contains('lancar');
+          final rateVal = loan['suku_bunga_tahunan'] ?? loan['suku_bunga'];
+          final rate = rateVal != null && rateVal.toString().isNotEmpty ? '$rateVal% p.a.' : null;
+          final jatuhTempo = _field(loan, ['tanggal_jatuh_tempo', 'tgl_jatuh_tempo']);
+
+          return SafeArea(
+            child: Container(
+              padding: const EdgeInsets.all(22),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: borderLight,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              prodName,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                                color: titleDark,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'No. Rekening: $accNo',
+                              style: GoogleFonts.plusJakartaSans(fontSize: 12, color: textMuted),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.successLight,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.successBorder),
+                        ),
+                        child: Text(
+                          statusKet.toUpperCase(),
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: dmbGreen,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  if (isLoadingDetail) ...[
+                    const SizedBox(height: 12),
+                    const LinearProgressIndicator(
+                      minHeight: 2,
+                      color: royalBlue,
+                      backgroundColor: borderLight,
+                    ),
+                  ],
+
+                  const SizedBox(height: 18),
+                  const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                  const SizedBox(height: 14),
+
+                  _buildDetailRow('Plafon Pinjaman', CurrencyFormatter.formatRupiah(plafon)),
+                  _buildDetailRow('Sisa Pokok (Baki Debet)', CurrencyFormatter.formatRupiah(bakiDebet), isBold: true),
+                  _buildDetailRow('Pokok Terbayar', CurrencyFormatter.formatRupiah(pokokTerbayar)),
+                  if (rate != null) _buildDetailRow('Suku Bunga', rate),
+                  if (jatuhTempo != '-') _buildDetailRow('Tanggal Jatuh Tempo', jatuhTempo),
+                  _buildDetailRow('Status Kolektibilitas', kolLabel, isGreen: isLancar),
+                  _buildDetailRow('Kantor Pelayanan', _field(loan, ['nama_kantor', 'kantor'])),
+
+                  const SizedBox(height: 22),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryNavy,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        elevation: 0,
+                      ),
+                      onPressed: () {
+                        Navigator.pop(sheetCtx);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const HelpdeskScreen()),
+                        );
+                      },
+                      icon: const Icon(Icons.support_agent_rounded, size: 20),
+                      label: Text(
+                        'Konsultasi Petugas Kredit (AO)',
+                        style: GoogleFonts.plusJakartaSans(fontSize: 13.5, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value, {bool isBold = false, bool isGreen = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            flex: 5,
+            child: Text(
+              label,
+              style: GoogleFonts.plusJakartaSans(fontSize: 12.5, color: textMuted),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            flex: 6,
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13,
+                fontWeight: isBold ? FontWeight.w800 : FontWeight.w700,
+                color: isGreen ? dmbGreen : titleDark,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bankName = DynamicConfigService().config.bankName.toUpperCase();
+    Money? totalPlafon = const Money.zero();
+    Money? totalBakiDebet = const Money.zero();
+    for (final loan in _loans) {
+      final p = Money.tryParse(loan['plafon']);
+      final b = Money.tryParse(loan['baki_debet']);
+      totalPlafon = (totalPlafon == null || p == null) ? null : totalPlafon + p;
+      totalBakiDebet = (totalBakiDebet == null || b == null) ? null : totalBakiDebet + b;
+    }
+
+    double progress = 0.0;
+    if (totalPlafon != null && totalBakiDebet != null && !totalPlafon.isZero) {
+      progress = (totalPlafon - totalBakiDebet).ratioOf(totalPlafon);
+    }
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF6F6F2),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFF6F6F2),
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: const Color(0xFF0A2A66),
+        elevation: 0,
+        centerTitle: false,
+        titleSpacing: 8,
+        leadingWidth: 64,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
+          child: Material(
+            color: Colors.white,
+            shape: const CircleBorder(),
+            elevation: 0.5,
+            shadowColor: Colors.black.withOpacity(0.08),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: () => Navigator.of(context).pop(),
+              child: const Center(
+                child: Icon(Icons.chevron_left_rounded, size: 24, color: Color(0xFF0A2A66)),
+              ),
+            ),
+          ),
+        ),
+        title: Text(
+          'Fasilitas Pinjaman',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 19,
+            fontWeight: FontWeight.w800,
+            color: const Color(0xFF0A2A66),
+            letterSpacing: -0.3,
+          ),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
+            child: Material(
+              color: Colors.white,
+              shape: const CircleBorder(),
+              elevation: 0.5,
+              shadowColor: Colors.black.withOpacity(0.08),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: _fetchLoanData,
+                child: const SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Icon(Icons.refresh_rounded, size: 20, color: Color(0xFF0A2A66)),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: _fetchLoanData,
+        color: primaryNavy,
+        child: _isLoading
+            ? const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(color: primaryNavy),
+                    SizedBox(height: 16),
+                    Text('Memuat data fasilitas pinjaman...', style: TextStyle(color: textMuted)),
+                  ],
+                ),
+              )
+            : _errorMessage != null
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.cloud_off_rounded, size: 48, color: textMuted),
+                          const SizedBox(height: 14),
+                          Text(
+                            _errorMessage!,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: titleDark),
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: primaryNavy,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: _fetchLoanData,
+                            child: const Text('Coba Lagi'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : _loans.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 72,
+                                height: 72,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryLight,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: AppColors.primaryBorder),
+                                ),
+                                child: const Icon(Icons.credit_score_outlined, color: royalBlue, size: 36),
+                              ),
+                              const SizedBox(height: 18),
+                              Text(
+                                'Belum Ada Fasilitas Pinjaman',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 16.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: titleDark,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Anda belum memiliki pinjaman aktif di Bank DMB. Ajukan pinjaman modal kerja atau kredit mikro dengan bunga kompetitif.',
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.plusJakartaSans(fontSize: 12.5, color: textMuted, height: 1.45),
+                              ),
+                              const SizedBox(height: 22),
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: primaryNavy,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 13),
+                                ),
+                                onPressed: () => LoanApplicationBottomSheet.show(context, onSuccess: _fetchLoanData),
+                                icon: const Icon(Icons.add_rounded, size: 18),
+                                label: Text(
+                                  'Ajukan Fasilitas Kredit Baru',
+                                  style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: primaryNavy,
+                                  side: const BorderSide(color: borderLight),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                ),
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => const HelpdeskScreen()),
+                                  );
+                                },
+                                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                                label: Text(
+                                  'Konsultasi CS',
+                                  style: GoogleFonts.plusJakartaSans(fontSize: 12.5, fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(22),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(22),
+                                gradient: const LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    Color(0xFF0A2A66),
+                                    Color(0xFF0D3882),
+                                  ],
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF0A2A66).withOpacity(0.18),
+                                    blurRadius: 18,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          '${_loans.length} Fasilitas Aktif • $bankName',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white.withOpacity(0.82),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.16),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          'DIAWASI OJK',
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w800,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 14),
+                                  Text(
+                                    'Sisa pokok',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.white.withOpacity(0.78),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    CurrencyFormatter.formatRupiah(totalBakiDebet),
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white,
+                                      letterSpacing: -0.6,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: LinearProgressIndicator(
+                                      value: progress,
+                                      minHeight: 8,
+                                      backgroundColor: Colors.white.withOpacity(0.18),
+                                      valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF34D399)),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Total Plafon: ${CurrencyFormatter.formatRupiah(totalPlafon)}',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 12,
+                                          color: Colors.white.withOpacity(0.85),
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${(progress * 100).toStringAsFixed(1)}% Lunas',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w800,
+                                          color: const Color(0xFF34D399),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            const SizedBox(height: 22),
+
+                            Text(
+                              'Daftar Pinjaman',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF0A2A66),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+
+                            ListView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: _loans.length,
+                              itemBuilder: (context, index) {
+                                final loan = _loans[index];
+                                final rawAccNo = loan['nomor_rekening']?.toString() ?? '-';
+                                final canCopyAcc = rawAccNo.isNotEmpty && rawAccNo != '-';
+                                final formattedAcc = _formatAccountNumber(rawAccNo);
+                                final productName = loan['nama_produk']?.toString() ?? '-';
+                                final plafon = Money.tryParse(loan['plafon']);
+                                final bakiDebet = Money.tryParse(loan['baki_debet']);
+                                final statusKet = loan['status_rekening_keterangan']?.toString() ?? '-';
+                                final kolKet = loan['kolektibilitas_keterangan']?.toString() ?? '-';
+
+                                double itemProgress = 0.0;
+                                if (plafon != null && bakiDebet != null && !plafon.isZero) {
+                                  itemProgress = (plafon - bakiDebet).ratioOf(plafon);
+                                }
+
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 14),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(20),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.03),
+                                        blurRadius: 12,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    borderRadius: BorderRadius.circular(20),
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(20),
+                                      onTap: () => _showLoanDetailSheet(context, loan),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(18),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Container(
+                                                  width: 42,
+                                                  height: 42,
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(0xFFEFF6FF),
+                                                    borderRadius: BorderRadius.circular(14),
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.account_balance_wallet_outlined,
+                                                    color: Color(0xFF0A2A66),
+                                                    size: 20,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 12),
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Text(
+                                                        productName,
+                                                        style: GoogleFonts.plusJakartaSans(
+                                                          fontSize: 15,
+                                                          fontWeight: FontWeight.w800,
+                                                          color: const Color(0xFF0A2A66),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(height: 3),
+                                                      Row(
+                                                        children: [
+                                                          Flexible(
+                                                            child: Text(
+                                                              formattedAcc,
+                                                              overflow: TextOverflow.ellipsis,
+                                                              style: GoogleFonts.plusJakartaSans(
+                                                                fontSize: 12,
+                                                                color: textMuted,
+                                                                fontWeight: FontWeight.w600,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          if (canCopyAcc) ...[
+                                                            const SizedBox(width: 6),
+                                                            GestureDetector(
+                                                              onTap: () {
+                                                                Clipboard.setData(ClipboardData(text: rawAccNo));
+                                                                _showToast('Nomor rekening disalin: $rawAccNo');
+                                                              },
+                                                              child: const Icon(
+                                                                Icons.copy_rounded,
+                                                                size: 13,
+                                                                color: Color(0xFF0D3882),
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ],
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(0xFFE6F7F1),
+                                                    borderRadius: BorderRadius.circular(8),
+                                                  ),
+                                                  child: Text(
+                                                    statusKet.toUpperCase(),
+                                                    style: GoogleFonts.plusJakartaSans(
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.w800,
+                                                      color: const Color(0xFF0F9D76),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const Padding(
+                                              padding: EdgeInsets.symmetric(vertical: 14),
+                                              child: Divider(height: 1, color: Color(0xFFF1F5F9)),
+                                            ),
+                                            Row(
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      'Sisa pokok',
+                                                      style: GoogleFonts.plusJakartaSans(
+                                                        fontSize: 11.5,
+                                                        color: textMuted,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 2),
+                                                    Text(
+                                                      CurrencyFormatter.formatRupiah(bakiDebet),
+                                                      style: GoogleFonts.plusJakartaSans(
+                                                        fontSize: 16,
+                                                        fontWeight: FontWeight.w900,
+                                                        color: const Color(0xFF0A2A66),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                                  children: [
+                                                    Text(
+                                                      'Plafon kredit',
+                                                      style: GoogleFonts.plusJakartaSans(
+                                                        fontSize: 11.5,
+                                                        color: textMuted,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 2),
+                                                    Text(
+                                                      CurrencyFormatter.formatRupiah(plafon),
+                                                      style: GoogleFonts.plusJakartaSans(
+                                                        fontSize: 14,
+                                                        fontWeight: FontWeight.w800,
+                                                        color: const Color(0xFF0A2A66),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 14),
+                                            ClipRRect(
+                                              borderRadius: BorderRadius.circular(6),
+                                              child: LinearProgressIndicator(
+                                                value: itemProgress,
+                                                minHeight: 6,
+                                                backgroundColor: const Color(0xFFF1F5F9),
+                                                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF0F9D76)),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 12),
+                                            Row(
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                Row(
+                                                  children: [
+                                                    const Icon(
+                                                      Icons.verified_rounded,
+                                                      size: 14,
+                                                      color: Color(0xFF0F9D76),
+                                                    ),
+                                                    const SizedBox(width: 5),
+                                                    Text(
+                                                      'Kol: $kolKet',
+                                                      style: GoogleFonts.plusJakartaSans(
+                                                        fontSize: 11.5,
+                                                        fontWeight: FontWeight.w700,
+                                                        color: const Color(0xFF0F9D76),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                Row(
+                                                  children: [
+                                                    Text(
+                                                      'Lihat Rincian',
+                                                      style: GoogleFonts.plusJakartaSans(
+                                                        fontSize: 12,
+                                                        fontWeight: FontWeight.w700,
+                                                        color: const Color(0xFF0D3882),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 2),
+                                                    const Icon(
+                                                      Icons.chevron_right_rounded,
+                                                      size: 16,
+                                                      color: Color(0xFF0D3882),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 8, 18, 16),
+          child: SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton.icon(
+              onPressed: () => LoanApplicationBottomSheet.show(context, onSuccess: _fetchLoanData),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0A2A66),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+              icon: const Icon(Icons.add_rounded, size: 20),
+              label: Text(
+                'Ajukan Pinjaman',
+                style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w800),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatAccountNumber(String acc) {
+    if (acc.length == 16) {
+      return '${acc.substring(0, 4)} ${acc.substring(4, 8)} ${acc.substring(8, 12)} ${acc.substring(12)}';
+    }
+    return acc;
+  }
+}

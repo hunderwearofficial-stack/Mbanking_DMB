@@ -1,0 +1,94 @@
+name: Build iOS IPA
+
+# SR-6: a push to main only compiles the iOS app (production flavor, no artifact).
+# IPAs are produced on manual dispatch only:
+#   build_type=testing    → local flavor, HTTP allowed for the given test server, artifact
+#                           explicitly labelled NOT_FOR_PRODUCTION (short retention).
+#   build_type=production → production flavor, https:// API required, iOS production
+#                           configuration gate must pass first.
+# The repository Info.plist never allows arbitrary HTTP loads.
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'testing (HTTP, NOT for production) atau production'
+        required: true
+        default: 'testing'
+        type: choice
+        options: [testing, production]
+      api_base_url:
+        description: 'Backend API Base URL (production wajib https://)'
+        required: true
+  push:
+    branches:
+      - main
+
+jobs:
+  compile-check:
+    if: github.event_name == 'push'
+    name: Compile check (no artifact)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+      - run: cd m_banking_bpr && flutter pub get
+      - name: Build (production flavor, unsigned, not uploaded)
+        run: cd m_banking_bpr && flutter build ios --release --no-codesign --dart-define-from-file=config/production.json
+
+  build:
+    if: github.event_name == 'workflow_dispatch'
+    name: Build unsigned IPA (${{ inputs.build_type }})
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+      - run: cd m_banking_bpr && flutter pub get
+
+      - name: Validate inputs
+        env:
+          BUILD_TYPE: ${{ inputs.build_type }}
+          API_URL: ${{ inputs.api_base_url }}
+        run: |
+          if [ "$BUILD_TYPE" = "production" ]; then
+            case "$API_URL" in https://*) ;; *) echo "Production wajib API https://"; exit 1;; esac
+          fi
+
+      - name: iOS production configuration gate
+        if: inputs.build_type == 'production'
+        run: bash scripts/ci/verify_ios_config.sh
+
+      - name: Allow HTTP for this testing build only (never committed)
+        if: inputs.build_type == 'testing'
+        run: |
+          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity dict" m_banking_bpr/ios/Runner/Info.plist || true
+          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSAllowsArbitraryLoads bool true" m_banking_bpr/ios/Runner/Info.plist
+
+      - name: Build iOS application
+        env:
+          BUILD_TYPE: ${{ inputs.build_type }}
+          API_URL: ${{ inputs.api_base_url }}
+        run: |
+          cd m_banking_bpr
+          if [ "$BUILD_TYPE" = "production" ]; then CFG=config/production.json; else CFG=config/local.json; fi
+          flutter build ios --release --no-codesign --dart-define-from-file=$CFG --dart-define=API_BASE_URL=$API_URL
+
+      - name: Package into IPA
+        run: |
+          cd m_banking_bpr/build/ios/iphoneos
+          mkdir -p Payload
+          cp -r Runner.app Payload/
+          zip -r MBanking_DMB.ipa Payload
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.build_type == 'production' && 'MBanking_DMB_iOS_PRODUCTION_UNSIGNED' || 'MBanking_DMB_iOS_TESTING_HTTP_NOT_FOR_PRODUCTION' }}
+          path: m_banking_bpr/build/ios/iphoneos/MBanking_DMB.ipa
+          retention-days: ${{ inputs.build_type == 'production' && 7 || 3 }}
