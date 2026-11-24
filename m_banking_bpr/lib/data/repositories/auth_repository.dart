@@ -23,7 +23,10 @@ class AuthRepository {
       'Kunci keamanan perangkat ini tidak ditemukan atau tidak berlaku lagi. Silakan verifikasi ulang perangkat melalui menu Lupa Password.';
 
   Future<Never> _rethrowDeviceError(Object e) async {
-    if (e is ApiException && e.responseCode == '10' && await secureStorage.getDeviceKeyKind() == null) {
+    if (e is ApiException &&
+        e.responseCode == '10' &&
+        !e.message.toLowerCase().contains('syarat dan ketentuan') &&
+        await secureStorage.getDeviceKeyKind() == null) {
       throw ApiException(message: _keyMissingMessage, statusCode: e.statusCode, responseCode: e.responseCode);
     }
     throw e;

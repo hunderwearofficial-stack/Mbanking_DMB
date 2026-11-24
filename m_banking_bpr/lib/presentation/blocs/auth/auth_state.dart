@@ -28,7 +28,8 @@ class AuthError extends AuthState {
   final String? code;
   const AuthError(this.message, {this.code});
 
-  bool get requiresTermsConsent => code == '10';
+  bool get requiresTermsConsent =>
+      code == '10' && message.toLowerCase().contains('syarat dan ketentuan');
 
   @override
   List<Object?> get props => [message, code];

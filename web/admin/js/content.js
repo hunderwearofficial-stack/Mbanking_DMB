@@ -527,6 +527,7 @@ function renderMobileMockupPreview() {
   // Default / 'home' / 'umum': Beranda + Info untuk Anda + Menu Utama preview
   const greetTitle = v['home.greeting_title'] || 'Selamat datang,';
   const greetSub = v['home.greeting_subtitle'] || 'Semoga harimu lancar.';
+  const greetNote = v['home.greeting_note'] || '';
   const infoTitle = v['home.info_section_title'] || 'Info untuk Anda';
   const cardBgPalette = ['bg-[#DCFCE7]', 'bg-[#E0E7FF]', 'bg-[#E0F2FE]'];
   const cardTagPalette = ['text-emerald-700', 'text-indigo-700', 'text-sky-700'];
@@ -551,6 +552,7 @@ function renderMobileMockupPreview() {
           <div class="text-[9px] text-slate-500">${esc(greetTitle)}</div>
           <div class="text-[13px] font-extrabold text-slate-900 leading-tight">Ibu Siti Aminah</div>
           <div class="text-[8.5px] text-slate-500">${esc(greetSub)}</div>
+          ${greetNote ? `<div class="text-[8px] text-slate-400">${esc(greetNote)}</div>` : ''}
         </div>
         <div class="p-3 rounded-2xl bg-[#0A2A66] text-white space-y-2 shadow-sm">
           <div class="flex items-center justify-between">

@@ -53,6 +53,7 @@ class AppContent {
     'login.footer': ContentSpec(ContentType.text, 'PT BPR Dana Mandiri Bogor berizin dan diawasi OJK serta peserta LPS.'),
     'home.greeting_title': ContentSpec(ContentType.text, 'Selamat datang,'),
     'home.greeting_subtitle': ContentSpec(ContentType.text, 'Semoga harimu lancar.'),
+    'home.greeting_note': ContentSpec(ContentType.text, 'Pantau saldo dan transaksi Anda dengan aman.'),
     'home.info_section_title': ContentSpec(ContentType.text, 'Info untuk Anda'),
     'home.banner1_visible': ContentSpec(ContentType.flag, 'true'),
     'home.banner1_tag': ContentSpec(ContentType.text, 'UNTUK ANDA'),

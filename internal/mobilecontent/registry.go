@@ -146,6 +146,8 @@ var Fields = []Field{
 		Default: "Selamat datang,"},
 	{Key: "home.greeting_subtitle", Page: "home", Group: "Sapaan", Label: "Kalimat sapaan", Used: "HomeScreen", Type: TypeText, Max: 120, Required: true,
 		Default: "Semoga harimu lancar."},
+	{Key: "home.greeting_note", Page: "home", Group: "Sapaan", Label: "Teks tambahan di bawah sapaan", Used: "HomeScreen", Type: TypeText, Max: 140, Required: false,
+		Default: "Pantau saldo dan transaksi Anda dengan aman."},
 	{Key: "home.info_section_title", Page: "home", Group: "Info untuk Anda", Label: "Judul bagian info", Used: "HomeScreen", Type: TypeText, Max: 40, Required: true,
 		Default: "Info untuk Anda"},
 }
