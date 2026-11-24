@@ -202,13 +202,22 @@ class _LoginScreenState extends State<LoginScreen> {
             );
           } else if (state is AuthError) {
             if (state.requiresTermsConsent) {
-              Navigator.of(context).pushReplacement(
+              AppToast.showInfo(
+                context,
+                'Silakan baca dan setujui Syarat & Ketentuan yang berlaku terlebih dahulu.',
+                title: 'Persetujuan S&K',
+              );
+              Navigator.of(context).push(
                 PageRouteBuilder(
-                  pageBuilder: (_, __, ___) => const TermsConditionsScreen(),
-                  transitionsBuilder: (_, animation, __, child) => FadeTransition(opacity: animation, child: child),
+                  pageBuilder: (termsCtx, __, ___) => TermsConditionsScreen(
+                    onAccepted: () => Navigator.of(termsCtx).pop(),
+                  ),
+                  transitionsBuilder: (_, animation, __, child) =>
+                      FadeTransition(opacity: animation, child: child),
                   transitionDuration: const Duration(milliseconds: 350),
                 ),
               );
+              return;
             }
             AppToast.showError(context, state.message, title: 'Gagal Masuk');
           }
