@@ -276,10 +276,38 @@ class _SplashScreenState extends State<SplashScreen>
                 children: [
                   DecoratedBox(
                     decoration: BoxDecoration(
-                      gradient: RadialGradient(
-                        center: const Alignment(0, -0.30),
-                        radius: 1.0,
-                        colors: [centerGlow, defaultBg],
+                      gradient: isLightBg
+                          ? RadialGradient(
+                              center: const Alignment(0, -0.35),
+                              radius: 1.05,
+                              colors: [centerGlow, defaultBg],
+                            )
+                          : LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                defaultBg,
+                                Color.lerp(defaultBg, const Color(0xFF0B3A7D), 0.72)!,
+                                Color.lerp(defaultBg, const Color(0xFF196BB8), 0.85)!,
+                              ],
+                              stops: const [0.0, 0.52, 1.0],
+                            ),
+                    ),
+                  ),
+
+                  // Full-bleed splash background (from admin `splash.background` or local 9:16 artwork)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: ContentImage(
+                        'splash.background',
+                        fit: BoxFit.cover,
+                        alignment: Alignment.center,
+                        placeholder: Image.asset(
+                          'assets/images/splash_building.jpg',
+                          fit: BoxFit.cover,
+                          alignment: Alignment.center,
+                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                        ),
                       ),
                     ),
                   ),
@@ -293,89 +321,34 @@ class _SplashScreenState extends State<SplashScreen>
                           opacity: _fadeAnimation,
                           child: SlideTransition(
                             position: _slideAnimation,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _SplashBrandMark(
-                                  bankShortName: config.bankShortName,
-                                  tagline: AppContent.text('splash.tagline'),
-                                  isLightBg: isLightBg,
-                                ),
-                              ],
+                            child: _SplashBrandMark(
+                              bankShortName: config.bankShortName,
+                              tagline: AppContent.text('splash.tagline'),
+                              isLightBg: isLightBg,
                             ),
                           ),
                         ),
 
-                        const Spacer(flex: 5),
-
-                        FadeTransition(
-                          opacity: _fadeAnimation,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 140,
-                                height: 3.5,
-                                decoration: BoxDecoration(
-                                  color: AppColors.borderLight.withOpacity(0.85),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const ClipRRect(
-                                  borderRadius: BorderRadius.all(Radius.circular(4)),
-                                  child: LinearProgressIndicator(
-                                    backgroundColor: Colors.transparent,
-                                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.dmbGreen),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                AppContent.text('splash.loading_text'),
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: isLightBg
-                                      ? AppColors.textSecondary
-                                      : Colors.white.withOpacity(0.92),
-                                  letterSpacing: 0.2,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const Spacer(flex: 1),
+                        const Spacer(flex: 6),
 
                         Padding(
-                          padding: const EdgeInsets.only(left: 24, right: 24, bottom: 12),
-                          child: Column(
-                            children: [
-                              Text(
-                                AppContent.text('splash.disclaimer'),
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 9.5,
-                                  fontWeight: FontWeight.w500,
-                                  color: isLightBg
-                                      ? AppColors.textSecondary
-                                      : Colors.white.withOpacity(0.95),
-                                  height: 1.35,
-                                  letterSpacing: 0.15,
+                          padding: const EdgeInsets.only(left: 24, right: 24, bottom: 10),
+                          child: Text(
+                            AppContent.text('splash.disclaimer'),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white.withOpacity(0.92),
+                              height: 1.35,
+                              shadows: [
+                                Shadow(
+                                  offset: const Offset(0, 1),
+                                  blurRadius: 6,
+                                  color: Colors.black.withOpacity(0.55),
                                 ),
-                              ),
-                              const SizedBox(height: 5),
-                              Text(
-                                '${config.bankShortName} Mobile v1.0.0',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: isLightBg
-                                      ? AppColors.textMuted
-                                      : Colors.white.withOpacity(0.85),
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ],
@@ -591,9 +564,15 @@ class _SplashBrandMarkState extends State<_SplashBrandMark>
 
   @override
   Widget build(BuildContext context) {
-    final shortName = widget.bankShortName.trim().isNotEmpty
-        ? widget.bankShortName.trim()
-        : 'DMB';
+    var shortName = widget.bankShortName
+        .replaceAll(RegExp(r'\b(pt|bpr|bank)\b', caseSensitive: false), '')
+        .trim();
+    if (shortName.toLowerCase().startsWith('my') && shortName.length > 2) {
+      shortName = shortName.substring(2).trim();
+    }
+    if (shortName.isEmpty) {
+      shortName = 'DMB';
+    }
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -652,33 +631,24 @@ class _SplashBrandMarkState extends State<_SplashBrandMark>
           ),
         ),
         if (widget.tagline.trim().isNotEmpty) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           FadeTransition(
             opacity: _taglineFade,
             child: SlideTransition(
               position: _taglineSlide,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.92),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.borderLight),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primaryNavy.withOpacity(0.08),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 36),
                 child: Text(
                   widget.tagline,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primaryNavy,
-                    letterSpacing: 0.3,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w500,
+                    height: 1.45,
+                    letterSpacing: 0.15,
+                    color: widget.isLightBg
+                        ? AppColors.titleDark.withOpacity(0.88)
+                        : Colors.white.withOpacity(0.92),
                   ),
                 ),
               ),
@@ -690,7 +660,8 @@ class _SplashBrandMarkState extends State<_SplashBrandMark>
   }
 }
 
-/// Clean vector emblem matching the official myDMB logo geometry (without robot).
+/// Clean vector emblem matching the official myDMB logo geometry:
+/// cyan ring, white cradling U-arc, and 3 Wi-Fi signal arcs.
 class _MyDmbEmblemPainter extends CustomPainter {
   final double signalReveal;
   final double pulse;
@@ -704,100 +675,81 @@ class _MyDmbEmblemPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final double scale = math.min(size.width, size.height) / 260.0;
+    final double scale = math.min(size.width, size.height) / 220.0;
     canvas.save();
     canvas.scale(scale, scale);
-    canvas.translate(122, 142);
+    canvas.translate(96, 126);
 
-    final Shader brandShader = ui.Gradient.linear(
-      const Offset(-85, -100),
-      const Offset(85, 85),
-      const [Color(0xFF00F5D4), Color(0xFF00BBF9), Color(0xFF0066FF)],
+    final Shader ringShader = ui.Gradient.linear(
+      const Offset(-30, -30),
+      const Offset(30, 30),
+      const [Color(0xFF00F2FE), Color(0xFF00C6FF)],
+    );
+
+    final Shader signalShader = ui.Gradient.linear(
+      const Offset(0, -100),
+      const Offset(100, 0),
+      const [Color(0xFF00F0D4), Color(0xFF00A8FF), Color(0xFF0066FF)],
       const [0.0, 0.5, 1.0],
     );
 
-    // 1. Lower gradient arc
-    canvas.save();
-    canvas.translate(0, 78);
-    canvas.drawArc(
-      Rect.fromCircle(center: const Offset(0, 22), radius: 68),
-      math.pi * 1.15,
-      math.pi * 0.70,
-      false,
-      Paint()
-        ..shader = brandShader
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 19
-        ..strokeCap = StrokeCap.round,
-    );
-    canvas.restore();
-
-    // 2. Middle white arc (subtle outline on light background)
-    canvas.save();
-    canvas.translate(0, -14);
+    // 1. White cradling U-arc
     if (isLightBg) {
       canvas.drawArc(
-        Rect.fromCircle(center: const Offset(0, -14), radius: 64),
-        math.pi * 0.12,
-        math.pi * 0.76,
+        Rect.fromCircle(center: const Offset(0, -4), radius: 52),
+        math.pi * 0.08,
+        math.pi * 0.84,
         false,
         Paint()
           ..color = const Color(0x220F172A)
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 22
+          ..strokeWidth = 20
           ..strokeCap = StrokeCap.round,
       );
     }
     canvas.drawArc(
-      Rect.fromCircle(center: const Offset(0, -14), radius: 64),
-      math.pi * 0.12,
-      math.pi * 0.76,
+      Rect.fromCircle(center: const Offset(0, -4), radius: 52),
+      math.pi * 0.08,
+      math.pi * 0.84,
       false,
       Paint()
         ..color = Colors.white
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 19
+        ..strokeWidth = 17
         ..strokeCap = StrokeCap.round,
     );
-    canvas.restore();
 
-    // 3. Top logo ring
-    canvas.save();
-    canvas.translate(0, -34);
+    // 2. Cyan center ring (hollow stroke so the sky shows cleanly inside)
     canvas.drawCircle(
-      Offset.zero,
-      26,
-      Paint()..shader = brandShader,
-    );
-    canvas.drawCircle(
-      Offset.zero,
-      11,
+      const Offset(0, -4),
+      21,
       Paint()
-        ..color = isLightBg ? const Color(0xFFF8FAFC) : const Color(0xFF0A1628),
+        ..shader = ringShader
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 14,
     );
-    canvas.restore();
 
-    // 4. 3 Wi-Fi signal arcs lighting up sequentially
+    // 3. 3 Wi-Fi signal arcs radiating up-right
     canvas.save();
-    canvas.translate(6, -34);
+    canvas.translate(8, -12);
     const arcs = [
-      (r: 46.0, delay: 0.0),
-      (r: 66.0, delay: 0.18),
-      (r: 86.0, delay: 0.36),
+      (r: 42.0, delay: 0.0),
+      (r: 62.0, delay: 0.18),
+      (r: 82.0, delay: 0.36),
     ];
     for (final arc in arcs) {
       final reveal = ((signalReveal - arc.delay) / 0.45).clamp(0.0, 1.0);
       if (reveal <= 0) continue;
-      final wave = 0.55 +
-          0.45 * math.sin(((pulse - arc.delay) * math.pi * 2)).clamp(0.0, 1.0);
-      final alpha = (reveal * wave).clamp(0.25, 1.0);
+      final wave = 0.58 +
+          0.42 * math.sin(((pulse - arc.delay) * math.pi * 2)).clamp(0.0, 1.0);
+      final alpha = (reveal * wave).clamp(0.28, 1.0);
       canvas.drawArc(
         Rect.fromCircle(center: Offset.zero, radius: arc.r),
-        -math.pi * 0.46,
-        math.pi * 0.42,
+        -math.pi * 0.48,
+        math.pi * 0.44,
         false,
         Paint()
-          ..shader = brandShader
+          ..shader = signalShader
           ..style = PaintingStyle.stroke
           ..strokeWidth = 11.5
           ..strokeCap = StrokeCap.round

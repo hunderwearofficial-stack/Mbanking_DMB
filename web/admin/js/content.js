@@ -44,6 +44,7 @@ function mapKeyToAssetCategory(key) {
   const k = key.toLowerCase();
   if (k.includes('logo')) return 'logo';
   if (k.includes('banner')) return 'banner';
+  if (k.includes('splash')) return 'splash_bg';
   if (k.includes('onboarding')) return 'onboarding_bg';
   if (k.includes('login')) return 'login_bg';
   return 'banner';

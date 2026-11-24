@@ -23,7 +23,8 @@ class AppContent {
   static const Map<String, ContentSpec> specs = {
     'app.logo': ContentSpec(ContentType.image, ''),
     'app.announcement': ContentSpec(ContentType.multiline, ''),
-    'splash.bg_color': ContentSpec(ContentType.text, '#091324'),
+    'splash.background': ContentSpec(ContentType.image, ''),
+    'splash.bg_color': ContentSpec(ContentType.text, '#061B44'),
     'splash.tagline': ContentSpec(ContentType.text, 'Sahabat Finansial Terpercaya Anda'),
     'splash.loading_text': ContentSpec(ContentType.text, 'Memuat layanan perbankan...'),
     'splash.disclaimer': ContentSpec(ContentType.multiline,
@@ -226,6 +227,7 @@ class RemoteImageCache {
 
   static const List<String> _imageKeys = [
     'app.logo',
+    'splash.background',
     'login.background',
     'onboarding.slide1_image',
     'onboarding.slide2_image',

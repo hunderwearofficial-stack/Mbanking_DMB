@@ -88,9 +88,11 @@ var Fields = []Field{
 	{Key: "app.announcement", Page: "umum", Group: "Pengumuman", Label: "Teks pengumuman", Used: "Login, Beranda", Type: TypeMultiline, Max: 300,
 		Help: "Kosong = pengumuman tidak ditampilkan."},
 
+	{Key: "splash.background", Page: "splash", Group: "Gambar", Label: "Gambar latar / gedung splash", Used: "SplashScreen", Type: TypeImage, Max: 300,
+		Help: "Kosong = gambar gedung bawaan aplikasi."},
 	{Key: "splash.bg_color", Page: "splash", Group: "Warna", Label: "Warna latar default (Hex)", Used: "SplashScreen & Layar Koneksi", Type: TypeText, Max: 16,
-		Help:    "Kode warna hex (contoh: #091324, #0A3B66, #FFFFFF). Dipakai untuk latar splash screen dan layar koneksi terputus.",
-		Default: "#091324"},
+		Help:    "Kode warna hex (contoh: #061B44, #091324, #0A3B66). Dipakai untuk latar splash screen dan layar koneksi terputus.",
+		Default: "#061B44"},
 	{Key: "splash.tagline", Page: "splash", Group: "Teks", Label: "Tagline", Used: "SplashScreen", Type: TypeText, Max: 120, Required: true,
 		Default: "Sahabat Finansial Terpercaya Anda"},
 	{Key: "splash.loading_text", Page: "splash", Group: "Teks", Label: "Teks pemuatan", Used: "SplashScreen", Type: TypeText, Max: 80, Required: true,
@@ -233,6 +235,7 @@ func FieldByKey(k string) (*Field, bool) {
 var legacyColumns = map[string]string{
 	"app.logo":                    "logo_url",
 	"app.announcement":            "announcement_text",
+	"splash.background":           "splash_bg_url",
 	"splash.tagline":              "tagline",
 	"onboarding.slide1_image":     "onboarding_bg_url",
 	"login.background":            "login_bg_url",
