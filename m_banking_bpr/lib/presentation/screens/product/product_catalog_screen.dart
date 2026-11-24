@@ -7,6 +7,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/services/dynamic_config_service.dart';
 import '../../../data/repositories/account_repository.dart';
 import '../../widgets/app_validation_feedback.dart';
+import '../../widgets/auth_ui_kit.dart';
 import 'product_simulator_sheet.dart';
 
 class ProductCatalogScreen extends StatefulWidget {
@@ -33,6 +34,7 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> with Single
   static const Color bgCanvas = AppColors.bgCanvas;
 
   late TabController _tabController;
+  int _selectedSegment = 0;
   bool _isLoading = true;
   String? _errorMessage;
   Map<String, dynamic>? _catalog;
@@ -40,11 +42,17 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> with Single
   @override
   void initState() {
     super.initState();
+    _selectedSegment = widget.initialTabIndex.clamp(0, 2);
     _tabController = TabController(
       length: 3,
       vsync: this,
-      initialIndex: widget.initialTabIndex.clamp(0, 2),
+      initialIndex: _selectedSegment,
     );
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging && mounted) {
+        setState(() => _selectedSegment = _tabController.index);
+      }
+    });
     _loadProducts();
   }
 
@@ -337,152 +345,240 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> with Single
     final List depositoList = _catalog?['deposito'] as List? ?? [];
     final List kreditList = _catalog?['kredit'] as List? ?? [];
 
-    final List<({Map<String, dynamic> item, String category, int index})> allProducts = [
-      for (int i = 0; i < tabunganList.length; i++)
-        if (tabunganList[i] is Map<String, dynamic>)
-          (item: tabunganList[i] as Map<String, dynamic>, category: 'tabungan', index: i),
-      for (int i = 0; i < depositoList.length; i++)
-        if (depositoList[i] is Map<String, dynamic>)
-          (item: depositoList[i] as Map<String, dynamic>, category: 'deposito', index: i),
-      for (int i = 0; i < kreditList.length; i++)
-        if (kreditList[i] is Map<String, dynamic>)
-          (item: kreditList[i] as Map<String, dynamic>, category: 'kredit', index: i),
-    ];
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFF4F7FB),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFF4F7FB),
-        surfaceTintColor: Colors.transparent,
-        foregroundColor: const Color(0xFF033172),
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        centerTitle: false,
-        titleSpacing: widget.isTab ? 20 : 8,
-        leadingWidth: widget.isTab ? 0 : 64,
-        leading: widget.isTab
-            ? null
-            : Padding(
-                padding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
-                child: Material(
-                  color: Colors.white,
-                  shape: const CircleBorder(),
-                  elevation: 0.5,
-                  shadowColor: Colors.black.withOpacity(0.08),
-                  child: InkWell(
-                    customBorder: const CircleBorder(),
-                    onTap: () => Navigator.of(context).pop(),
-                    child: const Center(
-                      child: Icon(Icons.chevron_left_rounded, size: 24, color: Color(0xFF033172)),
+    return AuthSwooshCanvas(
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 10, 18, 12),
+              child: Row(
+                children: [
+                  if (!widget.isTab) ...[
+                    Material(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () => Navigator.of(context).pop(),
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AuthUiTokens.inputBorder),
+                          ),
+                          child: const Icon(
+                            Icons.arrow_back_ios_new_rounded,
+                            size: 17,
+                            color: AuthUiTokens.deepCobalt,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  Expanded(
+                    child: Text(
+                      widget.isTab ? 'Produk Saya' : 'Katalog Produk',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 21,
+                        fontWeight: FontWeight.w800,
+                        color: AuthUiTokens.titleDark,
+                        letterSpacing: -0.4,
+                      ),
                     ),
                   ),
-                ),
+                  Material(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: _loadProducts,
+                      child: Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AuthUiTokens.inputBorder),
+                        ),
+                        child: const Icon(
+                          Icons.refresh_rounded,
+                          size: 19,
+                          color: AuthUiTokens.deepCobalt,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-        title: Text(
-          widget.isTab ? 'Produk Saya' : 'Katalog Produk',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 19,
-            fontWeight: FontWeight.w800,
-            color: const Color(0xFF033172),
-            letterSpacing: -0.3,
-          ),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
-            child: Material(
-              color: Colors.white,
-              shape: const CircleBorder(),
-              elevation: 0.5,
-              shadowColor: Colors.black.withOpacity(0.08),
-              child: InkWell(
-                customBorder: const CircleBorder(),
-                onTap: _loadProducts,
-                child: const SizedBox(
-                  width: 40,
-                  height: 40,
-                  child: Icon(Icons.refresh_rounded, size: 20, color: Color(0xFF0A2A66)),
+            ),
+
+            // 3-Segment Control: Tabungan | Deposit | Kredit
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE8EEF6)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AuthUiTokens.royalBlue.withOpacity(0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    _buildSegmentTab(0, 'Tabungan'),
+                    _buildSegmentTab(1, 'Deposit'),
+                    _buildSegmentTab(2, 'Kredit'),
+                  ],
                 ),
               ),
             ),
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _loadProducts,
-        color: primaryNavy,
-        child: _isLoading
-            ? const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(color: primaryNavy),
-                    SizedBox(height: 16),
-                    Text('Memuat katalog produk resmi...', style: TextStyle(color: textMuted)),
-                  ],
-                ),
-              )
-            : _errorMessage != null
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
+
+            const SizedBox(height: 12),
+
+            Expanded(
+              child: _isLoading
+                  ? const Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.cloud_off_rounded, size: 48, color: textMuted),
-                          const SizedBox(height: 14),
-                          Text(
-                            _errorMessage!,
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: titleDark,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          ElevatedButton(
-                            onPressed: _loadProducts,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: primaryNavy,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            ),
-                            child: const Text('Coba Lagi'),
-                          ),
+                          CircularProgressIndicator(color: AuthUiTokens.deepCobalt),
+                          SizedBox(height: 16),
+                          Text('Memuat katalog produk resmi...', style: TextStyle(color: textMuted)),
                         ],
                       ),
-                    ),
-                  )
-                : allProducts.isEmpty
-                    ? ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.all(32),
-                        children: [
-                          const SizedBox(height: 60),
-                          const Icon(Icons.inventory_2_outlined, size: 48, color: textMuted),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Belum ada produk tersedia',
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: textMuted,
+                    )
+                  : _errorMessage != null
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.cloud_off_rounded, size: 48, color: textMuted),
+                                const SizedBox(height: 14),
+                                Text(
+                                  _errorMessage!,
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: titleDark,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                ElevatedButton(
+                                  onPressed: _loadProducts,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AuthUiTokens.deepCobalt,
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                  ),
+                                  child: const Text('Coba Lagi'),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
-                      )
-                    : ListView.separated(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
-                        itemCount: allProducts.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 14),
-                        itemBuilder: (context, idx) {
-                          final entry = allProducts[idx];
-                          return _buildProductCard(entry.item, entry.category, entry.index);
-                        },
-                      ),
+                        )
+                      : TabBarView(
+                          controller: _tabController,
+                          children: [
+                            _buildCategoryList(tabunganList, 'tabungan', 'Belum ada produk tabungan'),
+                            _buildCategoryList(depositoList, 'deposito', 'Belum ada produk deposito'),
+                            _buildCategoryList(kreditList, 'kredit', 'Belum ada produk kredit'),
+                          ],
+                        ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSegmentTab(int index, String label) {
+    final isSelected = _selectedSegment == index;
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          setState(() => _selectedSegment = index);
+          _tabController.animateTo(index);
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? AuthUiTokens.deepCobalt : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: isSelected ? Colors.white : AuthUiTokens.textMuted,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryList(List rawList, String category, String emptyText) {
+    final items = rawList.whereType<Map<String, dynamic>>().toList();
+    if (items.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: _loadProducts,
+        color: AuthUiTokens.deepCobalt,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(32),
+          children: [
+            const SizedBox(height: 60),
+            Container(
+              width: 64,
+              height: 64,
+              decoration: const BoxDecoration(
+                color: AuthUiTokens.softBlueBg,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.inventory_2_outlined, size: 30, color: AuthUiTokens.royalBlue),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              emptyText,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: textMuted,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadProducts,
+      color: AuthUiTokens.deepCobalt,
+      child: ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(18, 4, 18, 28),
+        itemCount: items.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (context, idx) => _buildProductCard(items[idx], category, idx),
       ),
     );
   }
@@ -495,32 +591,25 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> with Single
     final bool isDeposito = category.toLowerCase() == 'deposito';
     final bool isKredit = category.toLowerCase() == 'kredit' || category.toLowerCase() == 'pinjaman';
 
-    final Color iconBg;
-    final Color iconColor;
     final IconData iconData;
     if (isDeposito) {
-      iconBg = const Color(0xFFE6F7F1);
-      iconColor = const Color(0xFF0F9D76);
-      iconData = Icons.lock_outline_rounded;
+      iconData = Icons.trending_up_rounded;
     } else if (isKredit) {
-      iconBg = const Color(0xFFE0F2FE);
-      iconColor = const Color(0xFF0369A1);
-      iconData = categoryIndex.isEven ? Icons.person_outline_rounded : Icons.format_list_bulleted_rounded;
+      iconData = Icons.account_balance_wallet_rounded;
     } else {
-      iconBg = const Color(0xFFEFF6FF);
-      iconColor = const Color(0xFF0A2A66);
-      iconData = Icons.account_balance_wallet_outlined;
+      iconData = Icons.savings_rounded;
     }
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE8EEF6)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: AuthUiTokens.royalBlue.withOpacity(0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
@@ -531,20 +620,20 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> with Single
           borderRadius: BorderRadius.circular(20),
           onTap: () => _showProductDetail(item, category),
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(18),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
                   width: 44,
                   height: 44,
-                  decoration: BoxDecoration(
-                    color: iconBg,
-                    borderRadius: BorderRadius.circular(14),
+                  decoration: const BoxDecoration(
+                    color: AuthUiTokens.softBlueBg,
+                    shape: BoxShape.circle,
                   ),
-                  child: Icon(iconData, color: iconColor, size: 22),
+                  child: Icon(iconData, color: AuthUiTokens.deepCobalt, size: 22),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -552,9 +641,9 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> with Single
                       Text(
                         name,
                         style: GoogleFonts.plusJakartaSans(
-                          fontSize: 15.5,
+                          fontSize: 15,
                           fontWeight: FontWeight.w800,
-                          color: const Color(0xFF0A2A66),
+                          color: AuthUiTokens.titleDark,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -563,28 +652,28 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> with Single
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.plusJakartaSans(
-                          fontSize: 13,
+                          fontSize: 12.5,
                           color: textMuted,
                           height: 1.4,
                         ),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 12),
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
                             'Pelajari',
                             style: GoogleFonts.plusJakartaSans(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w800,
-                              color: const Color(0xFF0A2A66),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AuthUiTokens.royalBlue,
                             ),
                           ),
                           const SizedBox(width: 2),
                           const Icon(
                             Icons.chevron_right_rounded,
                             size: 18,
-                            color: Color(0xFF0A2A66),
+                            color: AuthUiTokens.royalBlue,
                           ),
                         ],
                       ),

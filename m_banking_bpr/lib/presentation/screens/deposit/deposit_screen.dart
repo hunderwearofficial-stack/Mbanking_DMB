@@ -10,6 +10,7 @@ import '../../../data/repositories/account_repository.dart';
 import '../../blocs/auth/auth_cubit.dart';
 import '../../blocs/auth/auth_state.dart';
 import '../../widgets/app_validation_feedback.dart';
+import '../../widgets/auth_ui_kit.dart';
 import 'deposit_application_bottom_sheet.dart';
 
 class DepositScreen extends StatefulWidget {
@@ -321,54 +322,67 @@ class _DepositScreenState extends State<DepositScreen> {
       return true;
     }).toList();
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF6F6F2),
-      body: SafeArea(
+    return AuthSwooshCanvas(
+      child: SafeArea(
         bottom: false,
         child: Column(
           children: [
             // Clean Header Row
             Padding(
-              padding: const EdgeInsets.fromLTRB(18, 12, 18, 14),
+              padding: const EdgeInsets.fromLTRB(18, 10, 18, 12),
               child: Row(
                 children: [
                   Material(
                     color: Colors.white,
-                    shape: const CircleBorder(),
+                    borderRadius: BorderRadius.circular(12),
                     child: InkWell(
-                      customBorder: const CircleBorder(),
+                      borderRadius: BorderRadius.circular(12),
                       onTap: () => Navigator.of(context).pop(),
                       child: Container(
-                        width: 40,
-                        height: 40,
-                        alignment: Alignment.center,
+                        width: 38,
+                        height: 38,
                         decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.04),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AuthUiTokens.inputBorder),
                         ),
                         child: const Icon(
                           Icons.arrow_back_ios_new_rounded,
                           size: 17,
-                          color: titleDark,
+                          color: AuthUiTokens.deepCobalt,
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       'Portofolio Deposito',
                       style: GoogleFonts.plusJakartaSans(
-                        fontSize: 20,
+                        fontSize: 21,
                         fontWeight: FontWeight.w800,
-                        color: titleDark,
-                        letterSpacing: -0.3,
+                        color: AuthUiTokens.titleDark,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                  ),
+                  Material(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: _fetchDepositData,
+                      child: Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AuthUiTokens.inputBorder),
+                        ),
+                        child: const Icon(
+                          Icons.refresh_rounded,
+                          size: 19,
+                          color: AuthUiTokens.deepCobalt,
+                        ),
                       ),
                     ),
                   ),
@@ -379,13 +393,13 @@ class _DepositScreenState extends State<DepositScreen> {
             Expanded(
               child: RefreshIndicator(
                 onRefresh: _fetchDepositData,
-                color: const Color(0xFF0A2A66),
+                color: const Color(0xFF033172),
                 child: _isLoading
                     ? const Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            CircularProgressIndicator(color: Color(0xFF0A2A66)),
+                            CircularProgressIndicator(color: Color(0xFF033172)),
                             SizedBox(height: 16),
                             Text('Memuat data bilyet deposito...', style: TextStyle(color: textMuted)),
                           ],
@@ -413,7 +427,7 @@ class _DepositScreenState extends State<DepositScreen> {
                                   ElevatedButton(
                                     onPressed: _fetchDepositData,
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF0A2A66),
+                                      backgroundColor: const Color(0xFF033172),
                                       foregroundColor: Colors.white,
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                     ),
@@ -457,7 +471,7 @@ class _DepositScreenState extends State<DepositScreen> {
                                       const SizedBox(height: 22),
                                       ElevatedButton.icon(
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: const Color(0xFF0A2A66),
+                                          backgroundColor: const Color(0xFF033172),
                                           foregroundColor: Colors.white,
                                           padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 13),
                                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -500,43 +514,42 @@ class _DepositScreenState extends State<DepositScreen> {
                               ),
               ),
             ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: _isLoading || _errorMessage != null || _deposits.isEmpty
-          ? null
-          : SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 8, 18, 16),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton.icon(
-                    onPressed: () => DepositApplicationBottomSheet.show(
-                      context,
-                      onSuccess: _fetchDepositData,
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0A2A66),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+            if (!_isLoading && _errorMessage == null && _deposits.isNotEmpty)
+              SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 8, 18, 16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton.icon(
+                      onPressed: () => DepositApplicationBottomSheet.show(
+                        context,
+                        onSuccess: _fetchDepositData,
                       ),
-                    ),
-                    icon: const Icon(Icons.add_rounded, size: 20),
-                    label: Text(
-                      'Buka Deposito',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF033172),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(26),
+                        ),
+                      ),
+                      icon: const Icon(Icons.add_rounded, size: 20),
+                      label: Text(
+                        'Buka Deposito',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -544,15 +557,11 @@ class _DepositScreenState extends State<DepositScreen> {
     return Container(
       padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF0A2A66), Color(0xFF0D3882)],
-        ),
-        borderRadius: BorderRadius.circular(22),
+        color: const Color(0xFF033172),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0A2A66).withOpacity(0.20),
+            color: const Color(0xFF033172).withOpacity(0.20),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -613,7 +622,7 @@ class _DepositScreenState extends State<DepositScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8.5, horizontal: 6),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF0A2A66) : Colors.white,
+            color: isSelected ? const Color(0xFF033172) : Colors.white,
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(

@@ -11,6 +11,7 @@ import '../../../data/repositories/account_repository.dart';
 import '../../blocs/auth/auth_cubit.dart';
 import '../../blocs/auth/auth_state.dart';
 import '../../widgets/app_validation_feedback.dart';
+import '../../widgets/auth_ui_kit.dart';
 import '../helpdesk/helpdesk_screen.dart';
 import 'loan_application_bottom_sheet.dart';
 
@@ -306,73 +307,84 @@ class _LoanScreenState extends State<LoanScreen> {
       progress = (totalPlafon - totalBakiDebet).ratioOf(totalPlafon);
     }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF6F6F2),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFF6F6F2),
-        surfaceTintColor: Colors.transparent,
-        foregroundColor: const Color(0xFF0A2A66),
-        elevation: 0,
-        centerTitle: false,
-        titleSpacing: 8,
-        leadingWidth: 64,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
-          child: Material(
-            color: Colors.white,
-            shape: const CircleBorder(),
-            elevation: 0.5,
-            shadowColor: Colors.black.withOpacity(0.08),
-            child: InkWell(
-              customBorder: const CircleBorder(),
-              onTap: () => Navigator.of(context).pop(),
-              child: const Center(
-                child: Icon(Icons.chevron_left_rounded, size: 24, color: Color(0xFF0A2A66)),
+    return AuthSwooshCanvas(
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 10, 18, 10),
+              child: Row(
+                children: [
+                  Material(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => Navigator.of(context).pop(),
+                      child: Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AuthUiTokens.inputBorder),
+                        ),
+                        child: const Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          size: 17,
+                          color: AuthUiTokens.deepCobalt,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Fasilitas Pinjaman',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 21,
+                        fontWeight: FontWeight.w800,
+                        color: AuthUiTokens.titleDark,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                  ),
+                  Material(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: _fetchLoanData,
+                      child: Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AuthUiTokens.inputBorder),
+                        ),
+                        child: const Icon(
+                          Icons.refresh_rounded,
+                          size: 19,
+                          color: AuthUiTokens.deepCobalt,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-        ),
-        title: Text(
-          'Fasilitas Pinjaman',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 19,
-            fontWeight: FontWeight.w800,
-            color: const Color(0xFF0A2A66),
-            letterSpacing: -0.3,
-          ),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
-            child: Material(
-              color: Colors.white,
-              shape: const CircleBorder(),
-              elevation: 0.5,
-              shadowColor: Colors.black.withOpacity(0.08),
-              child: InkWell(
-                customBorder: const CircleBorder(),
-                onTap: _fetchLoanData,
-                child: const SizedBox(
-                  width: 40,
-                  height: 40,
-                  child: Icon(Icons.refresh_rounded, size: 20, color: Color(0xFF0A2A66)),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _fetchLoanData,
-        color: primaryNavy,
-        child: _isLoading
-            ? const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(color: primaryNavy),
-                    SizedBox(height: 16),
-                    Text('Memuat data fasilitas pinjaman...', style: TextStyle(color: textMuted)),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _fetchLoanData,
+                color: AuthUiTokens.deepCobalt,
+                child: _isLoading
+                    ? const Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircularProgressIndicator(color: AuthUiTokens.deepCobalt),
+                            SizedBox(height: 16),
+                            Text('Memuat data fasilitas pinjaman...', style: TextStyle(color: textMuted)),
                   ],
                 ),
               )
@@ -485,18 +497,11 @@ class _LoanScreenState extends State<LoanScreen> {
                               width: double.infinity,
                               padding: const EdgeInsets.all(22),
                               decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(22),
-                                gradient: const LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [
-                                    Color(0xFF0A2A66),
-                                    Color(0xFF0D3882),
-                                  ],
-                                ),
+                                color: const Color(0xFF033172),
+                                borderRadius: BorderRadius.circular(20),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFF0A2A66).withOpacity(0.18),
+                                    color: const Color(0xFF033172).withOpacity(0.20),
                                     blurRadius: 18,
                                     offset: const Offset(0, 8),
                                   ),
@@ -600,7 +605,7 @@ class _LoanScreenState extends State<LoanScreen> {
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w800,
-                                color: const Color(0xFF0A2A66),
+                                color: const Color(0xFF033172),
                               ),
                             ),
                             const SizedBox(height: 12),
@@ -661,7 +666,7 @@ class _LoanScreenState extends State<LoanScreen> {
                                                   ),
                                                   child: const Icon(
                                                     Icons.account_balance_wallet_outlined,
-                                                    color: Color(0xFF0A2A66),
+                                                    color: Color(0xFF033172),
                                                     size: 20,
                                                   ),
                                                 ),
@@ -675,7 +680,7 @@ class _LoanScreenState extends State<LoanScreen> {
                                                         style: GoogleFonts.plusJakartaSans(
                                                           fontSize: 15,
                                                           fontWeight: FontWeight.w800,
-                                                          color: const Color(0xFF0A2A66),
+                                                          color: const Color(0xFF033172),
                                                         ),
                                                       ),
                                                       const SizedBox(height: 3),
@@ -702,7 +707,7 @@ class _LoanScreenState extends State<LoanScreen> {
                                                               child: const Icon(
                                                                 Icons.copy_rounded,
                                                                 size: 13,
-                                                                color: Color(0xFF0D3882),
+                                                                color: Color(0xFF0550A6),
                                                               ),
                                                             ),
                                                           ],
@@ -752,7 +757,7 @@ class _LoanScreenState extends State<LoanScreen> {
                                                       style: GoogleFonts.plusJakartaSans(
                                                         fontSize: 16,
                                                         fontWeight: FontWeight.w900,
-                                                        color: const Color(0xFF0A2A66),
+                                                        color: const Color(0xFF033172),
                                                       ),
                                                     ),
                                                   ],
@@ -773,7 +778,7 @@ class _LoanScreenState extends State<LoanScreen> {
                                                       style: GoogleFonts.plusJakartaSans(
                                                         fontSize: 14,
                                                         fontWeight: FontWeight.w800,
-                                                        color: const Color(0xFF0A2A66),
+                                                        color: const Color(0xFF033172),
                                                       ),
                                                     ),
                                                   ],
@@ -819,14 +824,14 @@ class _LoanScreenState extends State<LoanScreen> {
                                                       style: GoogleFonts.plusJakartaSans(
                                                         fontSize: 12,
                                                         fontWeight: FontWeight.w700,
-                                                        color: const Color(0xFF0D3882),
+                                                        color: const Color(0xFF0550A6),
                                                       ),
                                                     ),
                                                     const SizedBox(width: 2),
                                                     const Icon(
                                                       Icons.chevron_right_rounded,
                                                       size: 16,
-                                                      color: Color(0xFF0D3882),
+                                                      color: Color(0xFF0550A6),
                                                     ),
                                                   ],
                                                 ),
@@ -843,29 +848,33 @@ class _LoanScreenState extends State<LoanScreen> {
                           ],
                         ),
                       ),
-      ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 8, 18, 16),
-          child: SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton.icon(
-              onPressed: () => LoanApplicationBottomSheet.show(context, onSuccess: _fetchLoanData),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0A2A66),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-              icon: const Icon(Icons.add_rounded, size: 20),
-              label: Text(
-                'Ajukan Pinjaman',
-                style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w800),
               ),
             ),
-          ),
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 8, 18, 16),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton.icon(
+                    onPressed: () => LoanApplicationBottomSheet.show(context, onSuccess: _fetchLoanData),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF033172),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+                    ),
+                    icon: const Icon(Icons.add_rounded, size: 20),
+                    label: Text(
+                      'Ajukan Pinjaman',
+                      style: GoogleFonts.plusJakartaSans(fontSize: 14.5, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

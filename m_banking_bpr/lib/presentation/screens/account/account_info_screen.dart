@@ -14,6 +14,7 @@ import '../../blocs/account/account_state.dart';
 import '../../blocs/auth/auth_cubit.dart';
 import '../../blocs/auth/auth_state.dart';
 import '../../widgets/app_validation_feedback.dart';
+import '../../widgets/auth_ui_kit.dart';
 
 class AccountInfoScreen extends StatefulWidget {
   final bool isTab;
@@ -131,12 +132,12 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
                   width: double.infinity,
                   height: 48,
                   child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryNavy,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      elevation: 0,
-                    ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AuthUiTokens.deepCobalt,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                    elevation: 0,
+                  ),
                     onPressed: () async {
                       final pin = pinController.text.trim();
                       if (pin.length != 6) {
@@ -305,83 +306,93 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
       });
     }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF6F6F2),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFF6F6F2),
-        surfaceTintColor: Colors.transparent,
-        foregroundColor: const Color(0xFF0A2A66),
-        elevation: 0,
-        centerTitle: false,
-        automaticallyImplyLeading: false,
-        titleSpacing: widget.isTab ? 18 : 8,
-        leadingWidth: widget.isTab ? 0 : 64,
-        leading: widget.isTab
-            ? null
-            : Padding(
-                padding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
-                child: Material(
-                  color: Colors.white,
-                  shape: const CircleBorder(),
-                  elevation: 0.5,
-                  shadowColor: Colors.black.withOpacity(0.08),
-                  child: InkWell(
-                    customBorder: const CircleBorder(),
-                    onTap: () => Navigator.of(context).pop(),
-                    child: const Center(
-                      child: Icon(Icons.chevron_left_rounded, size: 24, color: Color(0xFF0A2A66)),
+    return AuthSwooshCanvas(
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 10, 18, 8),
+              child: Row(
+                children: [
+                  if (!widget.isTab) ...[
+                    Material(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () => Navigator.of(context).pop(),
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AuthUiTokens.inputBorder),
+                          ),
+                          child: const Icon(
+                            Icons.arrow_back_ios_new_rounded,
+                            size: 17,
+                            color: AuthUiTokens.deepCobalt,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  Expanded(
+                    child: Text(
+                      'Informasi Rekening',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 21,
+                        fontWeight: FontWeight.w800,
+                        color: AuthUiTokens.titleDark,
+                        letterSpacing: -0.4,
+                      ),
                     ),
                   ),
-                ),
-              ),
-        title: Text(
-          'Informasi Rekening',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 19,
-            fontWeight: FontWeight.w800,
-            color: const Color(0xFF0A2A66),
-            letterSpacing: -0.3,
-          ),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
-            child: Material(
-              color: Colors.white,
-              shape: const CircleBorder(),
-              elevation: 0.5,
-              shadowColor: Colors.black.withOpacity(0.08),
-              child: InkWell(
-                customBorder: const CircleBorder(),
-                onTap: _loadProfileData,
-                child: const SizedBox(
-                  width: 40,
-                  height: 40,
-                  child: Icon(Icons.refresh_rounded, size: 20, color: Color(0xFF0A2A66)),
-                ),
+                  Material(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: _loadProfileData,
+                      child: Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AuthUiTokens.inputBorder),
+                        ),
+                        child: const Icon(
+                          Icons.refresh_rounded,
+                          size: 19,
+                          color: AuthUiTokens.deepCobalt,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: primaryNavy),
-            )
-          : RefreshIndicator(
-              onRefresh: () async {
-                await _loadProfileData();
-                if (context.mounted) {
-                  await context.read<AccountCubit>().refresh();
-                }
-              },
-              color: primaryNavy,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+            Expanded(
+              child: _isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(color: AuthUiTokens.deepCobalt),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: () async {
+                        await _loadProfileData();
+                        if (context.mounted) {
+                          await context.read<AccountCubit>().refresh();
+                        }
+                      },
+                      color: AuthUiTokens.deepCobalt,
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(18, 10, 18, 28),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                     if (_errorMessage != null) ...[
                       Container(
                         width: double.infinity,
@@ -430,18 +441,11 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(22),
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Color(0xFF0A2A66),
-                            Color(0xFF0D3882),
-                          ],
-                        ),
+                        color: AuthUiTokens.deepCobalt,
+                        borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF0A2A66).withOpacity(0.18),
+                            color: AuthUiTokens.deepCobalt.withOpacity(0.22),
                             blurRadius: 18,
                             offset: const Offset(0, 8),
                           ),
@@ -666,11 +670,12 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFFE8EEF6)),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.03),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
+                                color: AuthUiTokens.royalBlue.withOpacity(0.05),
+                                blurRadius: 14,
+                                offset: const Offset(0, 5),
                               ),
                             ],
                           ),
@@ -684,16 +689,16 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
                                     child: Row(
                                       children: [
                                         Container(
-                                          width: 40,
-                                          height: 40,
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFEFF6FF),
-                                            borderRadius: BorderRadius.circular(12),
+                                          width: 42,
+                                          height: 42,
+                                          decoration: const BoxDecoration(
+                                            color: AuthUiTokens.softBlueBg,
+                                            shape: BoxShape.circle,
                                           ),
                                           child: const Icon(
-                                            Icons.account_balance_wallet_outlined,
-                                            color: Color(0xFF0A2A66),
-                                            size: 19,
+                                            Icons.account_balance_wallet_rounded,
+                                            color: AuthUiTokens.deepCobalt,
+                                            size: 20,
                                           ),
                                         ),
                                         const SizedBox(width: 12),
@@ -705,7 +710,7 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
                                             style: GoogleFonts.plusJakartaSans(
                                               fontSize: 14.5,
                                               fontWeight: FontWeight.w800,
-                                              color: const Color(0xFF0A2A66),
+                                              color: AuthUiTokens.titleDark,
                                             ),
                                           ),
                                         ),
@@ -833,6 +838,10 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
                 ),
               ),
             ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

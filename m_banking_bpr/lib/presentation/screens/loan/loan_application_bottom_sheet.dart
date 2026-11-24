@@ -9,6 +9,7 @@ import '../../../core/money/money.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../data/repositories/account_repository.dart';
+import '../../widgets/auth_ui_kit.dart';
 
 class LoanApplicationBottomSheet extends StatefulWidget {
   final VoidCallback? onSuccess;
@@ -285,78 +286,77 @@ class _LoanApplicationBottomSheetState extends State<LoanApplicationBottomSheet>
   Widget build(BuildContext context) {
     final minAmountLabel = CurrencyFormatter.formatRupiah(Money.rupiah(ProductRates.kreditMinAmount));
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF6F6F2),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFF6F6F2),
-        surfaceTintColor: Colors.transparent,
-        foregroundColor: const Color(0xFF0A2A66),
-        elevation: 0,
-        centerTitle: false,
-        titleSpacing: 8,
-        leadingWidth: 64,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
-          child: Material(
-            color: Colors.white,
-            shape: const CircleBorder(),
-            elevation: 0.5,
-            shadowColor: Colors.black.withOpacity(0.08),
-            child: InkWell(
-              customBorder: const CircleBorder(),
-              onTap: () => Navigator.of(context).pop(),
-              child: const Center(
-                child: Icon(Icons.chevron_left_rounded, size: 24, color: Color(0xFF0A2A66)),
+    return AuthSwooshCanvas(
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 10, 18, 10),
+              child: Row(
+                children: [
+                  Material(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => Navigator.of(context).pop(),
+                      child: Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AuthUiTokens.inputBorder),
+                        ),
+                        child: const Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          size: 17,
+                          color: AuthUiTokens.deepCobalt,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Ajukan Pinjaman',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 21,
+                        fontWeight: FontWeight.w800,
+                        color: AuthUiTokens.titleDark,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-        ),
-        title: Text(
-          'Ajukan Pinjaman',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 19,
-            fontWeight: FontWeight.w800,
-            color: const Color(0xFF0A2A66),
-            letterSpacing: -0.3,
-          ),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.03),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Formulir Pengajuan Kredit',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 16.5,
-                  fontWeight: FontWeight.w800,
-                  color: const Color(0xFF0A2A66),
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                'Solusi modal usaha & pinjaman terpercaya Bank DMB',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 12,
-                  color: textMuted,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const Divider(height: 24, color: Color(0xFFF1F5F9)),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
+                child: AuthSurfaceCard(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Formulir Pengajuan Kredit',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 16.5,
+                          fontWeight: FontWeight.w800,
+                          color: AuthUiTokens.titleDark,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'Solusi modal usaha & pinjaman terpercaya Bank DMB',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          color: textMuted,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const Divider(height: 24, color: Color(0xFFF1F5F9)),
 
               Text(
                 'Jenis Produk Kredit',
@@ -686,36 +686,19 @@ class _LoanApplicationBottomSheetState extends State<LoanApplicationBottomSheet>
           ),
         ),
       ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton(
-              onPressed: _isSubmitting ? null : _submitApplication,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0A2A66),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-              child: _isSubmitting
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                    )
-                  : Text(
-                      'Kirim Pengajuan Kredit',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
             ),
-          ),
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 8, 18, 16),
+                child: AuthGradientButton(
+                  label: 'Kirim Pengajuan Kredit',
+                  onPressed: _isSubmitting ? null : _submitApplication,
+                  isLoading: _isSubmitting,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -9,6 +9,7 @@ import '../../../core/services/dynamic_config_service.dart';
 import 'change_password_screen.dart';
 import 'change_pin_screen.dart';
 import '../../widgets/app_validation_feedback.dart';
+import '../../widgets/auth_ui_kit.dart';
 
 class SecuritySettingsScreen extends StatefulWidget {
   const SecuritySettingsScreen({super.key});
@@ -18,13 +19,13 @@ class SecuritySettingsScreen extends StatefulWidget {
 }
 
 class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
-  static const Color primaryNavy = Color(0xFF0B356D);
-  static const Color royalBlue = Color(0xFF0062E3);
-  static const Color dmbGreen = Color(0xFF16984B);
-  static const Color titleDark = Color(0xFF0B2546);
-  static const Color textMuted = Color(0xFF64748B);
-  static const Color borderLight = Color(0xFFE2E8F0);
-  static const Color bgCanvas = Color(0xFFF8FAFC);
+  static const Color primaryNavy = AuthUiTokens.deepCobalt;
+  static const Color royalBlue = AuthUiTokens.royalBlue;
+  static const Color dmbGreen = Color(0xFF059669);
+  static const Color titleDark = AuthUiTokens.titleDark;
+  static const Color textMuted = AuthUiTokens.textMuted;
+  static const Color borderLight = Color(0xFFE8EEF6);
+  static const Color bgCanvas = AuthUiTokens.canvas;
 
   bool _flagSecureEnabled = true;
   bool _scanningRoot = false;
@@ -264,50 +265,70 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: bgCanvas,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: titleDark,
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: titleDark),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Column(
-          children: [
-            Text(
-              'Pengaturan Keamanan',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: titleDark,
-                letterSpacing: -0.2,
-              ),
-            ),
-            const SizedBox(height: 1),
-            Text(
-              'PERLINDUNGAN AKUN & PRIVASI',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 9.5,
-                fontWeight: FontWeight.w700,
-                color: royalBlue,
-                letterSpacing: 0.6,
-              ),
-            ),
-          ],
-        ),
-        bottom: const PreferredSize(
-          preferredSize: Size.fromHeight(1),
-          child: Divider(height: 1, color: borderLight),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+    return AuthSwooshCanvas(
+      child: SafeArea(
+        bottom: false,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 10, 18, 8),
+              child: Row(
+                children: [
+                  Material(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => Navigator.of(context).pop(),
+                      child: Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AuthUiTokens.inputBorder),
+                        ),
+                        child: const Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          size: 17,
+                          color: AuthUiTokens.deepCobalt,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Pengaturan Keamanan',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 21,
+                            fontWeight: FontWeight.w800,
+                            color: titleDark,
+                            letterSpacing: -0.4,
+                          ),
+                        ),
+                        Text(
+                          'Perlindungan Akun & Privasi',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
             Text(
               'Kredensial & Akses Masuk',
               style: GoogleFonts.plusJakartaSans(
@@ -715,6 +736,10 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                   ),
                 ],
               ),
+            ),
+          ],
+        ),
+      ),
             ),
           ],
         ),

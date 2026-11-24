@@ -22,7 +22,6 @@ import '../helpdesk/helpdesk_screen.dart';
 import '../loan/loan_screen.dart';
 import '../mutation/mutation_screen.dart';
 import '../product/product_catalog_screen.dart';
-import '../statement/estatement_screen.dart';
 import 'company_profile_screen.dart';
 import 'security_settings_screen.dart';
 
@@ -774,14 +773,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         subtitle: 'Pusat bantuan dan FAQ',
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(builder: (_) => const HelpdeskScreen()),
-                        ),
-                      ),
-                      _ProfileMenuEntry(
-                        icon: Icons.description_outlined,
-                        title: 'E-Statement Bulanan',
-                        subtitle: 'Unduh laporan rekening bulanan',
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const EStatementScreen()),
                         ),
                       ),
                       _ProfileMenuEntry(

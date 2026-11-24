@@ -94,7 +94,7 @@ class HelpdeskScreen extends StatelessWidget {
 
               const SizedBox(height: 18),
 
-              // Solid Cobalt Hero Card (matches Beranda Balance Card)
+              // Solid Cobalt Hero Card
               Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
@@ -190,52 +190,72 @@ class HelpdeskScreen extends StatelessWidget {
               Text(
                 'Kanal Komunikasi Resmi',
                 style: GoogleFonts.plusJakartaSans(
-                  fontSize: 15,
+                  fontSize: 15.5,
                   fontWeight: FontWeight.w800,
                   color: titleDark,
                 ),
               ),
               const SizedBox(height: 10),
 
-              _buildContactCard(
-                context: context,
-                icon: Icons.phone_in_talk_rounded,
-                title: 'Call Center 24 Jam',
-                subtitle: BankContact.callCenterDisplay,
-                description: AppContent.text('helpdesk.call_center_desc'),
-                buttonLabel: 'Salin Nomor',
-                onAction: () {
-                  Clipboard.setData(ClipboardData(text: BankContact.callCenterDial));
-                  _showToast(context, 'Nomor Call Center disalin: ${BankContact.callCenterDisplay}');
-                },
-              ),
-              const SizedBox(height: 12),
-
-              _buildContactCard(
-                context: context,
-                icon: Icons.chat_bubble_outline_rounded,
-                title: 'WhatsApp Customer Care',
-                subtitle: BankContact.whatsAppDisplay,
-                description: AppContent.text('helpdesk.whatsapp_desc'),
-                buttonLabel: 'Salin WhatsApp',
-                onAction: () {
-                  Clipboard.setData(ClipboardData(text: BankContact.whatsAppDial));
-                  _showToast(context, 'Nomor WhatsApp disalin: ${BankContact.whatsAppDisplay}');
-                },
-              ),
-              const SizedBox(height: 12),
-
-              _buildContactCard(
-                context: context,
-                icon: Icons.mail_outline_rounded,
-                title: 'Email Layanan Nasabah',
-                subtitle: BankContact.email,
-                description: AppContent.text('helpdesk.email_desc'),
-                buttonLabel: 'Salin Email',
-                onAction: () {
-                  Clipboard.setData(ClipboardData(text: BankContact.email));
-                  _showToast(context, 'Alamat email disalin');
-                },
+              // Unified Contact Menu Card (matches Akun Saya design)
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFE8EEF6)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: royalBlue.withOpacity(0.05),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    _buildContactRow(
+                      context: context,
+                      icon: Icons.phone_in_talk_rounded,
+                      title: 'Call Center 24 Jam',
+                      value: BankContact.callCenterDisplay,
+                      description: AppContent.text('helpdesk.call_center_desc'),
+                      onCopy: () {
+                        Clipboard.setData(ClipboardData(text: BankContact.callCenterDial));
+                        _showToast(context, 'Nomor Call Center disalin: ${BankContact.callCenterDisplay}');
+                      },
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.only(left: 72, right: 16),
+                      child: Divider(height: 1, color: Color(0xFFF1F5F9)),
+                    ),
+                    _buildContactRow(
+                      context: context,
+                      icon: Icons.chat_bubble_rounded,
+                      title: 'WhatsApp Customer Care',
+                      value: BankContact.whatsAppDisplay,
+                      description: AppContent.text('helpdesk.whatsapp_desc'),
+                      onCopy: () {
+                        Clipboard.setData(ClipboardData(text: BankContact.whatsAppDial));
+                        _showToast(context, 'Nomor WhatsApp disalin: ${BankContact.whatsAppDisplay}');
+                      },
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.only(left: 72, right: 16),
+                      child: Divider(height: 1, color: Color(0xFFF1F5F9)),
+                    ),
+                    _buildContactRow(
+                      context: context,
+                      icon: Icons.mail_rounded,
+                      title: 'Email Layanan Nasabah',
+                      value: BankContact.email,
+                      description: AppContent.text('helpdesk.email_desc'),
+                      onCopy: () {
+                        Clipboard.setData(ClipboardData(text: BankContact.email));
+                        _showToast(context, 'Alamat email disalin');
+                      },
+                    ),
+                  ],
+                ),
               ),
 
               const SizedBox(height: 22),
@@ -243,7 +263,7 @@ class HelpdeskScreen extends StatelessWidget {
               Text(
                 'Kantor Operasional Bank DMB',
                 style: GoogleFonts.plusJakartaSans(
-                  fontSize: 15,
+                  fontSize: 15.5,
                   fontWeight: FontWeight.w800,
                   color: titleDark,
                 ),
@@ -254,13 +274,13 @@ class HelpdeskScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: const Color(0xFFE8EEF6)),
                   boxShadow: [
                     BoxShadow(
                       color: royalBlue.withOpacity(0.05),
-                      blurRadius: 14,
-                      offset: const Offset(0, 5),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
                     ),
                   ],
                 ),
@@ -283,7 +303,7 @@ class HelpdeskScreen extends StatelessWidget {
                             size: 20,
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 14),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -291,7 +311,7 @@ class HelpdeskScreen extends StatelessWidget {
                               Text(
                                 'Kantor Pusat Operasional',
                                 style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 14,
+                                  fontSize: 14.5,
                                   fontWeight: FontWeight.w700,
                                   color: titleDark,
                                 ),
@@ -344,95 +364,87 @@ class HelpdeskScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildContactCard({
+  Widget _buildContactRow({
     required BuildContext context,
     required IconData icon,
     required String title,
-    required String subtitle,
+    required String value,
     required String description,
-    required String buttonLabel,
-    required VoidCallback onAction,
+    required VoidCallback onCopy,
   }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE8EEF6)),
-        boxShadow: [
-          BoxShadow(
-            color: royalBlue.withOpacity(0.05),
-            blurRadius: 14,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: const BoxDecoration(
-                  color: AuthUiTokens.softBlueBg,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: deepCobalt, size: 20),
+    return InkWell(
+      onTap: onCopy,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: const BoxDecoration(
+                color: AuthUiTokens.softBlueBg,
+                shape: BoxShape.circle,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: titleDark,
-                      ),
+              child: Icon(icon, color: deepCobalt, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: titleDark,
                     ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    value,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                      color: royalBlue,
+                    ),
+                  ),
+                  if (description.trim().isNotEmpty) ...[
                     const SizedBox(height: 2),
                     Text(
-                      subtitle,
+                      description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.plusJakartaSans(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w800,
-                        color: royalBlue,
+                        fontSize: 11.5,
+                        color: textMuted,
+                        height: 1.35,
                       ),
                     ),
                   ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            description,
-            style: GoogleFonts.plusJakartaSans(fontSize: 12, color: textMuted, height: 1.35),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            height: 42,
-            child: OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: deepCobalt,
-                side: const BorderSide(color: AuthUiTokens.softBlueBorder),
-                backgroundColor: AuthUiTokens.softBlueBg,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(21)),
-              ),
-              onPressed: onAction,
-              child: Text(
-                buttonLabel,
-                style: GoogleFonts.plusJakartaSans(fontSize: 12.5, fontWeight: FontWeight.w700),
+                ],
               ),
             ),
-          ),
-        ],
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color: AuthUiTokens.softBlueBg,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: AuthUiTokens.softBlueBorder),
+              ),
+              child: Text(
+                'Salin',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: deepCobalt,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
