@@ -116,7 +116,9 @@ async function handleLogin(e) {
       currentTab = 'dashboard';
       checkAuth();
     } else {
-      if (json.code === 'MFA_REQUIRED' || json.code === 'MFA_INVALID' || (json.data && json.data.mfa_required)) {
+      const errCode = json.response_code || json.code || '';
+      const mfaFlag = (json.errors && json.errors.mfa_required) || (json.data && json.data.mfa_required);
+      if (errCode === 'MFA_REQUIRED' || errCode === 'MFA_INVALID' || mfaFlag) {
         const mfaGrp = document.getElementById('loginMfaGroup');
         if (mfaGrp) mfaGrp.classList.remove('hidden');
         if (totpInput) totpInput.focus();
