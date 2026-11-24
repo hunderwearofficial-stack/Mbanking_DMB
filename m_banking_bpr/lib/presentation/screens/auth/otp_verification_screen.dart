@@ -7,6 +7,7 @@ import '../../../core/content/app_content.dart';
 import '../../../core/network/api_exception.dart';
 import '../../blocs/auth/auth_cubit.dart';
 import '../../widgets/app_validation_feedback.dart';
+import '../../widgets/auth_ui_kit.dart';
 import 'reset_password_screen.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
@@ -185,210 +186,126 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
-        statusBarBrightness: Brightness.dark,
-        systemNavigationBarColor: Color(0xFFF6F6F2),
-        systemNavigationBarIconBrightness: Brightness.dark,
-      ),
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF6F6F2),
-        body: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF0A2A66), Color(0xFF0D3882)],
-                ),
-                borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
-              ),
-              child: SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 8, 22, 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          IconButton(
-                            icon: const Icon(
-                              Icons.arrow_back_ios_new_rounded,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                            onPressed: () => Navigator.of(context).pop(),
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.only(right: 6),
-                            child: ContentImage(
-                              'app.logo',
-                              height: 40,
-                              fit: BoxFit.contain,
-                            ),
-                          ),
-                        ],
+    return AuthSwooshCanvas(
+      child: Column(
+        children: [
+          AuthTopHeader(
+            onBack: () => Navigator.of(context).pop(),
+            eyebrow: 'KEAMANAN AKUN',
+            title: 'Verifikasi Kode OTP',
+            icon: Icons.mark_email_read_rounded,
+          ),
+
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
+            child: AuthSurfaceCard(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+              child: Column(
+                children: [
+                  RichText(
+                    textAlign: TextAlign.center,
+                    text: TextSpan(
+                      text: 'Kode verifikasi telah dikirim melalui SMS ke ',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AuthUiTokens.textMuted,
+                        height: 1.4,
                       ),
-                      const SizedBox(height: 8),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.14),
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: const Icon(
-                                Icons.mark_email_read_rounded,
-                                color: Color(0xFF34D399),
-                                size: 24,
-                              ),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'KEAMANAN AKUN',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w800,
-                                      color: Color(0xFF34D399),
-                                      letterSpacing: 0.8,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  const Text(
-                                    'Verifikasi Kode OTP',
-                                    style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w800,
-                                      color: Colors.white,
-                                      letterSpacing: -0.3,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                      children: [
+                        TextSpan(
+                          text: _maskPhone(widget.phoneNumber),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: AuthUiTokens.titleDark,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 20),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(6, (index) {
+                      final isFilled = index < _otp.length;
+                      final digit = isFilled ? _otp[index] : '';
+
+                      return Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: 42,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: isFilled
+                              ? AuthUiTokens.softBlueBg
+                              : AuthUiTokens.inputFill,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isFilled
+                                ? AuthUiTokens.royalBlue
+                                : AuthUiTokens.inputBorder,
+                            width: isFilled ? 1.8 : 1,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            digit,
+                            style: const TextStyle(
+                              fontSize: 21,
+                              fontWeight: FontWeight.w800,
+                              color: AuthUiTokens.titleDark,
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  _secondsLeft > 0
+                      ? Text(
+                          'Kirim ulang kode dalam 00:${_secondsLeft.toString().padLeft(2, '0')}',
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            color: AuthUiTokens.textMuted,
+                          ),
+                        )
+                      : TextButton.icon(
+                          onPressed: _isResending ? null : _handleResendOtp,
+                          icon: _isResending
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AuthUiTokens.royalBlue,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.refresh_rounded,
+                                  size: 16,
+                                  color: AuthUiTokens.royalBlue,
+                                ),
+                          label: Text(
+                            _isResending ? 'Mengirim Ulang...' : 'Kirim Ulang Kode OTP',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: AuthUiTokens.royalBlue,
+                              fontSize: 13.5,
+                            ),
+                          ),
+                        ),
+                ],
               ),
             ),
+          ),
 
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(22),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 18,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    RichText(
-                      textAlign: TextAlign.center,
-                      text: TextSpan(
-                        text: 'Kode verifikasi telah dikirim melalui SMS ke ',
-                        style: const TextStyle(fontSize: 13, color: textMuted, height: 1.4),
-                        children: [
-                          TextSpan(
-                            text: _maskPhone(widget.phoneNumber),
-                            style: const TextStyle(fontWeight: FontWeight.w700, color: titleDark),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
+          const Spacer(),
 
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(6, (index) {
-                        final isFilled = index < _otp.length;
-                        final digit = isFilled ? _otp[index] : '';
+          _buildCustomKeypad(),
 
-                        return Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          width: 42,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: isFilled ? const Color(0xFF0A2A66) : Colors.transparent,
-                              width: 1.8,
-                            ),
-                          ),
-                          child: Center(
-                            child: Text(
-                              digit,
-                              style: const TextStyle(
-                                fontSize: 21,
-                                fontWeight: FontWeight.w800,
-                                color: titleDark,
-                              ),
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    _secondsLeft > 0
-                        ? Text(
-                            'Kirim ulang kode dalam 00:${_secondsLeft.toString().padLeft(2, '0')}',
-                            style: const TextStyle(fontSize: 12.5, color: textMuted),
-                          )
-                        : TextButton.icon(
-                            onPressed: _isResending ? null : _handleResendOtp,
-                            icon: _isResending
-                                ? const SizedBox(
-                                    width: 14,
-                                    height: 14,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: dmbGreen),
-                                  )
-                                : const Icon(Icons.refresh_rounded, size: 16, color: dmbGreen),
-                            label: Text(
-                              _isResending ? 'Mengirim Ulang...' : 'Kirim Ulang Kode OTP',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                color: dmbGreen,
-                                fontSize: 13.5,
-                              ),
-                            ),
-                          ),
-                  ],
-                ),
-              ),
-            ),
-
-            const Spacer(),
-
-            _buildCustomKeypad(),
-
-            const SizedBox(height: 16),
-          ],
-        ),
+          const SizedBox(height: 16),
+        ],
       ),
     );
   }

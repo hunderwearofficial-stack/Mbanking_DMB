@@ -114,22 +114,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               child: Container(
                 width: double.infinity,
                 decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFF033172),
-                      Color(0xFF0550A6),
-                      Color(0xFF118CE0),
-                    ],
-                    stops: [0.0, 0.52, 1.0],
-                  ),
+                  color: Color(0xFF0550A6),
                   borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
                   boxShadow: [
                     BoxShadow(
-                      color: Color(0x28061B44),
-                      blurRadius: 24,
-                      offset: Offset(0, 10),
+                      color: Color(0x20033172),
+                      blurRadius: 20,
+                      offset: Offset(0, 8),
                     ),
                   ],
                 ),
@@ -347,52 +338,38 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
                       const Spacer(),
 
-                      DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF033172), Color(0xFF0550A6), Color(0xFF118CE0)],
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            if (_currentPage < _slides.length - 1) {
+                              _userInteracted = true;
+                              _autoSlideTimer?.cancel();
+                              _pageController.nextPage(
+                                duration: const Duration(milliseconds: 350),
+                                curve: Curves.easeInOut,
+                              );
+                            } else {
+                              _navigateToTerms();
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF033172),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(26),
+                            ),
                           ),
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF0550A6).withOpacity(0.28),
-                              blurRadius: 16,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
-                        ),
-                        child: SizedBox(
-                          width: double.infinity,
-                          height: 50,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              if (_currentPage < _slides.length - 1) {
-                                _userInteracted = true;
-                                _autoSlideTimer?.cancel();
-                                _pageController.nextPage(
-                                  duration: const Duration(milliseconds: 350),
-                                  curve: Curves.easeInOut,
-                                );
-                              } else {
-                                _navigateToTerms();
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              shadowColor: Colors.transparent,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  _currentPage < _slides.length - 1
-                                      ? 'Lanjut'
-                                      : AppContent.text('onboarding.button_text'),
-                                  style: GoogleFonts.plusJakartaSans(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                _currentPage < _slides.length - 1
+                                    ? 'Lanjut'
+                                    : AppContent.text('onboarding.button_text'),
+                                style: GoogleFonts.plusJakartaSans(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w700,
                                     letterSpacing: 0.2,
@@ -404,7 +381,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             ),
                           ),
                         ),
-                      ),
                     ],
                   ),
                 ),

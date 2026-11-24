@@ -352,20 +352,12 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Color(0xFF033172),
-                            Color(0xFF0550A6),
-                            Color(0xFF118CE0),
-                          ],
-                        ),
+                        color: const Color(0xFF033172),
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF0550A6).withOpacity(0.30),
-                            blurRadius: 12,
+                            color: const Color(0xFF033172).withOpacity(0.24),
+                            blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
                         ],
@@ -389,71 +381,39 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
               color: Colors.white,
               border: Border(top: BorderSide(color: Color(0xFFF1F5F9))),
             ),
-            child: Builder(
-              builder: (context) {
-                final isActive = widget.readOnly || _canProceed;
-                return SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: isActive
-                          ? const LinearGradient(
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                              colors: [
-                                Color(0xFF033172),
-                                Color(0xFF0550A6),
-                                Color(0xFF118CE0),
-                              ],
-                            )
-                          : null,
-                      color: isActive ? null : const Color(0xFFE2E8F0),
-                      borderRadius: BorderRadius.circular(26),
-                      boxShadow: isActive
-                          ? [
-                              BoxShadow(
-                                color: const Color(0xFF0550A6).withOpacity(0.28),
-                                blurRadius: 14,
-                                offset: const Offset(0, 6),
-                              ),
-                            ]
-                          : null,
-                    ),
-                    child: ElevatedButton(
-                      key: const Key('termsProceedButton'),
-                      onPressed: widget.readOnly
-                          ? () => Navigator.of(context).maybePop()
-                          : (_canProceed ? _onProceed : null),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        disabledBackgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        foregroundColor: Colors.white,
-                        disabledForegroundColor: const Color(0xFF94A3B8),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(26),
+            child: SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                key: const Key('termsProceedButton'),
+                onPressed: widget.readOnly
+                    ? () => Navigator.of(context).maybePop()
+                    : (_canProceed ? _onProceed : null),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF033172),
+                  disabledBackgroundColor: const Color(0xFFE2E8F0),
+                  foregroundColor: Colors.white,
+                  disabledForegroundColor: const Color(0xFF94A3B8),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(26),
+                  ),
+                ),
+                child: _submitting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : Text(
+                        widget.readOnly ? 'Tutup Dokumen' : 'Saya Setuju',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.2,
                         ),
                       ),
-                      child: _submitting
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                            )
-                          : Text(
-                              widget.readOnly ? 'Tutup Dokumen' : 'Saya Setuju',
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.2,
-                              ),
-                            ),
-                    ),
-                  ),
-                );
-              },
+              ),
             ),
           ),
         ),

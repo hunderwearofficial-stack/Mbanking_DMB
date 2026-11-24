@@ -7,6 +7,7 @@ import '../../../core/content/app_content.dart';
 import '../../../core/network/api_exception.dart';
 import '../../blocs/auth/auth_cubit.dart';
 import '../../widgets/app_validation_feedback.dart';
+import '../../widgets/auth_ui_kit.dart';
 import '../home/home_screen.dart';
 
 class ActivationScreen extends StatefulWidget {
@@ -322,28 +323,15 @@ class _ActivationScreenState extends State<ActivationScreen> {
                 style: const TextStyle(fontSize: 13, color: textMuted, height: 1.45),
               ),
               const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryNavy,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-                    elevation: 2,
-                  ),
-                  onPressed: () {
-                    Navigator.of(ctx).pop();
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(builder: (_) => const HomeScreen()),
-                      (route) => false,
-                    );
-                  },
-                  child: const Text(
-                    'Mulai Layanan Perbankan',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-                  ),
-                ),
+              AuthGradientButton(
+                label: 'Mulai Layanan Perbankan',
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const HomeScreen()),
+                    (route) => false,
+                  );
+                },
               ),
             ],
           ),
@@ -354,149 +342,62 @@ class _ActivationScreenState extends State<ActivationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
-        statusBarBrightness: Brightness.dark,
-        systemNavigationBarColor: Color(0xFFF6F6F2),
-        systemNavigationBarIconBrightness: Brightness.dark,
-      ),
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF6F6F2),
-        body: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF0A2A66), Color(0xFF0D3882)],
-                ),
-                borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
-              ),
-              child: SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 8, 22, 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          IconButton(
-                            icon: const Icon(
-                              Icons.arrow_back_ios_new_rounded,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                            onPressed: () {
-                              if (_currentStep > 1) {
-                                setState(() => _currentStep--);
-                              } else {
-                                Navigator.of(context).pop();
-                              }
-                            },
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.only(right: 6),
-                            child: ContentImage(
-                              'app.logo',
-                              height: 40,
-                              fit: BoxFit.contain,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 10),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'PENDAFTARAN NASABAH',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF34D399),
-                                letterSpacing: 0.8,
-                              ),
-                            ),
-                            SizedBox(height: 2),
-                            Text(
-                              'Aktivasi Mobile Banking',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                                letterSpacing: -0.3,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      _buildStepIndicator(),
-                    ],
+    return AuthSwooshCanvas(
+      child: Column(
+        children: [
+          AuthTopHeader(
+            onBack: () {
+              if (_currentStep > 1) {
+                setState(() => _currentStep--);
+              } else {
+                Navigator.of(context).pop();
+              }
+            },
+            eyebrow: 'PENDAFTARAN NASABAH',
+            title: 'Aktivasi Mobile Banking',
+            icon: Icons.how_to_reg_rounded,
+          ),
+          const SizedBox(height: 12),
+          _buildStepIndicator(),
+          const SizedBox(height: 6),
+          Expanded(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AuthSurfaceCard(
+                    child: _buildCurrentStepContent(),
                   ),
-                ),
-              ),
-            ),
 
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(22),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
-                            blurRadius: 18,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: _buildCurrentStepContent(),
-                    ),
+                  const SizedBox(height: 22),
 
-                    const SizedBox(height: 22),
-
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Text(
-                        AppContent.text('login.footer'),
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.textMuted,
-                          height: 1.4,
-                        ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      AppContent.text('login.footer'),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
+                        color: AuthUiTokens.textMuted,
+                        height: 1.4,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildStepIndicator() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
         children: [
           Row(
@@ -515,10 +416,10 @@ class _ActivationScreenState extends State<ActivationScreen> {
                 : (_currentStep == 2
                     ? 'Langkah 2: Verifikasi Kode OTP'
                     : 'Langkah 3: Buat Kata Sandi & PIN'),
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Colors.white.withOpacity(0.9),
+              fontWeight: FontWeight.w700,
+              color: AuthUiTokens.royalBlue,
               letterSpacing: 0.2,
             ),
           ),
@@ -535,26 +436,26 @@ class _ActivationScreenState extends State<ActivationScreen> {
     Widget content;
 
     if (isCompleted) {
-      bgColor = const Color(0xFF34D399);
-      content = const Icon(Icons.check_rounded, size: 16, color: Color(0xFF064E3B));
+      bgColor = AuthUiTokens.royalBlue;
+      content = const Icon(Icons.check_rounded, size: 16, color: Colors.white);
     } else if (isCurrent) {
-      bgColor = const Color(0xFF34D399);
+      bgColor = AuthUiTokens.azureBlue;
       content = Text(
         '$step',
         style: const TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w800,
-          color: Color(0xFF064E3B),
+          color: Colors.white,
         ),
       );
     } else {
-      bgColor = Colors.white.withOpacity(0.18);
+      bgColor = const Color(0xFFE2E8F0);
       content = Text(
         '$step',
-        style: TextStyle(
+        style: const TextStyle(
           fontSize: 12.5,
-          fontWeight: FontWeight.w600,
-          color: Colors.white.withOpacity(0.85),
+          fontWeight: FontWeight.w700,
+          color: Color(0xFF64748B),
         ),
       );
     }
@@ -566,6 +467,15 @@ class _ActivationScreenState extends State<ActivationScreen> {
       decoration: BoxDecoration(
         color: bgColor,
         shape: BoxShape.circle,
+        boxShadow: isCurrent || isCompleted
+            ? [
+                BoxShadow(
+                  color: AuthUiTokens.royalBlue.withOpacity(0.22),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ]
+            : null,
       ),
       child: Center(child: content),
     );
@@ -578,7 +488,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
       height: 2.5,
       margin: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
-        color: isPassed ? const Color(0xFF34D399) : Colors.white.withOpacity(0.22),
+        color: isPassed ? AuthUiTokens.royalBlue : const Color(0xFFE2E8F0),
         borderRadius: BorderRadius.circular(2),
       ),
     );
@@ -734,40 +644,10 @@ class _ActivationScreenState extends State<ActivationScreen> {
         ),
         const SizedBox(height: 32),
 
-        SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryNavy,
-              foregroundColor: Colors.white,
-              elevation: 2,
-              shadowColor: primaryNavy.withOpacity(0.35),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
-            ),
-            onPressed: _isLoading ? null : _handleStep1Submit,
-            child: _isLoading
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.2),
-                  )
-                : const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Verifikasi Rekening',
-                        style: TextStyle(
-                          fontSize: 15.5,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      Icon(Icons.arrow_forward_rounded, size: 18),
-                    ],
-                  ),
-          ),
+        AuthGradientButton(
+          label: 'Verifikasi Rekening',
+          onPressed: _isLoading ? null : _handleStep1Submit,
+          isLoading: _isLoading,
         ),
       ],
     );
@@ -782,11 +662,15 @@ class _ActivationScreenState extends State<ActivationScreen> {
           width: 58,
           height: 58,
           decoration: BoxDecoration(
-            color: AppColors.successLight,
+            color: AuthUiTokens.softBlueBg,
             shape: BoxShape.circle,
-            border: Border.all(color: AppColors.successBorder, width: 1.5),
+            border: Border.all(color: AuthUiTokens.softBlueBorder, width: 1.5),
           ),
-          child: const Icon(Icons.mark_email_read_rounded, color: dmbGreen, size: 28),
+          child: const Icon(
+            Icons.mark_email_read_rounded,
+            color: AuthUiTokens.royalBlue,
+            size: 28,
+          ),
         ),
         const SizedBox(height: 16),
         const Text(
@@ -851,50 +735,31 @@ class _ActivationScreenState extends State<ActivationScreen> {
                 ? const SizedBox(
                     width: 14,
                     height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: dmbGreen),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AuthUiTokens.royalBlue,
+                    ),
                   )
-                : const Icon(Icons.refresh_rounded, size: 16, color: dmbGreen),
+                : const Icon(
+                    Icons.refresh_rounded,
+                    size: 16,
+                    color: AuthUiTokens.royalBlue,
+                  ),
             label: Text(
               _isResendingOtp ? 'Mengirim Ulang...' : 'Kirim Ulang Kode OTP',
-              style: const TextStyle(fontWeight: FontWeight.w700, color: dmbGreen, fontSize: 13.5),
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                color: AuthUiTokens.royalBlue,
+                fontSize: 13.5,
+              ),
             ),
           ),
         const SizedBox(height: 32),
 
-        SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryNavy,
-              foregroundColor: Colors.white,
-              elevation: 2,
-              shadowColor: primaryNavy.withOpacity(0.35),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
-            ),
-            onPressed: _isLoading ? null : _handleStep2Submit,
-            child: _isLoading
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.2),
-                  )
-                : const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Lanjutkan',
-                        style: TextStyle(
-                          fontSize: 15.5,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      Icon(Icons.arrow_forward_rounded, size: 18),
-                    ],
-                  ),
-          ),
+        AuthGradientButton(
+          label: 'Lanjutkan',
+          onPressed: _isLoading ? null : _handleStep2Submit,
+          isLoading: _isLoading,
         ),
       ],
     );
@@ -1206,40 +1071,10 @@ class _ActivationScreenState extends State<ActivationScreen> {
         ),
         const SizedBox(height: 32),
 
-        SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryNavy,
-              foregroundColor: Colors.white,
-              elevation: 2,
-              shadowColor: primaryNavy.withOpacity(0.35),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
-            ),
-            onPressed: _isLoading ? null : _handleStep3Submit,
-            child: _isLoading
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.2),
-                  )
-                : const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Selesaikan Aktivasi',
-                        style: TextStyle(
-                          fontSize: 15.5,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      Icon(Icons.check_circle_outline_rounded, size: 18),
-                    ],
-                  ),
-          ),
+        AuthGradientButton(
+          label: 'Selesaikan Aktivasi',
+          onPressed: _isLoading ? null : _handleStep3Submit,
+          isLoading: _isLoading,
         ),
       ],
     );
