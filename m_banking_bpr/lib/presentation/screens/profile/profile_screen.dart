@@ -13,11 +13,15 @@ import '../../blocs/account/account_state.dart';
 import '../../blocs/auth/auth_cubit.dart';
 import '../../blocs/auth/auth_state.dart';
 import '../../widgets/app_validation_feedback.dart';
+import '../../widgets/auth_ui_kit.dart';
 import '../account/account_info_screen.dart';
 import '../auth/login_screen.dart';
 import '../auth/terms_conditions_screen.dart';
+import '../deposit/deposit_screen.dart';
 import '../helpdesk/helpdesk_screen.dart';
+import '../loan/loan_screen.dart';
 import '../mutation/mutation_screen.dart';
+import '../product/product_catalog_screen.dart';
 import '../statement/estatement_screen.dart';
 import 'company_profile_screen.dart';
 import 'security_settings_screen.dart';
@@ -280,7 +284,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
-                                    '$prodType • Tenor $tenor Bulan',
+                                    '$prodType \u2022 Tenor $tenor Bulan',
                                     style: GoogleFonts.plusJakartaSans(fontSize: 11.5, color: textMuted),
                                   ),
                                   Text(
@@ -383,7 +387,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   decoration: InputDecoration(
                     counterText: '',
-                    hintText: '••••••',
+                    hintText: '\u2022\u2022\u2022\u2022\u2022\u2022',
                     hintStyle: const TextStyle(letterSpacing: 10, color: Color(0xFF94A3B8)),
                     filled: true,
                     fillColor: bgCanvas,
@@ -562,716 +566,276 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final accountState = accountCubit.state;
     final config = DynamicConfigService().config;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF6F6F2),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFF6F6F2),
-        surfaceTintColor: Colors.transparent,
-        foregroundColor: const Color(0xFF0A2A66),
-        elevation: 0,
-        centerTitle: false,
-        automaticallyImplyLeading: false,
-        titleSpacing: widget.isTab ? 18 : 8,
-        leadingWidth: widget.isTab ? 0 : 64,
-        leading: widget.isTab
-            ? null
-            : Padding(
-                padding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
-                child: Material(
-                  color: Colors.white,
-                  shape: const CircleBorder(),
-                  elevation: 0.5,
-                  shadowColor: Colors.black.withOpacity(0.08),
-                  child: InkWell(
-                    customBorder: const CircleBorder(),
-                    onTap: () => Navigator.of(context).pop(),
-                    child: const Center(
-                      child: Icon(Icons.chevron_left_rounded, size: 24, color: Color(0xFF0A2A66)),
-                    ),
-                  ),
-                ),
-              ),
-        title: Text(
-          'Akun Saya',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
-            color: const Color(0xFF0A2A66),
-            letterSpacing: -0.3,
-          ),
-        ),
-      ),
-      body: FutureBuilder<Map<String, dynamic>>(
+    return AuthSwooshCanvas(
+      child: FutureBuilder<Map<String, dynamic>>(
         future: _profileFuture,
         builder: (context, snapshot) {
           final data = snapshot.data ?? {};
           final baseProfile = data['profile'] as Map<String, dynamic>? ?? {};
-          final profile = (!_isDataMasked && _revealedProfile != null) ? {...baseProfile, ..._revealedProfile!} : baseProfile;
+          final profile = (!_isDataMasked && _revealedProfile != null)
+              ? {...baseProfile, ..._revealedProfile!}
+              : baseProfile;
 
           String fullName = profile['name']?.toString() ??
               profile['nama']?.toString() ??
               profile['holder_name']?.toString() ??
               '';
-          String username = profile['username']?.toString() ?? '';
-          String phone = profile['phone']?.toString() ??
-              profile['phone_number']?.toString() ??
-              '';
-          String email = profile['email']?.toString() ?? '';
-
-          if (authState is AuthAuthenticated) {
-            if (fullName.isEmpty && authState.user.fullName.isNotEmpty) {
-              fullName = authState.user.fullName;
-            }
-            if (username.isEmpty && authState.user.username.isNotEmpty) {
-              username = authState.user.username;
-            }
-            if (phone.isEmpty) phone = authState.user.phoneNumber;
-            if (email.isEmpty && authState.user.email.isNotEmpty) {
-              email = authState.user.email;
-            }
+          if (authState is AuthAuthenticated && fullName.isEmpty && authState.user.fullName.isNotEmpty) {
+            fullName = authState.user.fullName;
           }
 
-          String primaryAccountNo = '-';
-          String rawAccountNo = '-';
-          String accountType = 'Tabungan Bank DMB';
-          Money? balance;
-          bool isBalanceVisible = accountCubit.isBalanceVisible;
-
+          String rawAccountNo = '';
           if (accountState is AccountLoaded) {
-            isBalanceVisible = accountState.isBalanceVisible;
             if (accountState.account.holderName.isNotEmpty && fullName.isEmpty) {
               fullName = accountState.account.holderName;
             }
             if (accountState.account.accountNumber.isNotEmpty) {
               rawAccountNo = accountState.account.accountNumber;
-              primaryAccountNo = _formatAccountNo(rawAccountNo);
             }
-            if (accountState.account.accountType.trim().isNotEmpty &&
-                accountState.account.accountType.trim() != '-') {
-              accountType = accountState.account.accountType.trim();
-            }
-            balance = accountState.account.balance;
+          } else if (authState is AuthAuthenticated && authState.user.primaryAccount.isNotEmpty) {
+            rawAccountNo = authState.user.primaryAccount;
           }
 
           if (fullName.isEmpty) fullName = 'Nasabah Bank DMB';
-          final initial = fullName.isNotEmpty ? fullName[0].toUpperCase() : 'N';
-          final canCopyAccount = rawAccountNo.isNotEmpty && rawAccountNo != '-';
+          final digitsOnly = rawAccountNo.replaceAll(RegExp(r'\D'), '');
+          final maskedAcc = digitsOnly.length >= 4
+              ? 'No. Rekening \u2022\u2022\u2022\u2022 ${digitsOnly.substring(digitsOnly.length - 4)}'
+              : (rawAccountNo.isNotEmpty ? 'No. Rekening $rawAccountNo' : 'Nasabah Bank DMB');
 
-          return RefreshIndicator(
-            onRefresh: () async {
-              setState(() {
-                _profileFuture = _fetchProfileData();
-              });
-              await context.read<AccountCubit>().refresh();
-            },
-            color: primaryNavy,
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.fromLTRB(18, 12, 18, widget.isTab ? 110 : 28),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(22),
-                      gradient: const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Color(0xFF0A2A66),
-                          Color(0xFF0D3882),
+          return SafeArea(
+            bottom: false,
+            child: RefreshIndicator(
+              onRefresh: () async {
+                setState(() {
+                  _profileFuture = _fetchProfileData();
+                });
+                await context.read<AccountCubit>().refresh();
+              },
+              color: AuthUiTokens.deepCobalt,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.fromLTRB(18, 10, 18, widget.isTab ? 100 : 28),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        if (!widget.isTab) ...[
+                          Material(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () => Navigator.of(context).pop(),
+                              child: Container(
+                                width: 38,
+                                height: 38,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: AuthUiTokens.inputBorder),
+                                ),
+                                child: const Icon(
+                                  Icons.arrow_back_ios_new_rounded,
+                                  color: AuthUiTokens.deepCobalt,
+                                  size: 17,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                        ],
+                        Expanded(
+                          child: Text(
+                            'Akun Saya',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: AuthUiTokens.titleDark,
+                              letterSpacing: -0.4,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    // Profile Summary Card (matched to reference card)
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [Color(0xFFFFFFFF), Color(0xFFF0F6FF)],
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFFE4EEF9)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AuthUiTokens.royalBlue.withOpacity(0.08),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
                         ],
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF0A2A66).withOpacity(0.18),
-                          blurRadius: 18,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 56,
-                          height: 56,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.12),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Center(
-                            child: Text(
-                              initial,
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w900,
-                                color: primaryNavy,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                fullName,
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                phone.isNotEmpty
-                                    ? _maskPhone(phone)
-                                    : 'Nasabah Resmi ${config.bankShortName}',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 12,
-                                  color: Colors.white.withOpacity(0.88),
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.20),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  'NASABAH TERVERIFIKASI',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 22),
-
-                  Text(
-                    'Informasi Rekening Tabungan',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: titleDark,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: borderLight),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.02),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Material(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(20),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => const AccountInfoScreen()),
+                            );
+                          },
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(20),
+                            child: Stack(
                               children: [
-                                Text(
-                                  'Rekening Utama',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 11,
-                                    color: textMuted,
-                                    fontWeight: FontWeight.w500,
+                                Positioned(
+                                  right: 0,
+                                  top: 0,
+                                  bottom: 0,
+                                  width: 155,
+                                  child: CustomPaint(
+                                    painter: _ProfileCardWavePainter(),
                                   ),
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  primaryAccountNo,
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w800,
-                                    color: primaryNavy,
-                                    letterSpacing: 0.3,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            if (canCopyAccount)
-                              InkWell(
-                                onTap: () {
-                                  Clipboard.setData(ClipboardData(text: rawAccountNo));
-                                  _showToast('Nomor rekening disalin: $rawAccountNo');
-                                },
-                                borderRadius: BorderRadius.circular(8),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primaryLight,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: AppColors.primaryBorder),
-                                  ),
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(16, 16, 18, 16),
                                   child: Row(
                                     children: [
-                                      const Icon(Icons.copy_rounded, color: royalBlue, size: 13),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        'Salin',
-                                        style: GoogleFonts.plusJakartaSans(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                          color: royalBlue,
+                                      const SizedBox(
+                                        width: 54,
+                                        height: 54,
+                                        child: CustomPaint(
+                                          painter: _DualToneAvatarPainter(),
                                         ),
+                                      ),
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              fullName,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: GoogleFonts.plusJakartaSans(
+                                                fontSize: 16.5,
+                                                fontWeight: FontWeight.w800,
+                                                color: const Color(0xFF032B66),
+                                                letterSpacing: -0.2,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 3),
+                                            Text(
+                                              maskedAcc,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: GoogleFonts.plusJakartaSans(
+                                                fontSize: 12.5,
+                                                fontWeight: FontWeight.w600,
+                                                color: const Color(0xFF334155),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const Icon(
+                                        Icons.chevron_right_rounded,
+                                        color: Colors.white,
+                                        size: 24,
                                       ),
                                     ],
                                   ),
                                 ),
-                              ),
-                          ],
-                        ),
-
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                          child: Divider(height: 1, color: Color(0xFFF1F5F9)),
-                        ),
-
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Saldo Rekening',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 11,
-                                    color: textMuted,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  isBalanceVisible
-                                      ? CurrencyFormatter.formatRupiah(balance)
-                                      : 'Rp •••••••••',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                    color: titleDark,
-                                  ),
-                                ),
                               ],
                             ),
-                            IconButton(
-                              icon: Icon(
-                                isBalanceVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                                size: 20,
-                                color: textMuted,
-                              ),
-                              onPressed: () {
-                                context.read<AccountCubit>().toggleBalanceVisibility();
-                                setState(() {});
-                              },
-                            ),
-                          ],
-                        ),
-
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                          child: Divider(height: 1, color: Color(0xFFF1F5F9)),
-                        ),
-
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Jenis Tabungan',
-                                    style: GoogleFonts.plusJakartaSans(fontSize: 11, color: textMuted),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    accountType,
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: titleDark,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: AppColors.successLight,
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: AppColors.successBorder),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.check_circle_rounded, color: dmbGreen, size: 12),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'AKUN AKTIF',
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w800,
-                                      color: dmbGreen,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 22),
-
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            _isDataMasked ? Icons.lock_outline_rounded : Icons.lock_open_rounded,
-                            size: 16,
-                            color: _isDataMasked ? royalBlue : dmbGreen,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Data Identitas (Terproteksi)',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                              color: titleDark,
-                            ),
-                          ),
-                        ],
-                      ),
-                      InkWell(
-                        onTap: () {
-                          if (_isDataMasked) {
-                            _showPinVerificationModal(context, () {
-                              setState(() => _isDataMasked = false);
-                            });
-                          } else {
-                            setState(() {
-                              _isDataMasked = true;
-                              _revealedProfile = null;
-                            });
-                            _showToast('Data identitas kembali diproteksi');
-                          }
-                        },
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: _isDataMasked ? AppColors.primaryLight : AppColors.successLight,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: _isDataMasked ? AppColors.primaryBorder : AppColors.successBorder,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                _isDataMasked ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                                size: 13,
-                                color: _isDataMasked ? royalBlue : dmbGreen,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                _isDataMasked ? 'Buka Data' : 'Kunci Data',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: _isDataMasked ? royalBlue : dmbGreen,
-                                ),
-                              ),
-                            ],
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
+                    ),
 
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: borderLight),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.02),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
+                    const SizedBox(height: 22),
+                    const SizedBox(height: 10),
+                    _buildMenuSectionCard([
+                      _ProfileMenuEntry(
+                        icon: Icons.settings_rounded,
+                        title: 'Pengaturan',
+                        subtitle: 'Kelola akun dan keamanan',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const SecuritySettingsScreen()),
                         ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        _buildDataRow(
-                          label: 'Nomor Rekening Utama',
-                          value: _isDataMasked ? _maskAccount(rawAccountNo) : primaryAccountNo,
-                          hasCopy: canCopyAccount,
-                          rawCopyText: rawAccountNo,
+                      ),
+                      _ProfileMenuEntry(
+                        icon: Icons.info_rounded,
+                        title: 'Bantuan',
+                        subtitle: 'Pusat bantuan dan FAQ',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const HelpdeskScreen()),
                         ),
-                        if (username.isNotEmpty) ...[
-                          const Divider(height: 16, color: Color(0xFFF1F5F9)),
-                          _buildDataRow(
-                            label: 'Username / ID Pengguna',
-                            value: username,
-                            hasCopy: true,
-                            rawCopyText: username,
-                          ),
-                        ],
-                        const Divider(height: 16, color: Color(0xFFF1F5F9)),
-                        _buildDataRow(
-                          label: 'Nomor Handphone Terdaftar',
-                          value: _isDataMasked ? _maskPhone(phone) : phone,
+                      ),
+                      _ProfileMenuEntry(
+                        icon: Icons.description_outlined,
+                        title: 'E-Statement Bulanan',
+                        subtitle: 'Unduh laporan rekening bulanan',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const EStatementScreen()),
                         ),
-                        if (email.isNotEmpty) ...[
-                          const Divider(height: 16, color: Color(0xFFF1F5F9)),
-                          _buildDataRow(
-                            label: 'Email Terdaftar',
-                            value: _isDataMasked ? _maskEmail(email) : email,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 22),
-
-                  Text(
-                    'Portofolio & Aktivitas',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: titleDark,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildMenuCard(
-                    children: [
-                      _buildMenuItem(
-                        icon: Icons.account_balance_wallet_outlined,
-                        iconColor: royalBlue,
-                        iconBg: AppColors.primaryLight,
-                        title: 'Informasi Rekening & CIF',
-                        subtitle: 'Detail rekening tabungan & identitas CIF',
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const AccountInfoScreen()),
-                          );
-                        },
                       ),
-                      const Divider(height: 1, indent: 56, color: Color(0xFFF1F5F9)),
-                      _buildMenuItem(
-                        icon: Icons.history_rounded,
-                        iconColor: dmbGreen,
-                        iconBg: AppColors.successLight,
-                        title: 'Riwayat Transaksi',
-                        subtitle: 'Catatan mutasi uang masuk & keluar',
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const MutationScreen()),
-                          );
-                        },
+                      _ProfileMenuEntry(
+                        icon: Icons.account_balance_rounded,
+                        title: 'Tentang Bank DMB',
+                        subtitle: 'Profil, visi, misi & legalitas',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const CompanyProfileScreen()),
+                        ),
                       ),
-                      const Divider(height: 1, indent: 56, color: Color(0xFFF1F5F9)),
-                      _buildMenuItem(
-                        icon: Icons.analytics_outlined,
-                        iconColor: primaryNavy,
-                        iconBg: const Color(0xFFF1F5F9),
-                        title: 'e-Statement Rekening',
-                        subtitle: 'Ringkasan mutasi bulanan 6 bulan terakhir',
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const EStatementScreen()),
-                          );
-                        },
-                      ),
-                      const Divider(height: 1, indent: 56, color: Color(0xFFF1F5F9)),
-                      _buildMenuItem(
-                        icon: Icons.assignment_turned_in_outlined,
-                        iconColor: AppColors.warning,
-                        iconBg: AppColors.warningLight,
-                        title: 'Riwayat Pengajuan Produk',
-                        subtitle: 'Pantau status pengajuan deposito & pinjaman',
-                        onTap: () => _showApplicationsSheet(context),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 22),
-
-                  Text(
-                    'Pengaturan Aplikasi',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: titleDark,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildMenuCard(
-                    children: [
-                      _buildMenuItem(
-                        icon: Icons.settings_outlined,
-                        iconColor: royalBlue,
-                        iconBg: AppColors.primaryLight,
-                        title: 'Pengaturan & Keamanan Akun',
-                        subtitle: 'Ganti kata sandi, PIN transaksi & perangkat',
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const SecuritySettingsScreen()),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 22),
-
-                  Text(
-                    'Layanan & Bantuan',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: titleDark,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildMenuCard(
-                    children: [
-                      _buildMenuItem(
-                        icon: Icons.apartment_rounded,
-                        iconColor: royalBlue,
-                        iconBg: AppColors.primaryLight,
-                        title: 'Tentang ${config.bankShortName}',
-                        subtitle: 'Profil perusahaan, visi misi & legalitas OJK/LPS',
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const CompanyProfileScreen()),
-                          );
-                        },
-                      ),
-                      const Divider(height: 1, indent: 56, color: Color(0xFFF1F5F9)),
-                      _buildMenuItem(
-                        icon: Icons.headset_mic_outlined,
-                        iconColor: royalBlue,
-                        iconBg: AppColors.primaryLight,
-                        title: 'Pusat Bantuan 24 Jam',
-                        subtitle: 'Call Center, WhatsApp & Email resmi',
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const HelpdeskScreen()),
-                          );
-                        },
-                      ),
-                      const Divider(height: 1, indent: 56, color: Color(0xFFF1F5F9)),
-                      _buildMenuItem(
-                        icon: Icons.policy_outlined,
-                        iconColor: dmbGreen,
-                        iconBg: AppColors.successLight,
+                      _ProfileMenuEntry(
+                        icon: Icons.verified_user_outlined,
                         title: 'Syarat & Ketentuan',
-                        subtitle: 'Kebijakan privasi & aturan perbankan',
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const TermsConditionsScreen(readOnly: true),
+                        subtitle: 'Dokumen ketentuan layanan',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const TermsConditionsScreen(readOnly: true)),
+                        ),
+                      ),
+                      _ProfileMenuEntry(
+                        icon: Icons.logout_rounded,
+                        title: 'Keluar dari Akun',
+                        subtitle: 'Akhiri sesi Mobile Banking',
+                        isDanger: true,
+                        onTap: () => _showLogoutDialog(context),
+                      ),
+                    ]),
+
+                    const SizedBox(height: 20),
+
+                    Center(
+                      child: Column(
+                        children: [
+                          Text(
+                            _versionLabel(config),
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: textMuted,
                             ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 26),
-
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: dmbRed,
-                        side: const BorderSide(color: AppColors.dangerBorder, width: 1.5),
-                        backgroundColor: AppColors.dangerLight,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      onPressed: () => _showLogoutDialog(context),
-                      icon: const Icon(Icons.logout_rounded, size: 19),
-                      label: Text(
-                        'Keluar dari Aplikasi',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                        ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Berizin & Diawasi oleh Otoritas Jasa Keuangan (OJK)',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 10,
+                              color: textMuted.withOpacity(0.85),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  Center(
-                    child: Column(
-                      children: [
-                        Text(
-                          _versionLabel(config),
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: textMuted,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Berizin & Diawasi oleh Otoritas Jasa Keuangan (OJK)',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 10,
-                            color: textMuted.withOpacity(0.85),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                ],
+                    const SizedBox(height: 14),
+                  ],
+                ),
               ),
             ),
           );
@@ -1280,6 +844,96 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Widget _buildMenuSectionCard(List<_ProfileMenuEntry> entries) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE8EEF6)),
+        boxShadow: [
+          BoxShadow(
+            color: AuthUiTokens.royalBlue.withOpacity(0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        children: List.generate(entries.length, (i) {
+          final item = entries[i];
+          final isLast = i == entries.length - 1;
+          return Column(
+            children: [
+              InkWell(
+                borderRadius: BorderRadius.vertical(
+                  top: i == 0 ? const Radius.circular(20) : Radius.zero,
+                  bottom: isLast ? const Radius.circular(20) : Radius.zero,
+                ),
+                onTap: item.onTap,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: item.isDanger
+                              ? AppColors.dangerLight
+                              : AuthUiTokens.softBlueBg,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          item.icon,
+                          color: item.isDanger ? dmbRed : AuthUiTokens.deepCobalt,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.title,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w700,
+                                color: item.isDanger ? dmbRed : AuthUiTokens.titleDark,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              item.subtitle,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
+                                color: AuthUiTokens.textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: AuthUiTokens.royalBlue,
+                        size: 22,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (!isLast)
+                const Padding(
+                  padding: EdgeInsets.only(left: 72, right: 16),
+                  child: Divider(height: 1, color: Color(0xFFF1F5F9)),
+                ),
+            ],
+          );
+        }),
+      ),
+    );
+  }
   Widget _buildDataRow({
     required String label,
     required String value,
@@ -1393,4 +1047,131 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
     return acc;
   }
+}
+
+class _ProfileMenuEntry {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  final bool isDanger;
+
+  const _ProfileMenuEntry({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.isDanger = false,
+  });
+}
+
+class _DualToneAvatarPainter extends CustomPainter {
+  const _DualToneAvatarPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+
+    canvas.save();
+    canvas.clipPath(Path()..addOval(Rect.fromCircle(center: center, radius: radius)));
+
+    // Soft sky-blue circular backdrop
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFEAF3FF), Color(0xFFCDE1FA)],
+        ).createShader(Rect.fromCircle(center: center, radius: radius)),
+    );
+
+    // Shoulders in deep cobalt
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(size.width / 2, size.height * 0.90),
+        width: size.width * 0.72,
+        height: size.height * 0.50,
+      ),
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF0550A6), Color(0xFF033172)],
+        ).createShader(Rect.fromLTWH(0, size.height * 0.55, size.width, size.height * 0.45)),
+    );
+
+    // Head in cyan-azure
+    canvas.drawCircle(
+      Offset(size.width / 2, size.height * 0.40),
+      size.width * 0.19,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF00B4D8), Color(0xFF0284C7)],
+        ).createShader(Rect.fromLTWH(size.width * 0.3, size.height * 0.2, size.width * 0.4, size.height * 0.4)),
+    );
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _ProfileCardWavePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    final cyanPath = Path()
+      ..moveTo(w * 0.08, 0)
+      ..lineTo(w, 0)
+      ..lineTo(w, h)
+      ..lineTo(w * 0.62, h)
+      ..quadraticBezierTo(w * 0.16, h * 0.56, w * 0.08, 0)
+      ..close();
+
+    canvas.drawPath(
+      cyanPath,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF6EE7B7).withOpacity(0.55),
+            const Color(0xFF00B4D8).withOpacity(0.75),
+            const Color(0xFF0550A6).withOpacity(0.88),
+          ],
+        ).createShader(Rect.fromLTWH(0, 0, w, h)),
+    );
+
+    final cobaltPath = Path()
+      ..moveTo(w * 0.42, 0)
+      ..lineTo(w, 0)
+      ..lineTo(w, h)
+      ..lineTo(w * 0.72, h)
+      ..quadraticBezierTo(w * 0.30, h * 0.48, w * 0.42, 0)
+      ..close();
+
+    canvas.drawPath(
+      cobaltPath,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF22D3EE).withOpacity(0.45),
+            const Color(0xFF033172).withOpacity(0.92),
+          ],
+        ).createShader(Rect.fromLTWH(0, 0, w, h)),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

@@ -11,8 +11,13 @@ import 'product_simulator_sheet.dart';
 
 class ProductCatalogScreen extends StatefulWidget {
   final int initialTabIndex;
+  final bool isTab;
 
-  const ProductCatalogScreen({super.key, this.initialTabIndex = 0});
+  const ProductCatalogScreen({
+    super.key,
+    this.initialTabIndex = 0,
+    this.isTab = false,
+  });
 
   @override
   State<ProductCatalogScreen> createState() => _ProductCatalogScreenState();
@@ -345,37 +350,40 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> with Single
     ];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F6F2),
+      backgroundColor: const Color(0xFFF4F7FB),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF6F6F2),
+        backgroundColor: const Color(0xFFF4F7FB),
         surfaceTintColor: Colors.transparent,
-        foregroundColor: const Color(0xFF0A2A66),
+        foregroundColor: const Color(0xFF033172),
         elevation: 0,
+        automaticallyImplyLeading: false,
         centerTitle: false,
-        titleSpacing: 8,
-        leadingWidth: 64,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
-          child: Material(
-            color: Colors.white,
-            shape: const CircleBorder(),
-            elevation: 0.5,
-            shadowColor: Colors.black.withOpacity(0.08),
-            child: InkWell(
-              customBorder: const CircleBorder(),
-              onTap: () => Navigator.of(context).pop(),
-              child: const Center(
-                child: Icon(Icons.chevron_left_rounded, size: 24, color: Color(0xFF0A2A66)),
+        titleSpacing: widget.isTab ? 20 : 8,
+        leadingWidth: widget.isTab ? 0 : 64,
+        leading: widget.isTab
+            ? null
+            : Padding(
+                padding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
+                child: Material(
+                  color: Colors.white,
+                  shape: const CircleBorder(),
+                  elevation: 0.5,
+                  shadowColor: Colors.black.withOpacity(0.08),
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: () => Navigator.of(context).pop(),
+                    child: const Center(
+                      child: Icon(Icons.chevron_left_rounded, size: 24, color: Color(0xFF033172)),
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ),
-        ),
         title: Text(
-          'Katalog Produk',
+          widget.isTab ? 'Produk Saya' : 'Katalog Produk',
           style: GoogleFonts.plusJakartaSans(
             fontSize: 19,
             fontWeight: FontWeight.w800,
-            color: const Color(0xFF0A2A66),
+            color: const Color(0xFF033172),
             letterSpacing: -0.3,
           ),
         ),

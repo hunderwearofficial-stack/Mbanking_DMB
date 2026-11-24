@@ -6,6 +6,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../blocs/account/account_cubit.dart';
 import '../../widgets/app_validation_feedback.dart';
+import '../../widgets/auth_ui_kit.dart';
 
 class NotificationScreen extends StatefulWidget {
   final bool isTab;
@@ -218,9 +219,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryNavy,
+                    backgroundColor: AuthUiTokens.deepCobalt,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     elevation: 0,
                   ),
@@ -242,321 +243,321 @@ class _NotificationScreenState extends State<NotificationScreen> {
   @override
   Widget build(BuildContext context) {
     final filtered = _getFilteredList();
+    final hasUnread = _notifications.any((n) => n['is_read'] != true);
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF6F6F2),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFF6F6F2),
-        surfaceTintColor: Colors.transparent,
-        foregroundColor: const Color(0xFF0A2A66),
-        elevation: 0,
-        centerTitle: false,
-        automaticallyImplyLeading: false,
-        titleSpacing: widget.isTab ? 18 : 8,
-        leadingWidth: widget.isTab ? 0 : 64,
-        leading: widget.isTab
-            ? null
-            : Padding(
-                padding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
-                child: Material(
-                  color: Colors.white,
-                  shape: const CircleBorder(),
-                  elevation: 0.5,
-                  shadowColor: Colors.black.withOpacity(0.08),
-                  child: InkWell(
-                    customBorder: const CircleBorder(),
-                    onTap: () => Navigator.of(context).pop(),
-                    child: const Center(
-                      child: Icon(Icons.chevron_left_rounded, size: 24, color: Color(0xFF0A2A66)),
-                    ),
-                  ),
-                ),
-              ),
-        title: Text(
-          'Notifikasi',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 19,
-            fontWeight: FontWeight.w800,
-            color: const Color(0xFF0A2A66),
-            letterSpacing: -0.3,
-          ),
-        ),
-        actions: [
-          if (_notifications.any((n) => n['is_read'] != true))
+    return AuthSwooshCanvas(
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
             Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: Center(
-                child: Material(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(20),
-                    onTap: _markAllAsRead,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.done_all_rounded, size: 15, color: Color(0xFF0A2A66)),
-                          const SizedBox(width: 5),
-                          Text(
-                            'Tandai Dibaca',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF0A2A66),
-                            ),
+              padding: const EdgeInsets.fromLTRB(18, 10, 18, 6),
+              child: Row(
+                children: [
+                  if (!widget.isTab) ...[
+                    Material(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () => Navigator.of(context).pop(),
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AuthUiTokens.inputBorder),
                           ),
-                        ],
+                          child: const Icon(
+                            Icons.arrow_back_ios_new_rounded,
+                            size: 17,
+                            color: AuthUiTokens.deepCobalt,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  Expanded(
+                    child: Text(
+                      'Notifikasi',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 21,
+                        fontWeight: FontWeight.w800,
+                        color: AuthUiTokens.titleDark,
+                        letterSpacing: -0.4,
                       ),
                     ),
                   ),
-                ),
+                  if (hasUnread)
+                    Material(
+                      color: AuthUiTokens.softBlueBg,
+                      borderRadius: BorderRadius.circular(20),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(20),
+                        onTap: _markAllAsRead,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.done_all_rounded,
+                                size: 15,
+                                color: AuthUiTokens.deepCobalt,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                'Tandai Dibaca',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: AuthUiTokens.deepCobalt,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
-        ],
-      ),
-      body: Column(
-        children: [
-          _buildFilterPills(),
 
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: _loadNotifications,
-              color: primaryNavy,
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator(color: primaryNavy))
-                  : _errorMessage != null
-                      ? ListView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          children: [
-                            const SizedBox(height: 80),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 24),
-                              child: Column(
-                                children: [
-                                  const Icon(Icons.cloud_off_rounded, size: 48, color: textMuted),
-                                  const SizedBox(height: 14),
-                                  Text(
-                                    _errorMessage!,
-                                    textAlign: TextAlign.center,
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 13.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: titleDark,
+            _buildFilterPills(),
+
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _loadNotifications,
+                color: AuthUiTokens.deepCobalt,
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator(color: AuthUiTokens.deepCobalt))
+                    : _errorMessage != null
+                        ? ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: [
+                              const SizedBox(height: 80),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 24),
+                                child: Column(
+                                  children: [
+                                    const Icon(Icons.cloud_off_rounded, size: 48, color: textMuted),
+                                    const SizedBox(height: 14),
+                                    Text(
+                                      _errorMessage!,
+                                      textAlign: TextAlign.center,
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: titleDark,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  ElevatedButton.icon(
-                                    onPressed: _loadNotifications,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: primaryNavy,
-                                      foregroundColor: Colors.white,
-                                      minimumSize: const Size(150, 44),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    const SizedBox(height: 16),
+                                    ElevatedButton.icon(
+                                      onPressed: _loadNotifications,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AuthUiTokens.deepCobalt,
+                                        foregroundColor: Colors.white,
+                                        minimumSize: const Size(150, 44),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(22),
+                                        ),
+                                      ),
+                                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                                      label: const Text('Coba Lagi'),
                                     ),
-                                    icon: const Icon(Icons.refresh_rounded, size: 18),
-                                    label: const Text('Coba Lagi'),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        )
-                      : filtered.isEmpty
-                          ? ListView(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              children: [
-                                const SizedBox(height: 90),
-                                Center(
-                                  child: Column(
-                                    children: [
-                                      Container(
-                                        width: 72,
-                                        height: 72,
-                                        decoration: const BoxDecoration(
-                                          color: Color(0xFFF1F5F9),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Center(
-                                          child: Icon(Icons.notifications_none_rounded, size: 36, color: Color(0xFF94A3B8)),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 16),
-                                      Text(
-                                        'Belum Ada Notifikasi',
-                                        style: GoogleFonts.plusJakartaSans(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w700,
-                                          color: titleDark,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'Peringatan keamanan login, transaksi & info DMB akan tampil di sini.',
-                                        textAlign: TextAlign.center,
-                                        style: GoogleFonts.plusJakartaSans(
-                                          fontSize: 12,
-                                          color: textMuted,
-                                          height: 1.4,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                  ],
                                 ),
-                              ],
-                            )
-                          : ListView.separated(
-                              padding: const EdgeInsets.fromLTRB(16, 10, 16, 100),
-                              itemCount: filtered.length,
-                              separatorBuilder: (_, __) => const SizedBox(height: 12),
-                              itemBuilder: (context, index) {
-                                final n = filtered[index];
-                                final isRead = n['is_read'] == true;
-                                final category = (n['category'] as String? ?? 'INFO').toUpperCase();
-                                final title = n['title'] as String? ?? 'Informasi Mobile DMB';
-                                final message = n['message'] as String? ?? '';
-                                final createdAt = n['created_at'] as String? ?? '';
-
-                                IconData icon = Icons.notifications_active_rounded;
-                                Color iconBg = AppColors.primaryLight;
-                                Color iconColor = royalBlue;
-                                String badgeLabel = 'INFO';
-
-                                if (category == 'SECURITY') {
-                                  icon = Icons.shield_rounded;
-                                  iconBg = AppColors.dangerLight;
-                                  iconColor = dmbRed;
-                                  badgeLabel = 'KEAMANAN';
-                                } else if (category == 'TRANSACTION') {
-                                  icon = Icons.receipt_long_rounded;
-                                  iconBg = AppColors.successLight;
-                                  iconColor = dmbGreen;
-                                  badgeLabel = 'TRANSAKSI';
-                                } else if (category == 'PROMO') {
-                                  icon = Icons.campaign_rounded;
-                                  iconBg = AppColors.warningLight;
-                                  iconColor = dmbAmber;
-                                  badgeLabel = 'PROMO';
-                                }
-
-                                return InkWell(
-                                  onTap: () => _showNotificationDetail(n),
-                                  borderRadius: BorderRadius.circular(20),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      color: isRead ? Colors.white : const Color(0xFFF5F8FF),
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: isRead
-                                          ? null
-                                          : Border.all(color: const Color(0xFFBFDBFE), width: 1.2),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.03),
-                                          blurRadius: 12,
-                                          offset: const Offset(0, 4),
+                              ),
+                            ],
+                          )
+                        : filtered.isEmpty
+                            ? ListView(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                children: [
+                                  const SizedBox(height: 90),
+                                  Center(
+                                    child: Column(
+                                      children: [
+                                        Container(
+                                          width: 72,
+                                          height: 72,
+                                          decoration: const BoxDecoration(
+                                            color: AuthUiTokens.softBlueBg,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Center(
+                                            child: Icon(
+                                              Icons.notifications_none_rounded,
+                                              size: 36,
+                                              color: AuthUiTokens.royalBlue,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        Text(
+                                          'Belum Ada Notifikasi',
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w700,
+                                            color: titleDark,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 32),
+                                          child: Text(
+                                            'Peringatan keamanan login, transaksi & info DMB akan tampil di sini.',
+                                            textAlign: TextAlign.center,
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 12,
+                                              color: textMuted,
+                                              height: 1.4,
+                                            ),
+                                          ),
                                         ),
                                       ],
                                     ),
-                                    child: Row(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Container(
-                                          width: 40,
-                                          height: 40,
-                                          decoration: BoxDecoration(
-                                            color: iconBg,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: Center(
-                                            child: Icon(icon, color: iconColor, size: 20),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
+                                  ),
+                                ],
+                              )
+                            : ListView.separated(
+                                padding: const EdgeInsets.fromLTRB(18, 12, 18, 32),
+                                itemCount: filtered.length,
+                                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                                itemBuilder: (context, index) {
+                                  final n = filtered[index];
+                                  final isRead = n['is_read'] == true;
+                                  final category = (n['category'] as String? ?? 'INFO').toUpperCase();
+                                  final title = n['title'] as String? ?? 'Informasi Mobile DMB';
+                                  final message = n['message'] as String? ?? '';
+                                  final createdAt = n['created_at'] as String? ?? '';
 
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Row(
-                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  IconData icon = Icons.info_rounded;
+                                  Color iconBg = AuthUiTokens.softBlueBg;
+                                  Color iconColor = AuthUiTokens.royalBlue;
+
+                                  if (category == 'SECURITY') {
+                                    icon = Icons.shield_rounded;
+                                    iconBg = AppColors.dangerLight;
+                                    iconColor = dmbRed;
+                                  } else if (category == 'TRANSACTION') {
+                                    icon = Icons.check_circle_rounded;
+                                    iconBg = const Color(0xFFD1FAE5);
+                                    iconColor = const Color(0xFF059669);
+                                  } else if (category == 'PROMO') {
+                                    icon = Icons.percent_rounded;
+                                    iconBg = const Color(0xFFE0F2FE);
+                                    iconColor = AuthUiTokens.deepCobalt;
+                                  }
+
+                                  return Material(
+                                    color: isRead ? Colors.white : const Color(0xFFF4F8FF),
+                                    borderRadius: BorderRadius.circular(18),
+                                    child: InkWell(
+                                      onTap: () => _showNotificationDetail(n),
+                                      borderRadius: BorderRadius.circular(18),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(15),
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(18),
+                                          border: Border.all(
+                                            color: isRead
+                                                ? const Color(0xFFE8EEF6)
+                                                : AuthUiTokens.softBlueBorder,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: AuthUiTokens.royalBlue.withOpacity(0.05),
+                                              blurRadius: 12,
+                                              offset: const Offset(0, 4),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Row(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Container(
+                                              width: 40,
+                                              height: 40,
+                                              decoration: BoxDecoration(
+                                                color: iconBg,
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: Center(
+                                                child: Icon(icon, color: iconColor, size: 20),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
                                                 children: [
-                                                  Container(
-                                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                                    decoration: BoxDecoration(
-                                                      color: iconBg,
-                                                      borderRadius: BorderRadius.circular(6),
-                                                    ),
-                                                    child: Text(
-                                                      badgeLabel,
-                                                      style: GoogleFonts.plusJakartaSans(
-                                                        fontSize: 9.5,
-                                                        fontWeight: FontWeight.w800,
-                                                        color: iconColor,
-                                                        letterSpacing: 0.4,
-                                                      ),
-                                                    ),
-                                                  ),
                                                   Row(
-                                                    mainAxisSize: MainAxisSize.min,
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
                                                     children: [
+                                                      Expanded(
+                                                        child: Text(
+                                                          title,
+                                                          maxLines: 1,
+                                                          overflow: TextOverflow.ellipsis,
+                                                          style: GoogleFonts.plusJakartaSans(
+                                                            fontSize: 13.5,
+                                                            fontWeight: FontWeight.w700,
+                                                            color: AuthUiTokens.titleDark,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 8),
                                                       Text(
                                                         CurrencyFormatter.formatDateShort(createdAt),
                                                         style: GoogleFonts.plusJakartaSans(
                                                           fontSize: 11,
                                                           color: textMuted,
-                                                          fontWeight: isRead ? FontWeight.w500 : FontWeight.w700,
+                                                          fontWeight: isRead
+                                                              ? FontWeight.w500
+                                                              : FontWeight.w700,
                                                         ),
                                                       ),
                                                       if (!isRead) ...[
-                                                        const SizedBox(width: 6),
+                                                        const SizedBox(width: 5),
                                                         Container(
+                                                          margin: const EdgeInsets.only(top: 4),
                                                           width: 7,
                                                           height: 7,
                                                           decoration: const BoxDecoration(
-                                                            color: royalBlue,
+                                                            color: AuthUiTokens.royalBlue,
                                                             shape: BoxShape.circle,
                                                           ),
                                                         ),
                                                       ],
                                                     ],
                                                   ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    message,
+                                                    maxLines: 2,
+                                                    overflow: TextOverflow.ellipsis,
+                                                    style: GoogleFonts.plusJakartaSans(
+                                                      fontSize: 12,
+                                                      color: AppColors.textSecondary,
+                                                      height: 1.4,
+                                                    ),
+                                                  ),
                                                 ],
                                               ),
-                                              const SizedBox(height: 7),
-                                              Text(
-                                                title,
-                                                style: GoogleFonts.plusJakartaSans(
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: titleDark,
-                                                  height: 1.3,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 3),
-                                              Text(
-                                                message,
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: GoogleFonts.plusJakartaSans(
-                                                  fontSize: 12,
-                                                  color: AppColors.textSecondary,
-                                                  height: 1.4,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
+                                            ),
+                                          ],
                                         ),
-                                      ],
+                                      ),
                                     ),
-                                  ),
-                                );
-                              },
-                            ),
+                                  );
+                                },
+                              ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -564,40 +565,47 @@ class _NotificationScreenState extends State<NotificationScreen> {
   Widget _buildFilterPills() {
     final filters = ['Semua', 'Transaksi', 'Keamanan', 'Info & Promo'];
 
-    return SizedBox(
-      height: 46,
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+      ),
+      height: 44,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
+        padding: const EdgeInsets.symmetric(horizontal: 18),
         itemCount: filters.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        separatorBuilder: (_, __) => const SizedBox(width: 22),
         itemBuilder: (context, index) {
           final isSelected = _selectedFilterIndex == index;
           return GestureDetector(
+            behavior: HitTestBehavior.opaque,
             onTap: () => setState(() => _selectedFilterIndex = index),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: isSelected ? const Color(0xFF0A2A66) : Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(isSelected ? 0.1 : 0.03),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 9),
+                  child: Text(
+                    filters[index],
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13.5,
+                      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                      color: isSelected
+                          ? AuthUiTokens.deepCobalt
+                          : AuthUiTokens.textMuted,
+                    ),
                   ),
-                ],
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                filters[index],
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 12.5,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                  color: isSelected ? Colors.white : const Color(0xFF0A2A66),
                 ),
-              ),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  height: 2.5,
+                  width: isSelected ? 42 : 0,
+                  decoration: BoxDecoration(
+                    color: AuthUiTokens.royalBlue,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ],
             ),
           );
         },

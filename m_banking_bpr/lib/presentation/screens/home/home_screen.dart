@@ -72,13 +72,13 @@ class _HomeScreenState extends State<HomeScreen> {
   void _onBannerAction(String action) {
     switch (action) {
       case 'profil':
-        setState(() => _currentNavIndex = 1);
+        setState(() => _currentNavIndex = 3);
         break;
       case 'keamanan':
         Navigator.push(context, MaterialPageRoute(builder: (_) => const SecuritySettingsScreen()));
         break;
       default:
-        setState(() => _currentNavIndex = 3);
+        setState(() => _currentNavIndex = 1);
         break;
     }
   }
@@ -172,9 +172,9 @@ class _HomeScreenState extends State<HomeScreen> {
               index: _currentNavIndex,
               children: [
                 _buildHomeContent(),
-                const ProfileScreen(isTab: true),
-                const MutationScreen(isTab: true),
                 const CompanyProfileScreen(),
+                const MutationScreen(isTab: true),
+                const ProfileScreen(isTab: true),
               ],
             ),
             bottomNavigationBar: _buildBottomNavigationBar(),
@@ -1148,19 +1148,27 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildBottomNavigationBar() {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(top: BorderSide(color: Color(0xFFE8EEF6))),
+        border: const Border(top: BorderSide(color: Color(0xFFE8EEF6))),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF033172).withOpacity(0.05),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
+          ),
+        ],
       ),
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 62,
+          height: 66,
           child: Row(
             children: [
               Expanded(
                 child: _buildNavItem(
-                  icon: Icons.home_rounded,
+                  icon: Icons.home_outlined,
+                  activeIcon: Icons.home_rounded,
                   label: 'Beranda',
                   isSelected: _currentNavIndex == 0,
                   onTap: () => setState(() => _currentNavIndex = 0),
@@ -1168,17 +1176,17 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               Expanded(
                 child: _buildNavItem(
-                  icon: Icons.person_outline_rounded,
-                  activeIcon: Icons.person_rounded,
-                  label: 'Akun Saya',
+                  icon: Icons.account_balance_outlined,
+                  activeIcon: Icons.account_balance_rounded,
+                  label: 'Tentang DMB',
                   isSelected: _currentNavIndex == 1,
                   onTap: () => setState(() => _currentNavIndex = 1),
                 ),
               ),
               Expanded(
                 child: _buildNavItem(
-                  icon: Icons.pie_chart_outline_rounded,
-                  activeIcon: Icons.pie_chart_rounded,
+                  icon: Icons.receipt_long_outlined,
+                  activeIcon: Icons.receipt_long_rounded,
                   label: 'Riwayat',
                   isSelected: _currentNavIndex == 2,
                   onTap: () => setState(() => _currentNavIndex = 2),
@@ -1186,9 +1194,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               Expanded(
                 child: _buildNavItem(
-                  icon: Icons.account_balance_outlined,
-                  activeIcon: Icons.account_balance_rounded,
-                  label: 'Tentang DMB',
+                  icon: Icons.person_outline_rounded,
+                  activeIcon: Icons.person_rounded,
+                  label: 'Akun Saya',
                   isSelected: _currentNavIndex == 3,
                   onTap: () => setState(() => _currentNavIndex = 3),
                 ),
@@ -1207,16 +1215,24 @@ class _HomeScreenState extends State<HomeScreen> {
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    final color = isSelected ? royalBlue : const Color(0xFF64748B);
+    final color = isSelected ? deepCobalt : const Color(0xFF94A3B8);
     return InkWell(
       onTap: onTap,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            isSelected ? (activeIcon ?? icon) : icon,
-            color: color,
-            size: 22,
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+            decoration: BoxDecoration(
+              color: isSelected ? AuthUiTokens.softBlueBg : Colors.transparent,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              isSelected ? (activeIcon ?? icon) : icon,
+              color: color,
+              size: 22,
+            ),
           ),
           const SizedBox(height: 3),
           Text(
@@ -1225,8 +1241,8 @@ class _HomeScreenState extends State<HomeScreen> {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 10.5,
-              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-              color: color,
+              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+              color: isSelected ? deepCobalt : const Color(0xFF64748B),
             ),
           ),
         ],
