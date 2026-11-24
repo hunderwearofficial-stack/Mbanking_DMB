@@ -1,19 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../../core/constants/app_colors.dart';
 import '../../../core/content/app_content.dart';
 import '../../../core/services/dynamic_config_service.dart';
+import '../../widgets/auth_ui_kit.dart';
 
 class CompanyProfileScreen extends StatelessWidget {
   const CompanyProfileScreen({super.key});
 
-  static const Color primaryNavy = AppColors.primaryNavy;
-  static const Color royalBlue = AppColors.royalBlue;
-  static const Color dmbGreen = AppColors.dmbGreen;
-  static const Color titleDark = AppColors.titleDark;
-  static const Color textMuted = AppColors.textMuted;
-  static const Color bgCanvas = AppColors.bgCanvas;
-  static const Color borderLight = AppColors.borderLight;
+  static const Color deepCobalt = AuthUiTokens.deepCobalt;
+  static const Color royalBlue = AuthUiTokens.royalBlue;
+  static const Color titleDark = AuthUiTokens.titleDark;
+  static const Color textMuted = AuthUiTokens.textMuted;
 
   @override
   Widget build(BuildContext context) {
@@ -47,156 +44,166 @@ class CompanyProfileScreen extends StatelessWidget {
         })
         .toList();
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF6F6F2),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Hero Image + Overlapping Blue Stats Bar (responsive, no fixed height / no overlap)
-            Stack(
-              children: [
-                Positioned.fill(
-                  bottom: 34,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      if (heroImageUrl != null)
-                        ContentImage(
-                          heroImageUrl,
-                          fit: BoxFit.cover,
-                          placeholder: Container(
-                            decoration: const BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [Color(0xFF0A2A66), Color(0xFF134A8E)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                            ),
+    final canPop = Navigator.canPop(context);
+
+    return AuthSwooshCanvas(
+      child: SafeArea(
+        bottom: false,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(18, 10, 18, canPop ? 28 : 96),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  if (canPop) ...[
+                    Material(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () => Navigator.of(context).pop(),
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AuthUiTokens.inputBorder),
                           ),
-                        )
-                      else
-                        Container(
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [Color(0xFF0A2A66), Color(0xFF134A8E)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                          ),
-                        ),
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.black.withValues(alpha: 0.25),
-                              Colors.black.withValues(alpha: 0.12),
-                              Colors.black.withValues(alpha: 0.72),
-                            ],
-                            stops: const [0.0, 0.35, 1.0],
+                          child: const Icon(
+                            Icons.arrow_back_ios_new_rounded,
+                            size: 17,
+                            color: deepCobalt,
                           ),
                         ),
                       ),
-                    ],
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Tentang Bank DMB',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 21,
+                            fontWeight: FontWeight.w800,
+                            color: titleDark,
+                            letterSpacing: -0.4,
+                          ),
+                        ),
+                        Text(
+                          bankName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
+                ],
+              ),
+
+              const SizedBox(height: 16),
+
+              // Architectural Photo Showcase Card
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: deepCobalt,
+                  borderRadius: BorderRadius.circular(22),
+                  boxShadow: [
+                    BoxShadow(
+                      color: deepCobalt.withOpacity(0.18),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SafeArea(
-                      bottom: false,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-                        child: Row(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(22),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(
+                        height: 205,
+                        child: Stack(
+                          fit: StackFit.expand,
                           children: [
-                            Material(
-                              color: Colors.white,
-                              shape: const CircleBorder(),
-                              elevation: 1,
-                              shadowColor: Colors.black.withValues(alpha: 0.15),
-                              child: InkWell(
-                                customBorder: const CircleBorder(),
-                                onTap: () => Navigator.of(context).pop(),
-                                child: const SizedBox(
-                                  width: 40,
-                                  height: 40,
-                                  child: Icon(
-                                    Icons.chevron_left_rounded,
-                                    size: 24,
-                                    color: Color(0xFF0A2A66),
-                                  ),
+                            if (heroImageUrl != null)
+                              ContentImage(
+                                heroImageUrl,
+                                fit: BoxFit.cover,
+                                placeholder: Image.asset(
+                                  'assets/images/company_office.jpg',
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            else
+                              Image.asset(
+                                'assets/images/company_office.jpg',
+                                fit: BoxFit.cover,
+                              ),
+                            DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    deepCobalt.withOpacity(0.0),
+                                    deepCobalt.withOpacity(0.55),
+                                    deepCobalt,
+                                  ],
+                                  stops: const [0.35, 0.72, 1.0],
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                'Profil Bank DMB',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 19,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
-                                  letterSpacing: -0.3,
-                                  shadows: const [
-                                    Shadow(
-                                      color: Color(0x55000000),
-                                      blurRadius: 6,
-                                      offset: Offset(0, 1),
+                            Positioned(
+                              left: 18,
+                              right: 18,
+                              bottom: 14,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    heroTitle,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 18.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                      height: 1.25,
+                                      letterSpacing: -0.3,
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    aboutDesc,
+                                    maxLines: 3,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 12,
+                                      color: Colors.white.withOpacity(0.88),
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
                         ),
                       ),
-                    ),
-                    SizedBox(height: heroImageUrl != null ? 96 : 28),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 18),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            heroTitle,
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white,
-                              height: 1.2,
-                              letterSpacing: -0.4,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            aboutDesc,
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 12.5,
-                              color: Colors.white.withValues(alpha: 0.92),
-                              height: 1.45,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Container(
+                      Container(
                         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF144296),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF0A2A66).withValues(alpha: 0.22),
-                              blurRadius: 16,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
+                          color: const Color(0xFF043C88),
+                          border: Border(
+                            top: BorderSide(color: Colors.white.withOpacity(0.14)),
+                          ),
                         ),
                         child: IntrinsicHeight(
                           child: Row(
@@ -212,175 +219,172 @@ class CompanyProfileScreen extends StatelessWidget {
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ],
-            ),
+              ),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 22),
 
-            // Kantor Layanan List
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ...List.generate(branches.length, (idx) {
-                    final b = branches[idx];
-                    final isEven = idx.isEven;
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(18),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.025),
-                              blurRadius: 10,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
+              Text(
+                'Jaringan Kantor Layanan',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w800,
+                  color: titleDark,
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              ...List.generate(branches.length, (idx) {
+                final b = branches[idx];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: const Color(0xFFE8EEF6)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: royalBlue.withOpacity(0.05),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
                         ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              width: 44,
-                              height: 44,
-                              decoration: BoxDecoration(
-                                color: isEven ? const Color(0xFFEFF6FF) : const Color(0xFFE6F7F1),
-                                shape: BoxShape.circle,
+                      ],
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: const BoxDecoration(
+                            color: AuthUiTokens.softBlueBg,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.apartment_rounded,
+                            size: 20,
+                            color: deepCobalt,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                b.name,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: titleDark,
+                                ),
                               ),
-                              child: Icon(
-                                Icons.apartment_rounded,
-                                size: 21,
-                                color: isEven ? const Color(0xFF0A2A66) : const Color(0xFF0F9D76),
-                              ),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    b.name,
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w800,
-                                      color: const Color(0xFF0A2A66),
-                                    ),
+                              if (b.address.isNotEmpty) ...[
+                                const SizedBox(height: 3),
+                                Text(
+                                  b.address,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 12,
+                                    color: textMuted,
+                                    height: 1.4,
                                   ),
-                                  if (b.address.isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      b.address,
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 12.5,
-                                        color: textMuted,
-                                        height: 1.4,
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          ],
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  }),
-
-                  const SizedBox(height: 6),
-
-                  // Visi & Misi
-                  _buildSectionCard(
-                    title: 'Visi & Misi',
-                    icon: Icons.flag_outlined,
-                    iconColor: dmbGreen,
-                    children: [
-                      Text(
-                        'Visi Perusahaan',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w800,
-                          color: titleDark,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        vision,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 12.5,
-                          color: textMuted,
-                          height: 1.5,
-                        ),
-                      ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: Divider(height: 1, color: borderLight),
-                      ),
-                      Text(
-                        'Misi Perusahaan',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w800,
-                          color: titleDark,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      ...missionLines.map(_buildBulletPoint),
-                    ],
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Legalitas & Regulasi
-                  _buildSectionCard(
-                    title: 'Legalitas & Perlindungan Nasabah',
-                    icon: Icons.shield_outlined,
-                    iconColor: const Color(0xFFD97706),
-                    children: [
-                      _buildRegulationRow(
-                        icon: Icons.account_balance_outlined,
-                        title: 'Otoritas Jasa Keuangan (OJK)',
-                        desc: '$bankName berizin dan diawasi secara resmi oleh Otoritas Jasa Keuangan (OJK).',
-                      ),
-                      const SizedBox(height: 12),
-                      _buildRegulationRow(
-                        icon: Icons.health_and_safety_outlined,
-                        title: 'Lembaga Penjamin Simpanan (LPS)',
-                        desc: lpsText,
-                      ),
-                      const SizedBox(height: 12),
-                      _buildRegulationRow(
-                        icon: Icons.lock_outline_rounded,
-                        title: 'Perlindungan Data Pribadi (UU PDP)',
-                        desc: 'Seluruh sistem dan transmisi data dilindungi enkripsi kriptografis sesuai standar keamanan perbankan nasional.',
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Footer
-                  Center(
-                    child: Text(
-                      '© ${DateTime.now().year} $bankName. All rights reserved.',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: textMuted,
-                      ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 24),
+                );
+              }),
+
+              const SizedBox(height: 12),
+
+              _buildSectionCard(
+                title: 'Visi & Misi',
+                icon: Icons.flag_rounded,
+                children: [
+                  Text(
+                    'Visi Perusahaan',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      color: titleDark,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    vision,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12.5,
+                      color: textMuted,
+                      height: 1.5,
+                    ),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Divider(height: 1, color: Color(0xFFF1F5F9)),
+                  ),
+                  Text(
+                    'Misi Perusahaan',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      color: titleDark,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...missionLines.map(_buildBulletPoint),
                 ],
               ),
-            ),
-          ],
+
+              const SizedBox(height: 14),
+
+              _buildSectionCard(
+                title: 'Legalitas & Perlindungan Nasabah',
+                icon: Icons.verified_user_rounded,
+                children: [
+                  _buildRegulationRow(
+                    icon: Icons.account_balance_rounded,
+                    title: 'Otoritas Jasa Keuangan (OJK)',
+                    desc: '$bankName berizin dan diawasi secara resmi oleh Otoritas Jasa Keuangan (OJK).',
+                  ),
+                  const SizedBox(height: 12),
+                  _buildRegulationRow(
+                    icon: Icons.health_and_safety_rounded,
+                    title: 'Lembaga Penjamin Simpanan (LPS)',
+                    desc: lpsText,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildRegulationRow(
+                    icon: Icons.lock_rounded,
+                    title: 'Perlindungan Data Pribadi (UU PDP)',
+                    desc: 'Seluruh sistem dan transmisi data dilindungi enkripsi kriptografis sesuai standar keamanan perbankan nasional.',
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 22),
+
+              Center(
+                child: Text(
+                  '\u00A9 ${DateTime.now().year} $bankName. All rights reserved.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: textMuted,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
+          ),
         ),
       ),
     );
@@ -397,7 +401,7 @@ class CompanyProfileScreen extends StatelessWidget {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 10,
               fontWeight: FontWeight.w500,
-              color: Colors.white.withValues(alpha: 0.8),
+              color: Colors.white.withOpacity(0.8),
             ),
           ),
           const SizedBox(height: 3),
@@ -405,8 +409,8 @@ class CompanyProfileScreen extends StatelessWidget {
             value,
             textAlign: TextAlign.center,
             style: GoogleFonts.plusJakartaSans(
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
+              fontSize: 15.5,
+              fontWeight: FontWeight.w800,
               color: Colors.white,
             ),
           ),
@@ -419,14 +423,13 @@ class CompanyProfileScreen extends StatelessWidget {
     return Container(
       width: 1,
       margin: const EdgeInsets.symmetric(vertical: 4),
-      color: Colors.white.withValues(alpha: 0.25),
+      color: Colors.white.withOpacity(0.22),
     );
   }
 
   static Widget _buildSectionCard({
     required String title,
     required IconData icon,
-    required Color iconColor,
     required List<Widget> children,
   }) {
     return Container(
@@ -434,13 +437,13 @@ class CompanyProfileScreen extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderLight),
-        boxShadow: const [
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE8EEF6)),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x05000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
+            color: royalBlue.withOpacity(0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
@@ -450,20 +453,23 @@ class CompanyProfileScreen extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: iconColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
+                width: 38,
+                height: 38,
+                decoration: const BoxDecoration(
+                  color: AuthUiTokens.softBlueBg,
+                  shape: BoxShape.circle,
                 ),
-                child: Icon(icon, color: iconColor, size: 18),
+                child: Icon(icon, color: deepCobalt, size: 19),
               ),
               const SizedBox(width: 12),
-              Text(
-                title,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w800,
-                  color: titleDark,
+              Expanded(
+                child: Text(
+                  title,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: titleDark,
+                  ),
                 ),
               ),
             ],
@@ -486,7 +492,7 @@ class CompanyProfileScreen extends StatelessWidget {
             width: 6,
             height: 6,
             decoration: const BoxDecoration(
-              color: dmbGreen,
+              color: royalBlue,
               shape: BoxShape.circle,
             ),
           ),
@@ -513,7 +519,7 @@ class CompanyProfileScreen extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: primaryNavy, size: 20),
+        Icon(icon, color: royalBlue, size: 20),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
