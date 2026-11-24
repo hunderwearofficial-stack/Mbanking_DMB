@@ -10,6 +10,7 @@ import '../../../data/models/mutation_model.dart';
 import '../../blocs/account/account_cubit.dart';
 import '../../blocs/account/account_state.dart';
 import '../../widgets/app_validation_feedback.dart';
+import '../../widgets/auth_ui_kit.dart';
 import '../../widgets/mutation_truncated_notice.dart';
 
 class MutationScreen extends StatefulWidget {
@@ -31,6 +32,8 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
   bool _filterHasMore = false;
   bool _isFilterLoading = false;
   String? _filterError;
+  List<Map<String, dynamic>> _accounts = [];
+  String? _selectedAccountNumber;
 
   static const Color primaryNavy = AppColors.primaryNavy;
   static const Color royalBlue = AppColors.royalBlue;
@@ -59,9 +62,38 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
+        final accountState = context.read<AccountCubit>().state;
+        if (accountState is AccountLoaded && accountState.account.accountNumber.isNotEmpty) {
+          _selectedAccountNumber = accountState.account.accountNumber;
+        }
+        _loadAccounts();
         _applyDateFilter(_startDate, _endDate, _periodLabel, silent: true);
       }
     });
+  }
+
+  Future<void> _loadAccounts() async {
+    try {
+      final repo = context.read<AccountCubit>().accountRepository;
+      final list = await repo.getSavingsAccounts();
+      if (!mounted || list.isEmpty) return;
+      setState(() {
+        _accounts = list;
+        if (_selectedAccountNumber == null || _selectedAccountNumber!.isEmpty) {
+          final first = _extractAccountNo(list.first);
+          if (first.isNotEmpty) _selectedAccountNumber = first;
+        }
+      });
+    } catch (_) {}
+  }
+
+  String _extractAccountNo(Map<String, dynamic> item) {
+    return (item['nomor_rekening'] ?? item['account_number'] ?? '').toString().trim();
+  }
+
+  String _extractProductName(Map<String, dynamic> item) {
+    final name = (item['nama_produk'] ?? item['produk_tabungan'] ?? item['account_type'] ?? '').toString().trim();
+    return name.isNotEmpty ? name : 'Tabungan Bank DMB';
   }
 
   @override
@@ -99,8 +131,8 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
     try {
       final repo = context.read<AccountCubit>().accountRepository;
       final accountState = context.read<AccountCubit>().state;
-      String? accNo;
-      if (accountState is AccountLoaded) {
+      String? accNo = _selectedAccountNumber;
+      if ((accNo == null || accNo.isEmpty) && accountState is AccountLoaded) {
         accNo = accountState.account.accountNumber;
       }
 
@@ -402,20 +434,16 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
 
               Center(
                 child: Container(
-                  width: 60,
-                  height: 60,
+                  width: 58,
+                  height: 58,
                   decoration: BoxDecoration(
-                    color: m.isCredit ? AppColors.successLight : AppColors.dangerLight,
+                    color: m.isCredit ? const Color(0xFFD1FAE5) : AuthUiTokens.softBlueBg,
                     shape: BoxShape.circle,
-                    border: Border.all(
-                      color: m.isCredit ? AppColors.successBorder : AppColors.dangerBorder,
-                      width: 1.5,
-                    ),
                   ),
                   child: Center(
                     child: Icon(
-                      m.isCredit ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
-                      color: m.isCredit ? dmbGreen : dmbRed,
+                      Icons.check_rounded,
+                      color: m.isCredit ? const Color(0xFF059669) : AuthUiTokens.deepCobalt,
                       size: 30,
                     ),
                   ),
@@ -424,63 +452,70 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
               const SizedBox(height: 12),
 
               Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: m.isCredit ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    m.isCredit ? 'DANA MASUK (KREDIT)' : 'DANA KELUAR (DEBIT)',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: m.isCredit ? dmbGreen : dmbRed,
-                      letterSpacing: 0.6,
-                    ),
+                child: Text(
+                  'Transaksi Berhasil',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AuthUiTokens.titleDark,
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
-
+              const SizedBox(height: 4),
               Center(
                 child: Text(
-                  (m.isCredit ? '+ ' : '- ') + CurrencyFormatter.formatRupiah(m.amount),
+                  CurrencyFormatter.formatDate(m.createdAt),
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 25,
-                    fontWeight: FontWeight.w900,
-                    color: m.isCredit ? dmbGreen : dmbRed,
-                    letterSpacing: -0.4,
+                    fontSize: 12.5,
+                    color: AuthUiTokens.textMuted,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
 
               const SizedBox(height: 18),
-              const Divider(color: borderLight, height: 1),
-              const SizedBox(height: 14),
 
-              _buildReceiptRow('Status Transaksi', 'BERHASIL', isSuccess: true),
-              _buildReceiptRow('Waktu Transaksi', CurrencyFormatter.formatDate(m.createdAt)),
-              _buildReceiptRow('Nomor Referensi', m.referenceNumber),
-              _buildReceiptRow('Keterangan', m.description),
-              _buildReceiptRow('Nomor Rekening', m.accountNumber),
-              _buildReceiptRow('Saldo Setelahnya', CurrencyFormatter.formatRupiah(m.balanceAfter)),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AuthUiTokens.canvas,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFE8EEF6)),
+                ),
+                child: Column(
+                  children: [
+                    _buildReceiptRow(
+                      'Jenis Transaksi',
+                      m.isCredit ? 'Dana Masuk (Kredit)' : 'Dana Keluar (Debit)',
+                    ),
+                    _buildReceiptRow(
+                      'Nominal',
+                      (m.isCredit ? '+ ' : '- ') + CurrencyFormatter.formatRupiah(m.amount),
+                      valueColor: m.isCredit ? const Color(0xFF059669) : dmbRed,
+                    ),
+                    _buildReceiptRow('Keterangan', m.description),
+                    _buildReceiptRow('Nomor Referensi', m.referenceNumber),
+                    _buildReceiptRow('Nomor Rekening', m.accountNumber),
+                    _buildReceiptRow('Saldo Setelahnya', CurrencyFormatter.formatRupiah(m.balanceAfter)),
+                  ],
+                ),
+              ),
 
-              const SizedBox(height: 22),
+              const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
+                height: 50,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryNavy,
+                    backgroundColor: AuthUiTokens.deepCobalt,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
                     elevation: 0,
                   ),
                   onPressed: () => Navigator.pop(modalCtx),
                   child: Text(
-                    'Tutup Bukti Mutasi',
-                    style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 13.5),
+                    'Kembali',
+                    style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 15),
                   ),
                 ),
               ),
@@ -492,16 +527,20 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
     );
   }
 
-  Widget _buildReceiptRow(String label, String value, {bool isSuccess = false}) {
+  Widget _buildReceiptRow(String label, String value, {Color? valueColor}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
-            style: GoogleFonts.plusJakartaSans(fontSize: 12, color: textMuted, fontWeight: FontWeight.w500),
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12.5,
+              color: textMuted,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           const SizedBox(width: 16),
           Flexible(
@@ -509,9 +548,9 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
               value,
               textAlign: TextAlign.end,
               style: GoogleFonts.plusJakartaSans(
-                fontSize: 12.5,
-                fontWeight: isSuccess ? FontWeight.w800 : FontWeight.w700,
-                color: isSuccess ? dmbGreen : titleDark,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: valueColor ?? AuthUiTokens.titleDark,
               ),
             ),
           ),
@@ -522,14 +561,15 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF6F6F2),
-      body: SafeArea(
+    return AuthSwooshCanvas(
+      child: SafeArea(
         bottom: false,
         child: BlocBuilder<AccountCubit, AccountState>(
           builder: (context, state) {
             if (state is AccountLoading && _filteredMutations == null) {
-              return const Center(child: CircularProgressIndicator(color: Color(0xFF0A2A66)));
+              return const Center(
+                child: CircularProgressIndicator(color: AuthUiTokens.deepCobalt),
+              );
             }
 
             if (state is AccountError && _filteredMutations == null) {
@@ -549,10 +589,10 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
                       const SizedBox(height: 16),
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0A2A66),
+                          backgroundColor: AuthUiTokens.deepCobalt,
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                         ),
                         onPressed: () {
                           context.read<AccountCubit>().refresh();
@@ -577,48 +617,62 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
               children: [
                 // Top Header Row
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 12, 18, 14),
+                  padding: const EdgeInsets.fromLTRB(18, 10, 18, 12),
                   child: Row(
                     children: [
                       if (!widget.isTab) ...[
                         Material(
                           color: Colors.white,
-                          shape: const CircleBorder(),
+                          borderRadius: BorderRadius.circular(12),
                           child: InkWell(
-                            customBorder: const CircleBorder(),
+                            borderRadius: BorderRadius.circular(12),
                             onTap: () => Navigator.of(context).pop(),
                             child: Container(
-                              width: 40,
-                              height: 40,
-                              alignment: Alignment.center,
+                              width: 38,
+                              height: 38,
                               decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.04),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AuthUiTokens.inputBorder),
                               ),
                               child: const Icon(
                                 Icons.arrow_back_ios_new_rounded,
                                 size: 17,
-                                color: titleDark,
+                                color: AuthUiTokens.deepCobalt,
                               ),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 14),
+                        const SizedBox(width: 12),
                       ],
                       Expanded(
                         child: Text(
-                          'Mutasi Tabungan',
+                          'Riwayat Transaksi',
                           style: GoogleFonts.plusJakartaSans(
-                            fontSize: 20,
+                            fontSize: 21,
                             fontWeight: FontWeight.w800,
-                            color: titleDark,
-                            letterSpacing: -0.3,
+                            color: AuthUiTokens.titleDark,
+                            letterSpacing: -0.4,
+                          ),
+                        ),
+                      ),
+                      Material(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: _showDateFilterBottomSheet,
+                          child: Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AuthUiTokens.inputBorder),
+                            ),
+                            child: const Icon(
+                              Icons.calendar_month_rounded,
+                              size: 19,
+                              color: AuthUiTokens.deepCobalt,
+                            ),
                           ),
                         ),
                       ),
@@ -626,83 +680,22 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
                   ),
                 ),
 
+                _buildAccountSelector(state),
+
                 _buildPillTabBar(),
-
-                const SizedBox(height: 12),
-
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 18),
-                  child: Material(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(14),
-                      onTap: _showDateFilterBottomSheet,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(14),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.03),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.calendar_today_rounded,
-                              size: 15,
-                              color: Color(0xFF0A2A66),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                _periodLabel,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: titleDark,
-                                ),
-                              ),
-                            ),
-                            Text(
-                              'Ubah',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFF0A2A66),
-                              ),
-                            ),
-                            const SizedBox(width: 2),
-                            const Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              size: 18,
-                              color: Color(0xFF0A2A66),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
 
                 const SizedBox(height: 12),
 
                 _buildSummaryCard(activeTabMutations),
 
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
 
                 Expanded(
                   child: _isFilterLoading
                       ? const Center(
                           child: Padding(
                             padding: EdgeInsets.all(40),
-                            child: CircularProgressIndicator(color: Color(0xFF0A2A66)),
+                            child: CircularProgressIndicator(color: AuthUiTokens.deepCobalt),
                           ),
                         )
                       : _filterError != null && _filteredMutations == null
@@ -727,10 +720,10 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
                                     ElevatedButton.icon(
                                       onPressed: () => _applyDateFilter(_startDate, _endDate, _periodLabel),
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFF0A2A66),
+                                        backgroundColor: AuthUiTokens.deepCobalt,
                                         foregroundColor: Colors.white,
                                         minimumSize: const Size(140, 44),
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
                                       ),
                                       icon: const Icon(Icons.refresh_rounded, size: 16),
                                       label: const Text('Coba Lagi'),
@@ -756,6 +749,274 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
     );
   }
 
+  Widget _buildAccountSelector(AccountState state) {
+    String accNo = _selectedAccountNumber ?? '';
+    String productName = 'Tabungan Bank DMB';
+
+    if (accNo.isEmpty && state is AccountLoaded) {
+      accNo = state.account.accountNumber;
+      if (state.account.accountType.trim().isNotEmpty && state.account.accountType.trim() != '-') {
+        productName = state.account.accountType.trim();
+      }
+    }
+    for (final a in _accounts) {
+      if (_extractAccountNo(a) == accNo) {
+        productName = _extractProductName(a);
+        break;
+      }
+    }
+
+    if (accNo.isEmpty && _accounts.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final canSwitch = _accounts.length > 1;
+    final displayAcc = accNo.isNotEmpty ? accNo : '-';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: canSwitch ? _showAccountPickerSheet : null,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE8EEF6)),
+              boxShadow: [
+                BoxShadow(
+                  color: AuthUiTokens.royalBlue.withOpacity(0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: const BoxDecoration(
+                    color: AuthUiTokens.softBlueBg,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.account_balance_wallet_rounded,
+                    size: 17,
+                    color: AuthUiTokens.deepCobalt,
+                  ),
+                ),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        productName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: AuthUiTokens.textMuted,
+                        ),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        'Rek. $displayAcc',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w800,
+                          color: AuthUiTokens.titleDark,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (canSwitch)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: AuthUiTokens.softBlueBg,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Pilih',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: AuthUiTokens.deepCobalt,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        const Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          size: 16,
+                          color: AuthUiTokens.deepCobalt,
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAccountPickerSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetCtx) => SafeArea(
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: borderLight,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Pilih Rekening Tabungan',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 16.5,
+                  fontWeight: FontWeight.w800,
+                  color: AuthUiTokens.titleDark,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Mutasi akan ditampilkan sesuai rekening yang dipilih',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  color: AuthUiTokens.textMuted,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: _accounts.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (_, i) {
+                    final item = _accounts[i];
+                    final acc = _extractAccountNo(item);
+                    final prod = _extractProductName(item);
+                    final bal = Money.tryParse(item['saldo'] ?? item['balance']);
+                    final selected = acc == _selectedAccountNumber;
+                    return Material(
+                      color: selected ? AuthUiTokens.softBlueBg : AuthUiTokens.canvas,
+                      borderRadius: BorderRadius.circular(16),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () {
+                          Navigator.pop(sheetCtx);
+                          if (acc.isNotEmpty && acc != _selectedAccountNumber) {
+                            setState(() => _selectedAccountNumber = acc);
+                            _applyDateFilter(_startDate, _endDate, _periodLabel);
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: selected
+                                  ? AuthUiTokens.royalBlue
+                                  : const Color(0xFFE2E8F0),
+                              width: selected ? 1.4 : 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: selected ? AuthUiTokens.deepCobalt : Colors.white,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.account_balance_wallet_rounded,
+                                  size: 19,
+                                  color: selected ? Colors.white : AuthUiTokens.deepCobalt,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      prod,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: AuthUiTokens.titleDark,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'No. Rek $acc${bal != null ? ' • ${CurrencyFormatter.formatRupiah(bal)}' : ''}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                        color: AuthUiTokens.textMuted,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (selected)
+                                const Icon(
+                                  Icons.check_circle_rounded,
+                                  color: AuthUiTokens.deepCobalt,
+                                  size: 20,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSummaryCard(List<MutationModel> list) {
     var totalCredit = const Money.zero();
     var totalDebit = const Money.zero();
@@ -766,93 +1027,137 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
         totalDebit += m.amount;
       }
     }
+    final totalAll = totalCredit + totalDebit;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 18),
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Uang masuk',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: textMuted,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '+ ${CurrencyFormatter.formatRupiah(totalCredit)}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: const Color(0xFF0F9D76),
-                    ),
-                  ),
-                ],
-              ),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFE8EEF6)),
+          boxShadow: [
+            BoxShadow(
+              color: AuthUiTokens.royalBlue.withOpacity(0.06),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Total Mutasi',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: AuthUiTokens.textMuted,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        CurrencyFormatter.formatRupiah(totalAll),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 21,
+                          fontWeight: FontWeight.w800,
+                          color: AuthUiTokens.titleDark,
+                          letterSpacing: -0.4,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Uang keluar',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: textMuted,
-                    ),
+                ),
+                const SizedBox(width: 12),
+                Container(
+                  width: 52,
+                  height: 52,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AuthUiTokens.softBlueBg,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AuthUiTokens.softBlueBorder),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '- ${CurrencyFormatter.formatRupiah(totalDebit)}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: dmbRed,
-                    ),
+                  child: const CustomPaint(
+                    painter: _MiniMutasiChartPainter(),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            const Divider(height: 1, color: Color(0xFFF1F5F9)),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF059669),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          'Masuk: +${CurrencyFormatter.formatRupiah(totalCredit)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF059669),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: dmbRed,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          'Keluar: -${CurrencyFormatter.formatRupiah(totalDebit)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: dmbRed,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -863,43 +1168,75 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 18),
       child: Row(
-        children: List.generate(tabs.length, (index) {
-          final isSelected = _selectedTabIndex == index;
-          return Padding(
-            padding: const EdgeInsets.only(right: 10),
-            child: GestureDetector(
-              onTap: () {
-                _tabController.animateTo(index);
-                setState(() => _selectedTabIndex = index);
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFF0A2A66) : Colors.white,
-                  borderRadius: BorderRadius.circular(22),
-                  boxShadow: isSelected
-                      ? null
-                      : [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.03),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                ),
-                child: Text(
-                  tabs[index],
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: isSelected ? Colors.white : titleDark,
+        children: [
+          ...List.generate(tabs.length, (index) {
+            final isSelected = _selectedTabIndex == index;
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: GestureDetector(
+                onTap: () {
+                  _tabController.animateTo(index);
+                  setState(() => _selectedTabIndex = index);
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isSelected ? AuthUiTokens.deepCobalt : Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: isSelected
+                        ? null
+                        : Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Text(
+                    tabs[index],
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: isSelected ? Colors.white : AuthUiTokens.titleDark,
+                    ),
                   ),
                 ),
               ),
+            );
+          }),
+          const Spacer(),
+          GestureDetector(
+            onTap: _showDateFilterBottomSheet,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(
+                color: AuthUiTokens.softBlueBg,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AuthUiTokens.softBlueBorder),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.date_range_rounded,
+                    size: 13,
+                    color: AuthUiTokens.deepCobalt,
+                  ),
+                  const SizedBox(width: 4),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 82),
+                    child: Text(
+                      _periodLabel.split('(').first.trim(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AuthUiTokens.deepCobalt,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          );
-        }),
+          ),
+        ],
       ),
     );
   }
@@ -1076,4 +1413,40 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
       ),
     );
   }
+}
+
+class _MiniMutasiChartPainter extends CustomPainter {
+  const _MiniMutasiChartPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    final colors = [
+      const Color(0xFF7DD3FC),
+      const Color(0xFF00C2D1),
+      const Color(0xFF118CE0),
+      const Color(0xFF033172),
+    ];
+    final heights = [0.34, 0.54, 0.72, 0.94];
+    const barW = 5.5;
+    final gap = (w - barW * 4) / 3;
+
+    for (var i = 0; i < 4; i++) {
+      final barH = h * heights[i];
+      final x = i * (barW + gap);
+      final y = h - barH;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(x, y, barW, barH),
+          const Radius.circular(3),
+        ),
+        Paint()..color = colors[i],
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
