@@ -309,20 +309,22 @@ function renderMobileMockupPreview() {
           <svg viewBox="0 0 180 180" class="w-24 h-24 drop-shadow-[0_4px_12px_rgba(0,0,0,0.3)]" fill="none" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <linearGradient id="dmbCyan" x1="0" y1="0" x2="180" y2="180" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stop-color="#00F0D4"/>
-                <stop offset="55%" stop-color="#00A8FF"/>
-                <stop offset="100%" stop-color="#0066FF"/>
+                <stop offset="0%" stop-color="#57DDD3"/>
+                <stop offset="55%" stop-color="#2EA2CE"/>
+                <stop offset="100%" stop-color="#1A4B96"/>
               </linearGradient>
             </defs>
-            <path d="M98 22 A64 64 0 0 1 154 78" stroke="url(#dmbCyan)" stroke-width="9" stroke-linecap="round"/>
-            <path d="M96 38 A48 48 0 0 1 138 80" stroke="url(#dmbCyan)" stroke-width="9" stroke-linecap="round"/>
-            <path d="M94 54 A32 32 0 0 1 122 82" stroke="url(#dmbCyan)" stroke-width="9" stroke-linecap="round"/>
-            <circle cx="84" cy="92" r="16" stroke="url(#dmbCyan)" stroke-width="11"/>
-            <path d="M46 94 A38 38 0 0 0 122 94" stroke="#FFFFFF" stroke-width="13" stroke-linecap="round"/>
-            <path d="M44 156 A46 46 0 0 1 124 156" stroke="url(#dmbCyan)" stroke-width="13" stroke-linecap="round"/>
+            <g transform="rotate(-10 88 96)">
+              <path d="M96 24 A62 62 0 0 1 150 78" stroke="url(#dmbCyan)" stroke-width="8" stroke-linecap="round"/>
+              <path d="M94 39 A47 47 0 0 1 135 80" stroke="url(#dmbCyan)" stroke-width="8" stroke-linecap="round"/>
+              <path d="M92 54 A32 32 0 0 1 120 82" stroke="url(#dmbCyan)" stroke-width="8" stroke-linecap="round"/>
+              <circle cx="84" cy="90" r="16" stroke="url(#dmbCyan)" stroke-width="11"/>
+              <path d="M46 94 A38 38 0 0 0 122 94" stroke="#FFFFFF" stroke-width="14" stroke-linecap="butt"/>
+              <path d="M46 156 A38 38 0 0 1 122 156" stroke="url(#dmbCyan)" stroke-width="14" stroke-linecap="butt"/>
+            </g>
           </svg>
           <div class="mt-1 text-xl font-extrabold tracking-tight leading-none">
-            <span class="text-[#00E5FF]">my</span><span class="text-white">DMB</span>
+            <span class="text-[#57DDD3]">my</span><span class="text-white">DMB</span>
           </div>
           ${tagline ? `<div class="mt-2.5 text-[10.5px] font-semibold tracking-wide leading-snug text-white/95 drop-shadow-[0_1px_4px_rgba(0,0,0,0.5)]">${esc(tagline)}</div>` : ''}
           <div class="mt-3 px-2 py-0.5 rounded-full bg-white/10 border border-white/15 text-[7.5px] text-sky-100">

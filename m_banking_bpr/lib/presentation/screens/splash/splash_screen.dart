@@ -596,7 +596,7 @@ class _SplashBrandMarkState extends State<_SplashBrandMark>
                 children: [
                   const TextSpan(
                     text: 'my',
-                    style: TextStyle(color: Color(0xFF00E5FF)),
+                    style: TextStyle(color: Color(0xFF57DDD3)),
                   ),
                   TextSpan(
                     text: shortName,
@@ -659,84 +659,87 @@ class _MyDmbEmblemPainter extends CustomPainter {
     final double scale = math.min(size.width, size.height) / 245.0;
     canvas.save();
     canvas.scale(scale, scale);
-    canvas.translate(106, 124);
+    canvas.translate(112, 128);
+    // Slight counter-clockwise tilt matching the official myDMB emblem.
+    canvas.rotate(-0.18);
 
     final Shader ringShader = ui.Gradient.linear(
-      const Offset(-30, -30),
-      const Offset(30, 30),
-      const [Color(0xFF00F2FE), Color(0xFF00A8FF)],
+      const Offset(-24, -32),
+      const Offset(24, 16),
+      const [Color(0xFF57DDD3), Color(0xFF2EA2CE), Color(0xFF1A4B96)],
+      const [0.0, 0.55, 1.0],
     );
 
     final Shader bottomArchShader = ui.Gradient.linear(
-      const Offset(-56, 65),
-      const Offset(56, 100),
-      const [Color(0xFF00F0D4), Color(0xFF00A8FF), Color(0xFF0066FF)],
+      const Offset(-48, 70),
+      const Offset(48, 92),
+      const [Color(0xFF57DDD3), Color(0xFF2EA2CE), Color(0xFF1A4B96)],
       const [0.0, 0.5, 1.0],
     );
 
     final Shader signalShader = ui.Gradient.linear(
-      const Offset(0, -100),
-      const Offset(100, 0),
-      const [Color(0xFF00F0D4), Color(0xFF00A8FF), Color(0xFF0066FF)],
-      const [0.0, 0.5, 1.0],
+      const Offset(0, -82),
+      const Offset(82, 0),
+      const [Color(0xFF57DDD3), Color(0xFF2EA2CE), Color(0xFF1A4B96)],
+      const [0.0, 0.55, 1.0],
     );
 
-    // 1. White cradling U-arc
+    // 1. White cradling U-arc (flat butt ends matching official emblem)
     if (isLightBg) {
       canvas.drawArc(
-        Rect.fromCircle(center: const Offset(0, -4), radius: 52),
-        math.pi * 0.08,
-        math.pi * 0.84,
+        Rect.fromCircle(center: const Offset(0, -4), radius: 46),
+        math.pi * 0.04,
+        math.pi * 0.92,
         false,
         Paint()
           ..color = const Color(0x220F172A)
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 20
-          ..strokeCap = StrokeCap.round,
+          ..strokeWidth = 21
+          ..strokeCap = StrokeCap.butt,
       );
     }
     canvas.drawArc(
-      Rect.fromCircle(center: const Offset(0, -4), radius: 52),
-      math.pi * 0.08,
-      math.pi * 0.84,
+      Rect.fromCircle(center: const Offset(0, -4), radius: 46),
+      math.pi * 0.04,
+      math.pi * 0.92,
       false,
       Paint()
         ..color = Colors.white
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 17
-        ..strokeCap = StrokeCap.round,
+        ..strokeWidth = 18
+        ..strokeCap = StrokeCap.butt,
     );
 
-    // 2. Cyan-to-blue downward arch below the U-arc (matching official logo)
+    // 2. Cyan-to-blue downward arch below the U-arc (#57DDD3 -> #1A4B96)
     canvas.drawArc(
-      Rect.fromCircle(center: const Offset(0, 124), radius: 58),
-      -math.pi * 0.80,
-      math.pi * 0.60,
+      Rect.fromCircle(center: const Offset(0, 108), radius: 46),
+      -math.pi * 0.92,
+      math.pi * 0.84,
       false,
       Paint()
         ..shader = bottomArchShader
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 17
-        ..strokeCap = StrokeCap.round,
+        ..strokeWidth = 18
+        ..strokeCap = StrokeCap.butt,
     );
 
-    // 3. Cyan center ring (hollow stroke so the sky shows cleanly inside)
+    // 3. Cyan-to-blue center ring
     canvas.drawCircle(
-      const Offset(0, -4),
-      21,
+      const Offset(0, -8),
+      19,
       Paint()
         ..shader = ringShader
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 14,
+        ..strokeWidth = 13,
     );
 
     // 4. 3 Wi-Fi signal arcs radiating up-right
     canvas.save();
-    canvas.translate(8, -12);
+    canvas.translate(6, -12);
     const arcs = [
-      (r: 42.0, delay: 0.0),
-      (r: 62.0, delay: 0.18),
-      (r: 82.0, delay: 0.36),
+      (r: 36.0, delay: 0.0),
+      (r: 52.0, delay: 0.18),
+      (r: 68.0, delay: 0.36),
     ];
     for (final arc in arcs) {
       final reveal = ((signalReveal - arc.delay) / 0.45).clamp(0.0, 1.0);
@@ -746,13 +749,13 @@ class _MyDmbEmblemPainter extends CustomPainter {
       final alpha = (reveal * wave).clamp(0.28, 1.0);
       canvas.drawArc(
         Rect.fromCircle(center: Offset.zero, radius: arc.r),
-        -math.pi * 0.48,
+        -math.pi * 0.45,
         math.pi * 0.44,
         false,
         Paint()
           ..shader = signalShader
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 11.5
+          ..strokeWidth = 9.0
           ..strokeCap = StrokeCap.round
           ..color = Colors.white.withOpacity(alpha),
       );
