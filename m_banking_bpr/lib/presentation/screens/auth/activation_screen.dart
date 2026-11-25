@@ -217,9 +217,9 @@ class _ActivationScreenState extends State<ActivationScreen> {
   }
 
   bool _hasLettersAndNumbers(String input) {
-    final hasLetter = RegExp(r'[A-Za-z]').hasMatch(input);
+    final hasUpper = RegExp(r'[A-Z]').hasMatch(input);
     final hasNumber = RegExp(r'[0-9]').hasMatch(input);
-    return hasLetter && hasNumber;
+    return hasUpper && hasNumber;
   }
 
   Future<void> _handleStep3Submit() async {
@@ -233,12 +233,12 @@ class _ActivationScreenState extends State<ActivationScreen> {
       _showError('Username harus antara 4 sampai 30 karakter');
       return;
     }
-    if (password.length < 8) {
-      _showError('Kata sandi minimal 8 karakter');
+    if (password.length < 6) {
+      _showError('Kata sandi minimal 6 karakter');
       return;
     }
     if (!_hasLettersAndNumbers(password)) {
-      _showError('Kata sandi wajib mengandung kombinasi huruf dan angka demi keamanan akun Anda');
+      _showError('Kata sandi wajib mengandung huruf kapital dan angka (contoh: Indo123)');
       return;
     }
     if (password != confirmPassword) {
@@ -818,7 +818,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
               color: AppColors.textPrimary,
             ),
             decoration: const InputDecoration(
-              hintText: 'Contoh: budisantoso1505',
+              hintText: 'Contoh: evi482',
               hintStyle: TextStyle(
                 color: Color(0xFF94A3B8),
                 fontSize: 14,
@@ -844,7 +844,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
         const SizedBox(height: 18),
 
         const Text(
-          'Kata Sandi Baru (Min. 8 Karakter Huruf & Angka)',
+          'Kata Sandi Baru (Min. 6 Karakter, Huruf Kapital & Angka)',
           style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: titleDark),
         ),
         const SizedBox(height: 8),
@@ -870,7 +870,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
               color: AppColors.textPrimary,
             ),
             decoration: InputDecoration(
-              hintText: 'Kombinasi huruf dan angka',
+              hintText: 'Contoh: Indo123',
               hintStyle: const TextStyle(
                 color: Color(0xFF94A3B8),
                 fontSize: 14,

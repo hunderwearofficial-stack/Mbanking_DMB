@@ -114,8 +114,6 @@ var Fields = []Field{
 	{Key: "terms.instruction", Page: "terms", Group: "Teks", Label: "Instruksi", Used: "TermsConditionsScreen", Type: TypeMultiline, Max: 300, Required: true,
 		Default: "Baca dan setujui Ringkasan Informasi serta Syarat dan Ketentuan DMB Mobile by PT BPR Dana Mandiri Bogor."},
 
-	{Key: "login.background", Page: "login", Group: "Hero Banner", Label: "Gambar latar hero", Used: "LoginScreen", Type: TypeImage, Max: 300,
-		Help: "Kosong = latar biru navy resmi aplikasi."},
 	{Key: "login.hero_slide1_badge", Page: "login", Group: "Hero Banner", Label: "Label slide 1", Used: "LoginScreen (Hero Slide 1)", Type: TypeText, Max: 50, Required: true,
 		Default: "TABUNGAN DANA MANDIRI"},
 	{Key: "login.hero_slide1_title", Page: "login", Group: "Hero Banner", Label: "Judul slide 1", Used: "LoginScreen (Hero Slide 1)", Type: TypeText, Max: 100, Required: true,
@@ -231,7 +229,6 @@ var legacyColumns = map[string]string{
 	"app.logo":                    "logo_url",
 	"app.announcement":            "announcement_text",
 	"splash.tagline":              "tagline",
-	"login.background":            "login_bg_url",
 	"login.title":                 "login_title",
 	"login.subtitle":              "login_subtitle",
 	"home.greeting_subtitle":      "home_greeting",

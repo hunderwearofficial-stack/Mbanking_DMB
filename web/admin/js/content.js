@@ -364,7 +364,6 @@ function renderMobileMockupPreview() {
   }
 
   if (pageId === 'login') {
-    const bg = v['login.background'] || '';
     const slide1Badge = v['login.hero_slide1_badge'] || 'TABUNGAN DANA MANDIRI';
     const slide1Title = v['login.hero_slide1_title'] || 'Menabung aman, usaha makin lancar';
     const title = v['login.title'] || 'Selamat datang';
@@ -372,22 +371,24 @@ function renderMobileMockupPreview() {
     const footer = v['login.footer'] || 'PT BPR Dana Mandiri Bogor berizin dan diawasi OJK serta peserta LPS.';
 
     container.innerHTML = `
-      <div class="h-full flex flex-col justify-between bg-[#F6F6F2] text-slate-800 overflow-y-auto relative">
-        <div class="p-4 pt-5 pb-4 bg-[#0B2E6B] text-white relative overflow-hidden rounded-b-[22px] shadow-sm">
-          ${bg ? `<img src="${esc(bg)}" alt="" class="absolute inset-0 w-full h-full object-cover opacity-25">` : ''}
-          <div class="relative z-10 flex items-center justify-end mb-4">
-            <img src="${esc(logoUrl)}" alt="Logo" class="h-8 object-contain" onerror="this.style.display='none'">
+      <div class="h-full flex flex-col justify-between bg-[#F4F7FB] text-slate-800 overflow-y-auto relative">
+        <div class="px-4 pt-4 pb-2 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <img src="${esc(logoUrl)}" alt="Logo" class="h-7 object-contain" onerror="this.style.display='none'">
+            <span class="px-2 py-0.5 rounded-full bg-white border border-slate-200 text-[7.5px] font-bold text-[#0550A6] shadow-2xs">Terlindungi</span>
           </div>
-          <div class="relative z-10 text-[8.5px] font-extrabold tracking-wider text-emerald-300 uppercase">${esc(slide1Badge)}</div>
-          <div class="relative z-10 text-[13px] font-extrabold leading-snug mt-1 text-white">${esc(slide1Title)}</div>
-          <div class="relative z-10 flex items-center gap-1 mt-3">
-            <span class="w-4 h-1 rounded-full bg-emerald-400"></span>
-            <span class="w-1 h-1 rounded-full bg-white/40"></span>
-            <span class="w-1 h-1 rounded-full bg-white/40"></span>
+          <div>
+            <div class="text-[8px] font-extrabold tracking-wider text-[#0550A6] uppercase">${esc(slide1Badge)}</div>
+            <div class="text-[13px] font-extrabold leading-snug mt-0.5 text-[#0A1628]">${esc(slide1Title)}</div>
+            <div class="flex items-center gap-1 mt-1.5">
+              <span class="w-4 h-1 rounded-full bg-[#0550A6]"></span>
+              <span class="w-1 h-1 rounded-full bg-slate-300"></span>
+              <span class="w-1 h-1 rounded-full bg-slate-300"></span>
+            </div>
           </div>
         </div>
         ${announceHtml}
-        <div class="p-3 flex-1">
+        <div class="px-3 pb-2 flex-1">
           <div class="bg-white rounded-2xl p-3.5 shadow-sm border border-slate-100 space-y-2.5">
             <div>
               <div class="text-[12px] font-extrabold text-slate-900">${esc(title)}</div>
@@ -405,10 +406,10 @@ function renderMobileMockupPreview() {
               </div>
             </div>
             <div class="flex items-center gap-1.5 pt-0.5">
-              <div class="flex-1 py-2 rounded-xl bg-[#0B2E6B] text-white text-center text-[9.5px] font-bold">Masuk</div>
-              <div class="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-[11px] font-bold">☝</div>
+              <div class="flex-1 py-2 rounded-xl bg-[#033172] text-white text-center text-[9.5px] font-bold">Masuk</div>
+              <div class="w-8 h-8 rounded-xl bg-sky-50 text-[#0550A6] flex items-center justify-center text-[11px] font-bold">☝</div>
             </div>
-            <div class="flex items-center justify-between text-[8.5px] font-bold text-[#0B2E6B] pt-0.5">
+            <div class="flex items-center justify-between text-[8.5px] font-bold text-[#0550A6] pt-0.5">
               <span>Lupa password?</span>
               <span>Daftar</span>
             </div>

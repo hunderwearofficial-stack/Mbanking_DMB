@@ -228,7 +228,6 @@ class _LoginScreenState extends State<LoginScreen> {
           final welcomeTitle = AppContent.text('login.title');
           final welcomeSubtitle = AppContent.text('login.subtitle');
           final announcement = AppContent.text('app.announcement').trim();
-          final hasCustomHeroBg = AppContent.imageUrl('login.background') != null;
           final heroSlides = [
             (
               badge: AppContent.text('login.hero_slide1_badge'),

@@ -14,7 +14,7 @@ import (
 var (
 	ErrInvalidPINFormat = errors.New("PIN harus berupa 6 digit angka")
 	ErrWeakPIN          = errors.New("PIN terlalu mudah ditebak (angka berulang/berurutan). Gunakan kombinasi lain")
-	ErrWeakPassword     = errors.New("password minimal 8 karakter dan wajib mengandung huruf dan angka")
+	ErrWeakPassword     = errors.New("password minimal 6 karakter dan wajib mengandung huruf kapital dan angka (contoh: Indo123)")
 	ErrCompromisedCred  = errors.New("password ini termasuk kredensial default yang telah terpublikasi dan tidak boleh digunakan")
 )
 
@@ -73,19 +73,19 @@ func ValidateNewPassword(pw string) error {
 	if IsCompromisedCredential(pw) {
 		return ErrCompromisedCred
 	}
-	if len(strings.TrimSpace(pw)) < 8 || len(pw) > 72 {
+	if len(strings.TrimSpace(pw)) < 6 || len(pw) > 72 {
 		return ErrWeakPassword
 	}
-	hasLetter, hasDigit := false, false
+	hasUpper, hasDigit := false, false
 	for _, r := range pw {
-		if unicode.IsLetter(r) {
-			hasLetter = true
+		if unicode.IsUpper(r) {
+			hasUpper = true
 		}
 		if unicode.IsDigit(r) {
 			hasDigit = true
 		}
 	}
-	if !hasLetter || !hasDigit {
+	if !hasUpper || !hasDigit {
 		return ErrWeakPassword
 	}
 	return nil

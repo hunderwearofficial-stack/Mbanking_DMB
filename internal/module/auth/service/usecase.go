@@ -590,7 +590,11 @@ func (s *authService) VerifyActivationOTP(ctx context.Context, req domain.Activa
 		if nas, nErr := s.cbsProv.GetCustomerByCIF(ctx, sess.CIF); nErr == nil && nas != nil && strings.TrimSpace(nas.Nama) != "" {
 			res.FullName = strings.TrimSpace(nas.Nama)
 			res.SuggestedUsername = s.generateSuggestedUsername(ctx, res.FullName)
+		} else if strings.TrimSpace(sess.FullName) != "" {
+			res.SuggestedUsername = s.generateSuggestedUsername(ctx, sess.FullName)
 		}
+	} else if strings.TrimSpace(sess.FullName) != "" {
+		res.SuggestedUsername = s.generateSuggestedUsername(ctx, sess.FullName)
 	}
 	return res, nil
 }
@@ -898,8 +902,8 @@ func (s *authService) ChangePIN(ctx context.Context, userID string, req domain.C
 	return nil
 }
 
-// generateSuggestedUsername proposes "<name><4 random digits>". SECURITY (audit E-04): it is
-// never derived from the birth date or the CIF, so it reveals no personal data.
+// generateSuggestedUsername proposes "<3 first letters of name><3 random unused digits>".
+// SECURITY (audit E-04): it is never derived from birth date or CIF, so it reveals no personal data.
 func (s *authService) generateSuggestedUsername(ctx context.Context, fullName string) string {
 	nameLower := strings.ToLower(fullName)
 	titles := []string{"dr.", "dra.", "drs.", "ir.", "h.", "hj.", "s.e.", "s.kom.", "s.h.", "s.t.", "m.m.", "m.si.", "prof."}
@@ -911,23 +915,38 @@ func (s *authService) generateSuggestedUsername(ctx context.Context, fullName st
 	for _, r := range nameLower {
 		if r >= 'a' && r <= 'z' {
 			sb.WriteRune(r)
+			if sb.Len() == 3 {
+				break
+			}
 		}
 	}
 	baseName := sb.String()
-	if len(baseName) < 2 {
-		baseName = "user"
+	if baseName == "" {
+		baseName = "usr"
 	}
-	if len(baseName) > 15 {
-		baseName = baseName[:15]
+	for len(baseName) < 3 {
+		baseName += "x"
 	}
 
 	candidate := ""
-	for i := 0; i < 8; i++ {
-		n, err := rand.Int(rand.Reader, big.NewInt(10000))
+	for i := 0; i < 30; i++ {
+		n, err := rand.Int(rand.Reader, big.NewInt(1000))
 		if err != nil {
 			break
 		}
-		candidate = fmt.Sprintf("%s%04d", baseName, n.Int64())
+		candidate = fmt.Sprintf("%s%03d", baseName, n.Int64())
+		if taken, err := s.repo.IsUsernameTaken(ctx, candidate, ""); err == nil && !taken {
+			return candidate
+		}
+	}
+	// If random picks collided, scan from a random starting point for any unused 3-digit suffix.
+	start := 0
+	if n, err := rand.Int(rand.Reader, big.NewInt(1000)); err == nil {
+		start = int(n.Int64())
+	}
+	for offset := 0; offset < 1000; offset++ {
+		num := (start + offset) % 1000
+		candidate = fmt.Sprintf("%s%03d", baseName, num)
 		if taken, err := s.repo.IsUsernameTaken(ctx, candidate, ""); err == nil && !taken {
 			return candidate
 		}

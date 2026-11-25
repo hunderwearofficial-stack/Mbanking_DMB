@@ -49,9 +49,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   }
 
   bool _hasLettersAndNumbers(String input) {
-    final hasLetter = RegExp(r'[A-Za-z]').hasMatch(input);
+    final hasUpper = RegExp(r'[A-Z]').hasMatch(input);
     final hasNumber = RegExp(r'[0-9]').hasMatch(input);
-    return hasLetter && hasNumber;
+    return hasUpper && hasNumber;
   }
 
   void _onValidateAndConfirm() {
@@ -63,12 +63,12 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       _showToast('Kata sandi saat ini wajib diisi', isError: true);
       return;
     }
-    if (newPw.length < 8) {
-      _showToast('Kata sandi baru minimal harus 8 karakter', isError: true);
+    if (newPw.length < 6) {
+      _showToast('Kata sandi baru minimal harus 6 karakter', isError: true);
       return;
     }
     if (!_hasLettersAndNumbers(newPw)) {
-      _showToast('Kata sandi baru wajib mengandung kombinasi huruf dan angka', isError: true);
+      _showToast('Kata sandi baru wajib mengandung huruf kapital dan angka (contoh: Indo123)', isError: true);
       return;
     }
     if (oldPw == newPw) {
@@ -413,7 +413,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
           obscureText: _obscureNew,
           style: GoogleFonts.plusJakartaSans(fontSize: 13.5),
           decoration: InputDecoration(
-            hintText: 'Minimal 8 karakter kombinasi huruf & angka',
+            hintText: 'Minimal 6 karakter (Contoh: Indo123)',
             hintStyle: GoogleFonts.plusJakartaSans(fontSize: 13, color: textMuted),
             prefixIcon: const Icon(Icons.vpn_key_outlined, color: royalBlue, size: 20),
             suffixIcon: IconButton(
@@ -508,7 +508,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              _buildRequirementRow('Minimal 8 karakter kombinasi huruf dan angka'),
+              _buildRequirementRow('Minimal 6 karakter, huruf kapital & angka (contoh: Indo123)'),
               const SizedBox(height: 5),
               _buildRequirementRow('Tidak sama dengan kata sandi saat ini'),
               const SizedBox(height: 5),

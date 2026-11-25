@@ -51,9 +51,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   }
 
   bool _hasLettersAndNumbers(String input) {
-    final hasLetter = RegExp(r'[A-Za-z]').hasMatch(input);
+    final hasUpper = RegExp(r'[A-Z]').hasMatch(input);
     final hasNumber = RegExp(r'[0-9]').hasMatch(input);
-    return hasLetter && hasNumber;
+    return hasUpper && hasNumber;
   }
 
   Future<void> _onUpdatePassword() async {
@@ -72,13 +72,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       return;
     }
 
-    if (p1.length < 8) {
-      _showError('Kata sandi minimal harus 8 karakter');
+    if (p1.length < 6) {
+      _showError('Kata sandi minimal harus 6 karakter');
       return;
     }
 
     if (!_hasLettersAndNumbers(p1)) {
-      _showError('Kata sandi wajib mengandung kombinasi huruf dan angka');
+      _showError('Kata sandi wajib mengandung huruf kapital dan angka (contoh: Indo123)');
       return;
     }
 
@@ -151,7 +151,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Gunakan minimal 8 karakter dengan kombinasi huruf dan angka untuk menjaga keamanan akun Anda.',
+                      'Gunakan minimal 6 karakter dengan huruf kapital dan angka (contoh: Indo123).',
                       style: TextStyle(
                         fontSize: 13,
                         color: AuthUiTokens.textMuted,
@@ -184,7 +184,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                           color: AuthUiTokens.titleDark,
                         ),
                         decoration: InputDecoration(
-                          hintText: 'Minimal 8 karakter kombinasi',
+                          hintText: 'Minimal 6 karakter (Contoh: Indo123)',
                           hintStyle: const TextStyle(
                             color: Color(0xFF94A3B8),
                             fontSize: 14,

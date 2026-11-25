@@ -35,7 +35,6 @@ class AppContent {
     'terms.headline': ContentSpec(ContentType.multiline, 'Ringkasan Informasi dan Syarat Ketentuan DMB Mobile by PT BPR Dana Mandiri Bogor'),
     'terms.instruction': ContentSpec(ContentType.multiline,
         'Baca dan setujui Ringkasan Informasi serta Syarat dan Ketentuan DMB Mobile by PT BPR Dana Mandiri Bogor.'),
-    'login.background': ContentSpec(ContentType.image, ''),
     'login.hero_slide1_badge': ContentSpec(ContentType.text, 'TABUNGAN DANA MANDIRI'),
     'login.hero_slide1_title': ContentSpec(ContentType.text, 'Menabung aman, usaha makin lancar'),
     'login.hero_slide2_badge': ContentSpec(ContentType.text, 'DEPOSITO BERJANGKA'),
@@ -223,7 +222,6 @@ class RemoteImageCache {
   static const List<String> _imageKeys = [
     'app.logo',
     'onboarding.background',
-    'login.background',
     'home.banner1_image',
     'home.banner2_image',
     'home.banner3_image',
