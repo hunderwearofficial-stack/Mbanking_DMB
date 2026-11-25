@@ -455,7 +455,12 @@ func (s *authService) VerifyActivation(ctx context.Context, req domain.ActivateV
 		return nil, errors.New("nomor handphone tidak valid")
 	}
 
-	const genericActivationErr = "data aktivasi tidak dapat diverifikasi. Pastikan nomor rekening dan nomor handphone Anda benar, atau gunakan menu Lupa Password jika sudah pernah terdaftar"
+	const (
+		errAccountNotFound   = "nomor rekening tidak ditemukan. Pastikan nomor rekening tabungan Anda benar"
+		errAlreadyRegistered = "rekening ini sudah terdaftar di layanan Mobile Banking. Silakan langsung masuk atau gunakan menu Lupa Password"
+		errNoPhoneOnFile     = "nomor handphone belum terdaftar pada rekening ini di bank. Silakan hubungi kantor cabang Bank DMB terdekat"
+		errPhoneMismatch     = "nomor handphone tidak sesuai dengan data rekening yang terdaftar di bank"
+	)
 
 	var targetUserID string
 	var targetCIF string
@@ -466,25 +471,25 @@ func (s *authService) VerifyActivation(ctx context.Context, req domain.ActivateV
 		regCheck, regErr := s.cbsProv.RegistrationCheck(ctx, identifier)
 		if regErr != nil || regCheck == nil || strings.TrimSpace(regCheck.CIF) == "" {
 			audit.Record(ctx, s.repo.DB(), "NASABAH", identifier, "", "ACTIVATION_ACCOUNT_NOT_FOUND", maskPhoneNumber(normInputPhone), "WARNING", deviceID, "Aktivasi ditolak: rekening tidak ditemukan di CBS")
-			return nil, errors.New(genericActivationErr)
+			return nil, errors.New(errAccountNotFound)
 		}
 		if regCheck.Terdaftar {
 			audit.Record(ctx, s.repo.DB(), "NASABAH", regCheck.CIF, "", "ACTIVATION_ALREADY_REGISTERED", maskPhoneNumber(normInputPhone), "WARNING", deviceID, "Aktivasi ditolak: rekening sudah terdaftar di CBS")
-			return nil, errors.New(genericActivationErr)
+			return nil, errors.New(errAlreadyRegistered)
 		}
 		// L-02: ensure local account is not already active even if CBS flag is out of sync.
 		if existing, fErr := s.repo.FindByCIF(ctx, regCheck.CIF); fErr == nil && existing != nil && existing.PasswordHash != "" {
 			audit.Record(ctx, s.repo.DB(), "NASABAH", existing.ID, existing.FullName, "ACTIVATION_LOCAL_ALREADY_ACTIVE", maskPhoneNumber(normInputPhone), "WARNING", deviceID, "Aktivasi ulang ditolak: akun lokal sudah aktif")
-			return nil, errors.New(genericActivationErr)
+			return nil, errors.New(errAlreadyRegistered)
 		}
 		cbsPhone := normalizePhone(regCheck.NoHP)
 		if cbsPhone == "" || cbsPhone == "0" {
 			audit.Record(ctx, s.repo.DB(), "NASABAH", regCheck.CIF, "", "ACTIVATION_NO_PHONE_ON_FILE", maskPhoneNumber(normInputPhone), "WARNING", deviceID, "Aktivasi ditolak: nomor HP tidak tercatat di CBS")
-			return nil, errors.New(genericActivationErr)
+			return nil, errors.New(errNoPhoneOnFile)
 		}
 		if cbsPhone != normInputPhone {
 			audit.Record(ctx, s.repo.DB(), "NASABAH", regCheck.CIF, "", "ACTIVATION_PHONE_MISMATCH", maskPhoneNumber(normInputPhone), "WARNING", deviceID, "Nomor HP input tidak cocok dengan nomor HP rekening")
-			return nil, errors.New(genericActivationErr)
+			return nil, errors.New(errPhoneMismatch)
 		}
 		// L-03: do NOT upsert nasabah/rekening into DB before OTP verification.
 		targetCIF = strings.TrimSpace(regCheck.CIF)
@@ -506,16 +511,16 @@ func (s *authService) VerifyActivation(ctx context.Context, req domain.ActivateV
 		}
 		if u == nil {
 			audit.Record(ctx, s.repo.DB(), "NASABAH", identifier, "", "ACTIVATION_ACCOUNT_NOT_FOUND", maskPhoneNumber(normInputPhone), "WARNING", deviceID, "Aktivasi ditolak: rekening/CIF tidak ditemukan di DB lokal")
-			return nil, errors.New(genericActivationErr)
+			return nil, errors.New(errAccountNotFound)
 		}
 		if u.PasswordHash != "" {
 			audit.Record(ctx, s.repo.DB(), "NASABAH", u.ID, u.FullName, "ACTIVATION_LOCAL_ALREADY_ACTIVE", maskPhoneNumber(normInputPhone), "WARNING", deviceID, "Aktivasi ulang ditolak: akun lokal sudah aktif")
-			return nil, errors.New(genericActivationErr)
+			return nil, errors.New(errAlreadyRegistered)
 		}
 		dbPhone := normalizePhone(u.PhoneNumber)
 		if repository.IsPendingPhone(u.PhoneNumber) || dbPhone == "" || dbPhone != normInputPhone {
 			audit.Record(ctx, s.repo.DB(), "NASABAH", u.ID, u.FullName, "ACTIVATION_PHONE_MISMATCH", maskPhoneNumber(normInputPhone), "WARNING", deviceID, "Nomor HP tidak sesuai dengan data lokal")
-			return nil, errors.New(genericActivationErr)
+			return nil, errors.New(errPhoneMismatch)
 		}
 		targetUserID = u.ID
 		targetCIF = u.CIF
