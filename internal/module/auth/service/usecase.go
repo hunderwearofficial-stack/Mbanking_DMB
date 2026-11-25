@@ -537,11 +537,11 @@ func (s *authService) VerifyActivation(ctx context.Context, req domain.ActivateV
 			return nil, ErrServiceUnavailable
 		} else if inUse {
 			audit.Record(ctx, s.repo.DB(), "NASABAH", targetUserID, targetFullName, "ACTIVATION_PHONE_CONFLICT", maskPhoneNumber(normInputPhone), "DANGER", deviceID, "Nomor HP sudah terikat pada nasabah lain")
-			return nil, errors.New(genericActivationErr)
+			return nil, errors.New("nomor handphone sudah terdaftar pada akun nasabah lain")
 		}
 	} else if existingPhoneUser, err := s.repo.FindByIdentifier(ctx, normInputPhone); err == nil && existingPhoneUser != nil {
 		audit.Record(ctx, s.repo.DB(), "NASABAH", targetCIF, "", "ACTIVATION_PHONE_CONFLICT", maskPhoneNumber(normInputPhone), "DANGER", deviceID, "Nomor HP sudah terikat pada nasabah lain")
-		return nil, errors.New(genericActivationErr)
+		return nil, errors.New("nomor handphone sudah terdaftar pada akun nasabah lain")
 	}
 
 	otpRecipientName := targetFullName
