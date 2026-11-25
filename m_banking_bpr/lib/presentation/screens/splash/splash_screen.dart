@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/content/app_content.dart';
 import '../../../core/security/security_hardening_service.dart';
@@ -15,7 +14,6 @@ import '../../../core/services/terms_consent_store.dart';
 import '../../blocs/auth/auth_cubit.dart';
 import '../../blocs/auth/auth_state.dart';
 import '../../widgets/app_loading_overlay.dart';
-import '../auth/login_screen.dart';
 import '../home/home_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 
@@ -32,7 +30,6 @@ class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   bool _canNavigate = false;
   bool _hasNavigated = false;
-  bool _hasSeenOnboarding = false;
   bool _isCheckingMaintenance = false;
   bool _isConnectionFailed = false;
   bool _isRetryingConnection = false;
@@ -73,12 +70,8 @@ class _SplashScreenState extends State<SplashScreen>
     context.read<AuthCubit>().checkAuthStatus();
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      _hasSeenOnboarding = prefs.getBool(SplashScreen.hasSeenOnboardingKey) ?? false;
       await TermsConsentStore.instance.restore();
-    } catch (_) {
-      _hasSeenOnboarding = false;
-    }
+    } catch (_) {}
 
     try {
       final rootRes = await SecurityHardeningService.checkRootStatus();
@@ -154,7 +147,7 @@ class _SplashScreenState extends State<SplashScreen>
     if (waitMinDuration) {
       final results = await Future.wait([
         DynamicConfigService().syncStartup(),
-        Future.delayed(const Duration(milliseconds: 5000), () => true),
+        Future.delayed(const Duration(seconds: 10), () => true),
       ]);
       connected = results[0];
     } else {
@@ -208,14 +201,9 @@ class _SplashScreenState extends State<SplashScreen>
     }
     _hasNavigated = true;
 
-    final Widget destination;
-    if (state is AuthAuthenticated) {
-      destination = const HomeScreen();
-    } else if (_hasSeenOnboarding && TermsConsentStore.instance.hasAccepted) {
-      destination = const LoginScreen();
-    } else {
-      destination = const OnboardingScreen();
-    }
+    final Widget destination = state is AuthAuthenticated
+        ? const HomeScreen()
+        : const OnboardingScreen();
 
     final rootWarning = _rootResult;
     Navigator.of(context).pushReplacement(
@@ -244,12 +232,10 @@ class _SplashScreenState extends State<SplashScreen>
       listenable: DynamicConfigService(),
       builder: (context, _) {
         final config = DynamicConfigService().config;
-        final Color defaultBg =
-            AppContent.color('splash.bg_color', const Color(0xFF091324));
-        final bool isLightBg = defaultBg.computeLuminance() > 0.5;
-        final Color centerGlow = isLightBg
-            ? Color.lerp(defaultBg, Colors.white, 0.35)!
-            : Color.lerp(defaultBg, const Color(0xFF1E3A5F), 0.35)!;
+        const Color defaultBg = Color(0xFF091324);
+        const bool isLightBg = false;
+        final Color centerGlow =
+            Color.lerp(defaultBg, const Color(0xFF1E3A5F), 0.35)!;
 
         return AnnotatedRegion<SystemUiOverlayStyle>(
           value: SystemUiOverlayStyle(
@@ -295,19 +281,14 @@ class _SplashScreenState extends State<SplashScreen>
                     ),
                   ),
 
-                  // Full-bleed splash background (from admin `splash.background` or local 9:16 artwork)
+                  // Full-bleed splash background bundled directly in the app
                   Positioned.fill(
                     child: IgnorePointer(
-                      child: ContentImage(
-                        'splash.background',
+                      child: Image.asset(
+                        'assets/images/splash_building.jpg',
                         fit: BoxFit.cover,
                         alignment: Alignment.center,
-                        placeholder: Image.asset(
-                          'assets/images/splash_building.jpg',
-                          fit: BoxFit.cover,
-                          alignment: Alignment.center,
-                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                        ),
+                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                       ),
                     ),
                   ),
@@ -582,13 +563,13 @@ class _SplashBrandMarkState extends State<_SplashBrandMark>
           child: ScaleTransition(
             scale: _emblemScale,
             child: SizedBox(
-              width: 148,
-              height: 148,
+              width: 160,
+              height: 160,
               child: AnimatedBuilder(
                 animation: Listenable.merge([_signalsProgress, _pulseController]),
                 builder: (context, _) {
                   return CustomPaint(
-                    size: const Size.square(148),
+                    size: const Size.square(160),
                     painter: _MyDmbEmblemPainter(
                       signalReveal: _signalsProgress.value,
                       pulse: _pulseController.value,
@@ -600,7 +581,7 @@ class _SplashBrandMarkState extends State<_SplashBrandMark>
             ),
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
         FadeTransition(
           opacity: _titleFade,
           child: SlideTransition(
@@ -661,7 +642,7 @@ class _SplashBrandMarkState extends State<_SplashBrandMark>
 }
 
 /// Clean vector emblem matching the official myDMB logo geometry:
-/// cyan ring, white cradling U-arc, and 3 Wi-Fi signal arcs.
+/// cyan ring, white cradling U-arc, cyan-blue bottom arch, and 3 Wi-Fi signal arcs.
 class _MyDmbEmblemPainter extends CustomPainter {
   final double signalReveal;
   final double pulse;
@@ -675,15 +656,22 @@ class _MyDmbEmblemPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final double scale = math.min(size.width, size.height) / 220.0;
+    final double scale = math.min(size.width, size.height) / 245.0;
     canvas.save();
     canvas.scale(scale, scale);
-    canvas.translate(96, 126);
+    canvas.translate(106, 124);
 
     final Shader ringShader = ui.Gradient.linear(
       const Offset(-30, -30),
       const Offset(30, 30),
-      const [Color(0xFF00F2FE), Color(0xFF00C6FF)],
+      const [Color(0xFF00F2FE), Color(0xFF00A8FF)],
+    );
+
+    final Shader bottomArchShader = ui.Gradient.linear(
+      const Offset(-56, 65),
+      const Offset(56, 100),
+      const [Color(0xFF00F0D4), Color(0xFF00A8FF), Color(0xFF0066FF)],
+      const [0.0, 0.5, 1.0],
     );
 
     final Shader signalShader = ui.Gradient.linear(
@@ -719,7 +707,20 @@ class _MyDmbEmblemPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round,
     );
 
-    // 2. Cyan center ring (hollow stroke so the sky shows cleanly inside)
+    // 2. Cyan-to-blue downward arch below the U-arc (matching official logo)
+    canvas.drawArc(
+      Rect.fromCircle(center: const Offset(0, 124), radius: 58),
+      -math.pi * 0.80,
+      math.pi * 0.60,
+      false,
+      Paint()
+        ..shader = bottomArchShader
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 17
+        ..strokeCap = StrokeCap.round,
+    );
+
+    // 3. Cyan center ring (hollow stroke so the sky shows cleanly inside)
     canvas.drawCircle(
       const Offset(0, -4),
       21,
@@ -729,7 +730,7 @@ class _MyDmbEmblemPainter extends CustomPainter {
         ..strokeWidth = 14,
     );
 
-    // 3. 3 Wi-Fi signal arcs radiating up-right
+    // 4. 3 Wi-Fi signal arcs radiating up-right
     canvas.save();
     canvas.translate(8, -12);
     const arcs = [

@@ -298,26 +298,38 @@ function renderMobileMockupPreview() {
     : '';
 
   if (pageId === 'splash') {
-    const bg = v['splash.background'] || '';
+    const bgColor = '#091324';
     const tagline = v['splash.tagline'] || 'Sahabat Finansial Terpercaya Anda';
-    const loading = v['splash.loading_text'] || 'Memuat layanan perbankan...';
     const disclaimer = v['splash.disclaimer'] || 'PT BPR Dana Mandiri Bogor berizin dan diawasi oleh OJK & LPS.';
 
     container.innerHTML = `
-      <div class="h-full flex flex-col justify-between p-4 text-center relative overflow-hidden bg-gradient-to-b from-[#0A3B66] via-[#0D4F82] to-[#00897B] text-white">
-        ${bg ? `<img src="${esc(bg)}" alt="" class="absolute inset-0 w-full h-full object-cover opacity-35 pointer-events-none">` : ''}
-        <div class="relative z-10 pt-4 text-[9px] font-bold tracking-widest uppercase text-teal-200">DMB Mobile Banking</div>
-        <div class="relative z-10 my-auto space-y-2.5 px-2">
-          <div class="w-16 h-16 mx-auto rounded-2xl bg-white/95 p-2 shadow-lg flex items-center justify-center">
-            <img src="${esc(logoUrl)}" alt="Logo" class="max-h-full max-w-full object-contain" onerror="this.style.display='none'">
+      <div class="h-full flex flex-col justify-between p-4 text-center relative overflow-hidden text-white"
+           style="background: linear-gradient(155deg, ${esc(bgColor)} 0%, #0B3A7D 55%, #196BB8 100%);">
+        <div class="relative z-10 flex-1 flex flex-col items-center justify-center px-3 -mt-4">
+          <svg viewBox="0 0 180 180" class="w-24 h-24 drop-shadow-[0_4px_12px_rgba(0,0,0,0.3)]" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="dmbCyan" x1="0" y1="0" x2="180" y2="180" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#00F0D4"/>
+                <stop offset="55%" stop-color="#00A8FF"/>
+                <stop offset="100%" stop-color="#0066FF"/>
+              </linearGradient>
+            </defs>
+            <path d="M98 22 A64 64 0 0 1 154 78" stroke="url(#dmbCyan)" stroke-width="9" stroke-linecap="round"/>
+            <path d="M96 38 A48 48 0 0 1 138 80" stroke="url(#dmbCyan)" stroke-width="9" stroke-linecap="round"/>
+            <path d="M94 54 A32 32 0 0 1 122 82" stroke="url(#dmbCyan)" stroke-width="9" stroke-linecap="round"/>
+            <circle cx="84" cy="92" r="16" stroke="url(#dmbCyan)" stroke-width="11"/>
+            <path d="M46 94 A38 38 0 0 0 122 94" stroke="#FFFFFF" stroke-width="13" stroke-linecap="round"/>
+            <path d="M44 156 A46 46 0 0 1 124 156" stroke="url(#dmbCyan)" stroke-width="13" stroke-linecap="round"/>
+          </svg>
+          <div class="mt-1 text-xl font-extrabold tracking-tight leading-none">
+            <span class="text-[#00E5FF]">my</span><span class="text-white">DMB</span>
           </div>
-          <div class="text-xs font-extrabold tracking-tight leading-snug">${esc(tagline)}</div>
-          <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 text-[9px] font-medium">
-            <span class="w-2 h-2 rounded-full bg-teal-300 animate-ping"></span>
-            <span>${esc(loading)}</span>
+          ${tagline ? `<div class="mt-2.5 text-[10.5px] font-semibold tracking-wide leading-snug text-white/95 drop-shadow-[0_1px_4px_rgba(0,0,0,0.5)]">${esc(tagline)}</div>` : ''}
+          <div class="mt-3 px-2 py-0.5 rounded-full bg-white/10 border border-white/15 text-[7.5px] text-sky-100">
+            Latar gedung &amp; logo animasi dibundel di APK
           </div>
         </div>
-        <div class="relative z-10 text-[8px] text-white/80 leading-relaxed bg-black/20 rounded-lg p-2">
+        <div class="relative z-10 text-[7.5px] font-medium text-white/90 leading-relaxed px-1 drop-shadow-[0_1px_4px_rgba(0,0,0,0.75)]">
           ${esc(disclaimer)}
         </div>
       </div>`;
@@ -325,36 +337,27 @@ function renderMobileMockupPreview() {
   }
 
   if (pageId === 'onboarding') {
-    const s1Title = v['onboarding.slide1_title'] || 'Jadi bestie di dunia finansial anak';
-    const s1Desc = v['onboarding.slide1_desc'] || '';
-    const s1Img = v['onboarding.slide1_image'] || '';
-    const s2Title = v['onboarding.slide2_title'] || 'Wujudkan masa depan keluarga';
-    const s2Desc = v['onboarding.slide2_desc'] || '';
-    const s2Img = v['onboarding.slide2_image'] || '';
-    const btnTxt = v['onboarding.button_text'] || 'Mulai Sekarang';
+    const bg = v['onboarding.background'] || '/admin/uploads/onboarding_hero.jpg';
+    const title = v['onboarding.title'] || 'Solusi Finansial Terpercaya untuk Keluarga & UMKM';
+    const subtitle = v['onboarding.subtitle'] || 'Pantau saldo tabungan, mutasi rekening, deposito, dan pinjaman Anda secara aman dan real-time.';
+    const btnTxt = v['onboarding.button_text'] || 'Masuk Sekarang';
 
     container.innerHTML = `
-      <div class="h-full flex flex-col justify-between p-3.5 bg-slate-50 text-slate-800 overflow-y-auto">
-        <div class="flex items-center justify-between">
-          <img src="${esc(logoUrl)}" alt="Logo" class="h-6 object-contain" onerror="this.style.display='none'">
-          <span class="text-[8px] font-bold text-[#00897B] bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">2 Slide</span>
+      <div class="h-full flex flex-col justify-between p-4 relative overflow-hidden text-white bg-[#04122E]">
+        ${bg ? `<img src="${esc(bg)}" alt="" class="absolute inset-0 w-full h-full object-cover pointer-events-none" onerror="this.style.display='none'">` : ''}
+        <div class="absolute inset-0 pointer-events-none"
+             style="background: linear-gradient(180deg, rgba(4,18,46,0.48) 0%, rgba(4,18,46,0) 28%, rgba(4,18,46,0.22) 52%, rgba(4,18,46,0.88) 74%, #04122E 92%);"></div>
+        <div class="relative z-10 pt-1 flex items-center justify-between">
+          <img src="${esc(logoUrl)}" alt="Logo" class="h-7 object-contain drop-shadow" onerror="this.style.display='none'">
         </div>
-        <div class="space-y-2 my-2">
-          <div class="p-2.5 rounded-xl bg-white border border-slate-200 shadow-xs space-y-1.5">
-            <div class="text-[8px] font-extrabold text-[#00897B] uppercase">Slide 1</div>
-            ${s1Img ? `<img src="${esc(s1Img)}" alt="" class="w-full h-16 object-cover rounded-lg border border-slate-100">` : `<div class="w-full h-12 rounded-lg bg-gradient-to-r from-teal-50 to-emerald-50 flex items-center justify-center text-[9px] text-[#00897B] font-bold">Ilustrasi Slide 1</div>`}
-            <div class="text-[10px] font-extrabold text-slate-900 leading-tight">${esc(s1Title)}</div>
-            <div class="text-[8.5px] text-slate-500 leading-relaxed line-clamp-2">${esc(s1Desc)}</div>
+        <div class="relative z-10 mt-auto space-y-2.5">
+          <div class="text-[13px] font-extrabold leading-snug text-white">${esc(title)}</div>
+          <div class="text-[8.5px] text-white/85 leading-relaxed">${esc(subtitle)}</div>
+          <div class="pt-1">
+            <div class="w-full py-2 rounded-full bg-[#0077FF] text-white text-center text-[10px] font-bold shadow-sm">
+              ${esc(btnTxt)}
+            </div>
           </div>
-          <div class="p-2.5 rounded-xl bg-white border border-slate-200 shadow-xs space-y-1.5">
-            <div class="text-[8px] font-extrabold text-blue-700 uppercase">Slide 2</div>
-            ${s2Img ? `<img src="${esc(s2Img)}" alt="" class="w-full h-16 object-cover rounded-lg border border-slate-100">` : `<div class="w-full h-12 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 flex items-center justify-center text-[9px] text-blue-700 font-bold">Ilustrasi Slide 2</div>`}
-            <div class="text-[10px] font-extrabold text-slate-900 leading-tight">${esc(s2Title)}</div>
-            <div class="text-[8.5px] text-slate-500 leading-relaxed line-clamp-2">${esc(s2Desc)}</div>
-          </div>
-        </div>
-        <div class="w-full py-2 rounded-xl bg-[#00897B] text-white text-center text-[10px] font-bold shadow-sm">
-          ${esc(btnTxt)}
         </div>
       </div>`;
     return;
