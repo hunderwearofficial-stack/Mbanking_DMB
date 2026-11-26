@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import '../../deposit/deposit_screen.dart';
 import '../../loan/loan_screen.dart';
 import '../../mutation/mutation_screen.dart';
-import '../../product/product_catalog_screen.dart';
+import '../../profile/company_profile_screen.dart';
 
-enum _MenuIconType { mutasi, pinjaman, deposito, katalog }
+enum _MenuIconType { mutasi, pinjaman, deposito, profil }
 
 /// 4-column circular quick menu row with dual-tone fintech icons matching myDMB.
 class FigmaMenuGrid extends StatelessWidget {
@@ -35,10 +35,10 @@ class FigmaMenuGrid extends StatelessWidget {
         ),
       ),
       (
-        label: 'Katalog\nProduk',
-        type: _MenuIconType.katalog,
+        label: 'Profil\nDMB',
+        type: _MenuIconType.profil,
         onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const ProductCatalogScreen()),
+          MaterialPageRoute(builder: (_) => const CompanyProfileScreen()),
         ),
       ),
     ];
@@ -170,42 +170,33 @@ class _DualToneMenuIcon extends StatelessWidget {
             painter: _DepositChartPainter(),
           ),
         );
-      case _MenuIconType.katalog:
+      case _MenuIconType.profil:
         return SizedBox(
-          width: 24,
-          height: 24,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          width: 28,
+          height: 28,
+          child: Stack(
+            clipBehavior: Clip.none,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _tile(_navy),
-                  _tile(_cyan),
-                ],
+              const Center(
+                child: Icon(Icons.account_balance_rounded, color: _navy, size: 24),
               ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _tile(_blue),
-                  _tile(_navy),
-                ],
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  width: 11,
+                  height: 11,
+                  decoration: BoxDecoration(
+                    color: _cyan,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                ),
               ),
             ],
           ),
         );
     }
-  }
-
-  Widget _tile(Color color) {
-    return Container(
-      width: 10.5,
-      height: 10.5,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(3),
-      ),
-    );
   }
 }
 

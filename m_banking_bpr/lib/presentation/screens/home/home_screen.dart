@@ -22,6 +22,7 @@ import '../auth/login_screen.dart';
 import '../helpdesk/helpdesk_screen.dart';
 import '../mutation/mutation_screen.dart';
 import '../notification/notification_screen.dart';
+import '../product/product_catalog_screen.dart';
 import '../profile/company_profile_screen.dart';
 import '../profile/profile_screen.dart';
 import '../profile/security_settings_screen.dart';
@@ -72,7 +73,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _onBannerAction(String action) {
     switch (action) {
       case 'profil':
-        setState(() => _currentNavIndex = 3);
+        setState(() => _currentNavIndex = 2);
         break;
       case 'keamanan':
         Navigator.push(context, MaterialPageRoute(builder: (_) => const SecuritySettingsScreen()));
@@ -172,8 +173,7 @@ class _HomeScreenState extends State<HomeScreen> {
               index: _currentNavIndex,
               children: [
                 _buildHomeContent(),
-                const CompanyProfileScreen(),
-                const MutationScreen(isTab: true),
+                const ProductCatalogScreen(isTab: true),
                 const ProfileScreen(isTab: true),
               ],
             ),
@@ -845,7 +845,7 @@ class _HomeScreenState extends State<HomeScreen> {
               tag: 'PERENCANAAN',
               title: 'Wujudkan Rencana Finansial Anda bersama myDMB',
               subtitle: 'Pelajari Selengkapnya',
-              onTap: () => setState(() => _currentNavIndex = 3),
+              onTap: () => setState(() => _currentNavIndex = 2),
             ),
           ];
 
@@ -1008,7 +1008,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             InkWell(
               borderRadius: BorderRadius.circular(8),
-              onTap: () => setState(() => _currentNavIndex = 2),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const MutationScreen()),
+              ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                 child: Row(
@@ -1071,7 +1073,9 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.only(bottom: 10),
               child: InkWell(
                 borderRadius: BorderRadius.circular(16),
-                onTap: () => setState(() => _currentNavIndex = 2),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const MutationScreen()),
+                ),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
                   decoration: BoxDecoration(
@@ -1186,20 +1190,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               Expanded(
                 child: _buildNavItem(
-                  icon: Icons.account_balance_outlined,
-                  activeIcon: Icons.account_balance_rounded,
-                  label: 'Tentang DMB',
+                  icon: Icons.grid_view_outlined,
+                  activeIcon: Icons.grid_view_rounded,
+                  label: 'Katalog Produk',
                   isSelected: _currentNavIndex == 1,
                   onTap: () => setState(() => _currentNavIndex = 1),
-                ),
-              ),
-              Expanded(
-                child: _buildNavItem(
-                  icon: Icons.receipt_long_outlined,
-                  activeIcon: Icons.receipt_long_rounded,
-                  label: 'Riwayat',
-                  isSelected: _currentNavIndex == 2,
-                  onTap: () => setState(() => _currentNavIndex = 2),
                 ),
               ),
               Expanded(
@@ -1207,8 +1202,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: Icons.person_outline_rounded,
                   activeIcon: Icons.person_rounded,
                   label: 'Akun Saya',
-                  isSelected: _currentNavIndex == 3,
-                  onTap: () => setState(() => _currentNavIndex = 3),
+                  isSelected: _currentNavIndex == 2,
+                  onTap: () => setState(() => _currentNavIndex = 2),
                 ),
               ),
             ],

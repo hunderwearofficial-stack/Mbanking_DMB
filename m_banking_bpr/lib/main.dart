@@ -83,7 +83,7 @@ void main() async {
 
   WidgetsBinding.instance.addPostFrameCallback((_) async {
     try {
-      await SecurityHardeningService.setFlagSecure(true);
+      await SecurityHardeningService.setFlagSecure(AppEnvironment.isProduction);
     } catch (_) {}
 
     try {

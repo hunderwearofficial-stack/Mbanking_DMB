@@ -376,7 +376,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: Text(
-                      AppContent.text('login.footer'),
+                      AppContent.text('app.footer'),
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontSize: 11.5,

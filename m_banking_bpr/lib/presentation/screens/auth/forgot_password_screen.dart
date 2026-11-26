@@ -256,7 +256,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 28),
                 child: Text(
-                  AppContent.text('login.footer'),
+                  AppContent.text('app.footer'),
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 11.5,

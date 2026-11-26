@@ -111,6 +111,13 @@ func NewRouter(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, cbsPr
 	rl := func(max, window int, prefix string, key middleware.KeyFunc) gin.HandlerFunc {
 		return middleware.RateLimiterBy(redisClient, max*multiplier, window, prefix, key)
 	}
+	// In local/development environments, do not rate-limit OTP requests/verifications.
+	otpRL := func(max, window int, prefix string, key middleware.KeyFunc) gin.HandlerFunc {
+		if !cfg.IsProductionLike() {
+			return func(c *gin.Context) { c.Next() }
+		}
+		return rl(max, window, prefix, key)
+	}
 	bySession := middleware.ByJSONField("session_id")
 	maintenance := newMaintenanceGate(db).Middleware()
 	byIdentity := middleware.ByJSONField("phone_number", "cif", "username")
@@ -161,11 +168,11 @@ func NewRouter(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, cbsPr
 			authGroup.POST("/login", rl(10, 60, "login_ip", middleware.ByIP), rl(5, 300, "login_id", byIdentity), authHandler.Login)
 			authGroup.POST("/refresh", rl(30, 60, "refresh_ip", middleware.ByIP), authHandler.RefreshToken)
 			authGroup.POST("/device-challenge", rl(20, 60, "devchal_ip", middleware.ByIP), rl(10, 300, "devchal_id", byIdentity), authHandler.DeviceChallenge)
-			authGroup.POST("/activate/verify", rl(5, 600, "act_ip", middleware.ByIP), rl(3, 900, "act_cif", byCIF), rl(3, 900, "act_phone", byIdentity), authHandler.VerifyActivation)
-			authGroup.POST("/activate/otp", rl(10, 60, "otp_ip", middleware.ByIP), rl(5, 600, "otp_session", bySession), authHandler.VerifyActivationOTP)
+			authGroup.POST("/activate/verify", otpRL(5, 600, "act_ip", middleware.ByIP), otpRL(3, 900, "act_cif", byCIF), otpRL(3, 900, "act_phone", byIdentity), authHandler.VerifyActivation)
+			authGroup.POST("/activate/otp", otpRL(10, 60, "otp_ip", middleware.ByIP), otpRL(5, 600, "otp_session", bySession), authHandler.VerifyActivationOTP)
 			authGroup.POST("/activate/setup", rl(10, 60, "setup_ip", middleware.ByIP), authHandler.CompleteActivation)
-			authGroup.POST("/forgot-password/request", rl(5, 600, "fp_ip", middleware.ByIP), rl(3, 900, "fp_phone", byIdentity), authHandler.RequestForgotPassword)
-			authGroup.POST("/forgot-password/otp", rl(10, 60, "otp_ip", middleware.ByIP), rl(5, 600, "otp_session", bySession), authHandler.VerifyForgotPasswordOTP)
+			authGroup.POST("/forgot-password/request", otpRL(5, 600, "fp_ip", middleware.ByIP), otpRL(3, 900, "fp_phone", byIdentity), authHandler.RequestForgotPassword)
+			authGroup.POST("/forgot-password/otp", otpRL(10, 60, "otp_ip", middleware.ByIP), otpRL(5, 600, "otp_session", bySession), authHandler.VerifyForgotPasswordOTP)
 			authGroup.POST("/forgot-password/reset", rl(10, 60, "setup_ip", middleware.ByIP), authHandler.ResetForgotPassword)
 		}
 

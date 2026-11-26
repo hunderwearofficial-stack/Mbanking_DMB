@@ -315,7 +315,7 @@ class _SplashScreenState extends State<SplashScreen>
                         Padding(
                           padding: const EdgeInsets.only(left: 24, right: 24, bottom: 10),
                           child: Text(
-                            AppContent.text('splash.disclaimer'),
+                            AppContent.text('app.footer'),
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 9.5,

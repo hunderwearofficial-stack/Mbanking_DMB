@@ -92,12 +92,12 @@ var Fields = []Field{
 		Help: "Kosong = logo bawaan aplikasi. PNG/JPG/WebP maks. 5 MB."},
 	{Key: "app.announcement", Page: "umum", Group: "Pengumuman", Label: "Teks pengumuman", Used: "Login, Beranda", Type: TypeMultiline, Max: 300,
 		Help: "Kosong = pengumuman tidak ditampilkan."},
+	{Key: "app.footer", Page: "umum", Group: "Footer", Label: "Teks footer / regulator (OJK & LPS)", Used: "Splash, Login, Aktivasi, Lupa & Reset Password", Type: TypeMultiline, Max: 300, Required: true,
+		Help:    "Tampil di bagian bawah layar Splash, Login, Aktivasi, Lupa & Reset Password.",
+		Default: "PT BPR Dana Mandiri Bogor berizin dan diawasi oleh Otoritas Jasa Keuangan (OJK) serta merupakan peserta penjaminan Lembaga Penjamin Simpanan (LPS)."},
 
 	{Key: "splash.tagline", Page: "splash", Group: "Teks", Label: "Tagline", Used: "SplashScreen", Type: TypeText, Max: 120, Required: true,
 		Default: "Sahabat Finansial Terpercaya Anda"},
-	{Key: "splash.disclaimer", Page: "splash", Group: "Teks", Label: "Pernyataan regulator (OJK/LPS)", Used: "SplashScreen", Type: TypeMultiline, Max: 300, Required: true,
-		Help:    "Wajib sesuai status izin resmi bank (ditinjau Kepatuhan).",
-		Default: "PT BPR Dana Mandiri Bogor berizin dan diawasi oleh Otoritas Jasa Keuangan (OJK) serta merupakan peserta penjaminan Lembaga Penjamin Simpanan (LPS)."},
 
 	{Key: "onboarding.background", Page: "onboarding", Group: "Gambar", Label: "Foto latar onboarding", Used: "OnboardingScreen", Type: TypeImage, Max: 300,
 		Help:    "Foto 9:16 dari server. PNG/JPG/WebP maks. 5 MB.",
@@ -130,8 +130,6 @@ var Fields = []Field{
 		Default: "Selamat datang"},
 	{Key: "login.subtitle", Page: "login", Group: "Kartu Masuk", Label: "Subjudul", Used: "LoginScreen", Type: TypeMultiline, Max: 150, Required: true,
 		Default: "Masuk ke akun DMB Anda"},
-	{Key: "login.footer", Page: "login", Group: "Kartu Masuk", Label: "Teks bawah", Used: "LoginScreen", Type: TypeText, Max: 120, Required: true,
-		Default: "PT BPR Dana Mandiri Bogor berizin dan diawasi OJK serta peserta LPS."},
 
 	{Key: "home.greeting_title", Page: "home", Group: "Sapaan", Label: "Sapaan", Used: "HomeScreen", Type: TypeText, Max: 40, Required: true,
 		Default: "Selamat datang,"},
