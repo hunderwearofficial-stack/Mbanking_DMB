@@ -52,7 +52,7 @@ class AppContent {
     'home.banner1_tag': ContentSpec(ContentType.text, 'UNTUK ANDA'),
     'home.banner1_title': ContentSpec(ContentType.text, 'DMB Mobile'),
     'home.banner1_subtitle': ContentSpec(ContentType.text, 'Lebih Mudah, Lebih Dekat dengan Anda'),
-    'home.banner1_image': ContentSpec(ContentType.image, ''),
+    'home.banner1_image': ContentSpec(ContentType.image, '/admin/uploads/home_promo_plant.jpg'),
     'home.banner1_action': ContentSpec(ContentType.action, 'profil'),
     'home.banner2_visible': ContentSpec(ContentType.flag, 'true'),
     'home.banner2_tag': ContentSpec(ContentType.text, 'INFO PRODUK'),

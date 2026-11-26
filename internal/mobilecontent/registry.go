@@ -158,7 +158,8 @@ func init() {
 			Field{Key: "home.banner" + n + "_title", Page: "home", Group: g, Label: "Judul", Used: "HomeScreen (Info untuk Anda)", Type: TypeText, Max: 60, Required: true, Default: d[1]},
 			Field{Key: "home.banner" + n + "_subtitle", Page: "home", Group: g, Label: "Subjudul", Used: "HomeScreen (Info untuk Anda)", Type: TypeText, Max: 100, Required: true, Default: d[2]},
 			Field{Key: "home.banner" + n + "_image", Page: "home", Group: g, Label: "Gambar latar (opsional)", Used: "HomeScreen (Info untuk Anda)", Type: TypeImage, Max: 300,
-				Help: "Kosong = kartu warna pastel resmi aplikasi."},
+				Default: map[string]string{"1": "/admin/uploads/home_promo_plant.jpg"}[n],
+				Help:    "Kosong = kartu warna biru lembut resmi aplikasi. Ideal 1080x380 px (rasio 2,8:1)."},
 			Field{Key: "home.banner" + n + "_action", Page: "home", Group: g, Label: "Aksi saat diketuk", Used: "HomeScreen (Info untuk Anda)", Type: TypeEnum, Max: 20, Required: true,
 				Default: d[3], Options: bannerActions, Help: "Hanya tujuan yang sudah ada di aplikasi."},
 		)

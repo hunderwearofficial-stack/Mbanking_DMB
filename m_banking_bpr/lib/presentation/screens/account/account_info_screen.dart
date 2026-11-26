@@ -15,6 +15,7 @@ import '../../blocs/auth/auth_cubit.dart';
 import '../../blocs/auth/auth_state.dart';
 import '../../widgets/app_validation_feedback.dart';
 import '../../widgets/auth_ui_kit.dart';
+import '../mutation/mutation_screen.dart';
 
 class AccountInfoScreen extends StatefulWidget {
   final bool isTab;
@@ -286,11 +287,18 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
             .toString()
             .trim();
         final saldo = Money.tryParse(item['saldo'] ?? item['saldo_akhir']);
+        final statusCode = int.tryParse((item['status_rekening'] ?? '1').toString()) ?? 1;
+        final statusText = (item['status_rekening_keterangan'] ?? '').toString().trim();
+        final isActive = statusCode == 1 ||
+            statusText.toLowerCase() == 'aktif' ||
+            (statusText.isEmpty && statusCode != 4);
         if (noRek.isNotEmpty && noRek != '-') {
           parsedAccounts.add({
             'no_rek': noRek,
             'jenis': prod.isEmpty || prod == 'null' ? 'Tabungan Bank DMB' : prod,
             'saldo': saldo,
+            'is_active': isActive,
+            'status_label': statusText.isNotEmpty ? statusText.toUpperCase() : (isActive ? 'AKTIF' : 'PASIF'),
           });
         }
       }
@@ -303,7 +311,23 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
             ? activeAccount.accountType
             : 'Tabungan Bank DMB',
         'saldo': activeAccount.balance,
+        'is_active': true,
+        'status_label': 'AKTIF',
       });
+    }
+
+    final String primaryAccountNo = activeAccount?.accountNumber ?? '';
+    final bool isBalanceVisible = accountState is AccountLoaded
+        ? accountState.isBalanceVisible
+        : context.read<AccountCubit>().isBalanceVisible;
+    Money totalBalance = Money.zero();
+    bool hasAnyBalance = false;
+    for (final acc in parsedAccounts) {
+      final s = acc['saldo'];
+      if (s is Money) {
+        totalBalance = totalBalance + s;
+        hasAnyBalance = true;
+      }
     }
 
     return AuthSwooshCanvas(
@@ -437,81 +461,373 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
                       ),
                     ],
 
+                    // Summary Total Saldo & CIF Card (Livin'-style header card)
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: AuthUiTokens.deepCobalt,
-                        borderRadius: BorderRadius.circular(20),
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFF033172), Color(0xFF0550A6)],
+                        ),
+                        borderRadius: BorderRadius.circular(22),
                         boxShadow: [
                           BoxShadow(
-                            color: AuthUiTokens.deepCobalt.withOpacity(0.22),
+                            color: AuthUiTokens.deepCobalt.withOpacity(0.24),
                             blurRadius: 18,
                             offset: const Offset(0, 8),
                           ),
                         ],
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                'Nomor CIF Nasabah',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.white.withOpacity(0.85),
-                                ),
+                              Row(
+                                children: [
+                                  Text(
+                                    'Total Saldo (${parsedAccounts.length} Rekening)',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white.withOpacity(0.84),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  GestureDetector(
+                                    onTap: () => context.read<AccountCubit>().toggleBalanceVisibility(),
+                                    child: Icon(
+                                      isBalanceVisible
+                                          ? Icons.visibility_outlined
+                                          : Icons.visibility_off_outlined,
+                                      size: 17,
+                                      color: Colors.white.withOpacity(0.88),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 3),
-                              Text(
-                                _isDataMasked ? _maskCIF(cif) : cif,
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white,
-                                  letterSpacing: 0.5,
+                              if (cif != '-' && cif.isNotEmpty)
+                                InkWell(
+                                  onTap: () {
+                                    Clipboard.setData(ClipboardData(text: cif));
+                                    _showToast('Nomor CIF disalin: $cif');
+                                  },
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.16),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(color: Colors.white.withOpacity(0.24)),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.copy_rounded, color: Colors.white, size: 12),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'CIF ${_isDataMasked ? _maskCIF(cif) : cif}',
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
-                              ),
                             ],
                           ),
-                          if (cif != '-' && cif.isNotEmpty)
-                            InkWell(
-                              onTap: () {
-                                Clipboard.setData(ClipboardData(text: cif));
-                                _showToast('Nomor CIF disalin: $cif');
-                              },
-                              borderRadius: BorderRadius.circular(10),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.20),
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: Colors.white.withOpacity(0.35)),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.copy_rounded, color: Colors.white, size: 14),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      'Salin CIF',
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                          const SizedBox(height: 8),
+                          Text(
+                            !hasAnyBalance
+                                ? 'Saldo belum tersedia'
+                                : isBalanceVisible
+                                    ? CurrencyFormatter.formatRupiah(totalBalance)
+                                    : 'Rp ••••••••',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: -0.4,
                             ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Pilih rekening aktif sebagai Rekening Utama di Beranda.',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11.5,
+                              color: Colors.white.withOpacity(0.76),
+                            ),
+                          ),
                         ],
                       ),
                     ),
 
                     const SizedBox(height: 22),
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Daftar Rekening Tabungan',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: titleDark,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryLight,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            '${parsedAccounts.length} Kartu',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: royalBlue,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    if (parsedAccounts.isEmpty)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: borderLight),
+                        ),
+                        child: Center(
+                          child: Text(
+                            'Belum ada data rekening tabungan yang dapat ditampilkan.',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.plusJakartaSans(fontSize: 13, color: textMuted),
+                          ),
+                        ),
+                      )
+                    else
+                      ...parsedAccounts.map((map) {
+                        final noRek = map['no_rek']?.toString() ?? '-';
+                        final canCopyRek = noRek.isNotEmpty && noRek != '-';
+                        final saldo = map['saldo'] is Money ? map['saldo'] as Money : null;
+                        final type = map['jenis']?.toString() ?? 'Tabungan Bank DMB';
+                        final isActive = map['is_active'] == true;
+                        final statusLabel = map['status_label']?.toString() ?? (isActive ? 'AKTIF' : 'PASIF');
+                        final isPrimary = primaryAccountNo.isNotEmpty && noRek == primaryAccountNo;
+
+                        return GestureDetector(
+                          onTap: canCopyRek
+                              ? () => _showAccountDetailSheet(
+                                    context,
+                                    accountNumber: noRek,
+                                    productName: type,
+                                    isActive: isActive,
+                                    isPrimary: isPrimary,
+                                    fallbackSaldo: saldo,
+                                  )
+                              : null,
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: isPrimary ? const Color(0xFFF6FAFF) : Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: isPrimary ? AuthUiTokens.royalBlue : const Color(0xFFE5ECF5),
+                                width: isPrimary ? 1.8 : 1.0,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: (isPrimary ? AuthUiTokens.royalBlue : Colors.black)
+                                      .withOpacity(isPrimary ? 0.08 : 0.03),
+                                  blurRadius: 14,
+                                  offset: const Offset(0, 5),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      color: isPrimary ? AuthUiTokens.deepCobalt : AuthUiTokens.softBlueBg,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Icon(
+                                      Icons.credit_card_rounded,
+                                      color: isPrimary ? Colors.white : AuthUiTokens.deepCobalt,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          type,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w800,
+                                            color: AuthUiTokens.titleDark,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        InkWell(
+                                          onTap: canCopyRek
+                                              ? () {
+                                                  Clipboard.setData(ClipboardData(text: noRek));
+                                                  _showToast('Nomor rekening disalin: $noRek');
+                                                }
+                                              : null,
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                noRek,
+                                                style: GoogleFonts.plusJakartaSans(
+                                                  fontSize: 12.5,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: textMuted,
+                                                  letterSpacing: 0.4,
+                                                ),
+                                              ),
+                                              if (canCopyRek) ...[
+                                                const SizedBox(width: 5),
+                                                const Icon(Icons.copy_rounded, size: 12.5, color: royalBlue),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: isActive ? const Color(0xFFE6F7F1) : const Color(0xFFFEF3C7),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      statusLabel,
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: isActive ? const Color(0xFF0F9D76) : const Color(0xFFB45309),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 12),
+                                child: Divider(height: 1, color: Color(0xFFEFF4FA)),
+                              ),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Saldo Tersedia',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 10.5,
+                                          color: textMuted,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        saldo == null
+                                            ? '-'
+                                            : isBalanceVisible
+                                                ? CurrencyFormatter.formatRupiah(saldo)
+                                                : 'Rp ••••••••',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 15.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: const Color(0xFF0A2A66),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (isPrimary)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: AuthUiTokens.deepCobalt,
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.check_circle_rounded, color: Color(0xFF00E5FF), size: 14),
+                                          const SizedBox(width: 5),
+                                          Text(
+                                            'Rekening Utama',
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    )
+                                  else if (isActive && canCopyRek)
+                                    OutlinedButton(
+                                      onPressed: () async {
+                                        await context.read<AccountCubit>().setPrimaryAccount(noRek);
+                                        if (!context.mounted) return;
+                                        _showToast('Rekening utama diubah ke $noRek');
+                                      },
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: AuthUiTokens.deepCobalt,
+                                        side: const BorderSide(color: AuthUiTokens.royalBlue),
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                        minimumSize: const Size(0, 32),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        'Jadikan Utama',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          ),
+                        );
+                      }),
+
+                    const SizedBox(height: 14),
 
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -608,210 +924,7 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 24),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Portofolio Rekening Tabungan',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w800,
-                            color: titleDark,
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryLight,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            '${parsedAccounts.length} Rekening',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: royalBlue,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-
-                    if (parsedAccounts.isEmpty)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: borderLight),
-                        ),
-                        child: Center(
-                          child: Text(
-                            'Belum ada data rekening tabungan yang dapat ditampilkan.',
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.plusJakartaSans(fontSize: 13, color: textMuted),
-                          ),
-                        ),
-                      )
-                    else
-                      ...parsedAccounts.map((map) {
-                        final noRek = map['no_rek']?.toString() ?? '-';
-                        final canCopyRek = noRek.isNotEmpty && noRek != '-';
-                        final saldo = map['saldo'] is Money ? map['saldo'] as Money : null;
-                        final type = map['jenis']?.toString() ?? 'Tabungan Bank DMB';
-
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.all(18),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: const Color(0xFFE8EEF6)),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AuthUiTokens.royalBlue.withOpacity(0.05),
-                                blurRadius: 14,
-                                offset: const Offset(0, 5),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          width: 42,
-                                          height: 42,
-                                          decoration: const BoxDecoration(
-                                            color: AuthUiTokens.softBlueBg,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: const Icon(
-                                            Icons.account_balance_wallet_rounded,
-                                            color: AuthUiTokens.deepCobalt,
-                                            size: 20,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Text(
-                                            type,
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: GoogleFonts.plusJakartaSans(
-                                              fontSize: 14.5,
-                                              fontWeight: FontWeight.w800,
-                                              color: AuthUiTokens.titleDark,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFE6F7F1),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      'AKTIF',
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w800,
-                                        color: const Color(0xFF0F9D76),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 12),
-                                child: Divider(height: 1, color: Color(0xFFF1F5F9)),
-                              ),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'No. Rekening',
-                                        style: GoogleFonts.plusJakartaSans(
-                                          fontSize: 11,
-                                          color: textMuted,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      InkWell(
-                                        onTap: canCopyRek
-                                            ? () {
-                                                Clipboard.setData(ClipboardData(text: noRek));
-                                                _showToast('Nomor rekening disalin: $noRek');
-                                              }
-                                            : null,
-                                        child: Row(
-                                          children: [
-                                            Text(
-                                              noRek,
-                                              style: GoogleFonts.plusJakartaSans(
-                                                fontSize: 13.5,
-                                                fontWeight: FontWeight.w800,
-                                                color: const Color(0xFF0A2A66),
-                                                letterSpacing: 0.3,
-                                              ),
-                                            ),
-                                            if (canCopyRek) ...[
-                                              const SizedBox(width: 6),
-                                              const Icon(Icons.copy_rounded, color: Color(0xFF0D3882), size: 14),
-                                            ],
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text(
-                                        'Saldo Tersedia',
-                                        style: GoogleFonts.plusJakartaSans(
-                                          fontSize: 11,
-                                          color: textMuted,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        CurrencyFormatter.formatRupiah(saldo),
-                                        style: GoogleFonts.plusJakartaSans(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w900,
-                                          color: const Color(0xFF0A2A66),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
-
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
 
                     Container(
                       padding: const EdgeInsets.all(14),
@@ -840,6 +953,312 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
             ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _showAccountDetailSheet(
+    BuildContext context, {
+    required String accountNumber,
+    required String productName,
+    required bool isActive,
+    required bool isPrimary,
+    Money? fallbackSaldo,
+  }) {
+    final accountRepo = context.read<AccountCubit>().accountRepository;
+    final Future<AccountModel> detailFuture =
+        accountRepo.getBalance(accountNumber: accountNumber);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => SafeArea(
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: FutureBuilder<AccountModel>(
+            future: detailFuture,
+            builder: (ctx, snap) {
+              final detail = snap.data;
+              final isLoading = snap.connectionState == ConnectionState.waiting;
+              final statusLabel = (detail?.status.trim().isNotEmpty ?? false)
+                  ? detail!.status.toUpperCase()
+                  : (isActive ? 'AKTIF' : 'PASIF');
+              final activeFlag = detail != null
+                  ? statusLabel != 'PASIF'
+                  : isActive;
+
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: borderLight,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: AuthUiTokens.deepCobalt,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Icon(
+                          Icons.account_balance_wallet_rounded,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              detail?.accountType.isNotEmpty == true
+                                  ? detail!.accountType
+                                  : productName,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: titleDark,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              accountNumber,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: textMuted,
+                                letterSpacing: 0.4,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: activeFlag ? const Color(0xFFE6F7F1) : const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          statusLabel,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: activeFlag ? const Color(0xFF0F9D76) : const Color(0xFFB45309),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  if (isLoading)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 28),
+                      child: Center(
+                        child: CircularProgressIndicator(color: AuthUiTokens.deepCobalt),
+                      ),
+                    )
+                  else ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFF033172), Color(0xFF0550A6)],
+                        ),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Saldo Efektif',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11.5,
+                              color: Colors.white.withOpacity(0.8),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            CurrencyFormatter.formatRupiah(
+                              detail?.effectiveBalance ?? detail?.balance ?? fallbackSaldo ?? Money.zero(),
+                            ),
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Saldo Rekening',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 10.5,
+                                        color: Colors.white.withOpacity(0.75),
+                                      ),
+                                    ),
+                                    Text(
+                                      CurrencyFormatter.formatRupiah(
+                                        detail?.balance ?? fallbackSaldo ?? Money.zero(),
+                                      ),
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      'Saldo Blokir',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 10.5,
+                                        color: Colors.white.withOpacity(0.75),
+                                      ),
+                                    ),
+                                    Text(
+                                      CurrencyFormatter.formatRupiah(
+                                        detail?.blockedBalance ?? Money.zero(),
+                                      ),
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: const Color(0xFF00E5FF),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: bgCanvas,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFE5ECF5)),
+                      ),
+                      child: Column(
+                        children: [
+                          if (detail?.holderName.isNotEmpty == true) ...[
+                            _buildDetailRow(
+                              icon: Icons.person_outline_rounded,
+                              label: 'Nama Pemilik',
+                              value: detail!.holderName,
+                            ),
+                            const Divider(height: 16, color: Color(0xFFE2E8F0)),
+                          ],
+                          _buildDetailRow(
+                            icon: Icons.calendar_today_outlined,
+                            label: 'Tanggal Buka',
+                            value: (detail?.openedDate.isNotEmpty == true)
+                                ? detail!.openedDate
+                                : '-',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.of(sheetCtx).pop();
+                            Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => const MutationScreen()),
+                            );
+                          },
+                          icon: const Icon(Icons.receipt_long_rounded, size: 17),
+                          label: Text(
+                            'Mutasi',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AuthUiTokens.deepCobalt,
+                            side: const BorderSide(color: AuthUiTokens.royalBlue),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(24),
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (activeFlag && !isPrimary) ...[
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              Navigator.of(sheetCtx).pop();
+                              await context.read<AccountCubit>().setPrimaryAccount(accountNumber);
+                              if (!context.mounted) return;
+                              _showToast('Rekening utama diubah ke $accountNumber');
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AuthUiTokens.deepCobalt,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                            ),
+                            child: Text(
+                              'Jadikan Utama',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );

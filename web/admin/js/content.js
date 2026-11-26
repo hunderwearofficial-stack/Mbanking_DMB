@@ -530,79 +530,82 @@ function renderMobileMockupPreview() {
     return;
   }
 
-  // Default / 'home' / 'umum': Beranda + Info untuk Anda + Menu Utama preview
+  // Default / 'home' / 'umum': Beranda preview matching current HomeScreen
   const greetTitle = v['home.greeting_title'] || 'Selamat datang,';
   const greetSub = v['home.greeting_subtitle'] || 'Semoga harimu lancar.';
   const greetNote = v['home.greeting_note'] || '';
-  const infoTitle = v['home.info_section_title'] || 'Info untuk Anda';
-  const cardBgPalette = ['bg-[#DCFCE7]', 'bg-[#E0E7FF]', 'bg-[#E0F2FE]'];
-  const cardTagPalette = ['text-emerald-700', 'text-indigo-700', 'text-sky-700'];
   const banners = [1, 2, 3].map(n => ({
     n,
     visible: v[`home.banner${n}_visible`] !== 'false',
     tag: v[`home.banner${n}_tag`] || 'INFO',
     title: v[`home.banner${n}_title`] || `Banner ${n}`,
     subtitle: v[`home.banner${n}_subtitle`] || '',
-    image: v[`home.banner${n}_image`] || '',
+    image: v[`home.banner${n}_image`] ?? (n === 1 ? '/admin/uploads/home_promo_plant.jpg' : ''),
     action: v[`home.banner${n}_action`] || 'none'
   })).filter(b => b.visible);
+  const firstBanner = banners[0] || null;
 
   container.innerHTML = `
-    <div class="h-full flex flex-col justify-between bg-[#F6F6F2] text-slate-800 overflow-y-auto relative">
+    <div class="h-full flex flex-col justify-between bg-[#F4F7FB] text-slate-800 overflow-y-auto relative">
       <div class="p-3 space-y-2.5 flex-1">
         <div class="flex items-center justify-between">
-          <span class="text-[8.5px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">🛡 Koneksi aman</span>
-          <span class="w-6 h-6 rounded-full bg-white shadow-xs flex items-center justify-center text-[10px]">🎧</span>
+          <img src="${esc(logoUrl)}" alt="Logo" class="h-6 object-contain" onerror="this.style.display='none'">
+          <span class="text-[8px] bg-white border border-slate-200 text-[#0550A6] px-2 py-0.5 rounded-full font-bold shadow-2xs">🛡 Terlindungi</span>
         </div>
         <div>
           <div class="text-[9px] text-slate-500">${esc(greetTitle)}</div>
-          <div class="text-[13px] font-extrabold text-slate-900 leading-tight">Ibu Siti Aminah</div>
+          <div class="text-[13px] font-extrabold text-[#0A1628] leading-tight">Ibu Siti Aminah</div>
           <div class="text-[8.5px] text-slate-500">${esc(greetSub)}</div>
           ${greetNote ? `<div class="text-[8px] text-slate-400">${esc(greetNote)}</div>` : ''}
         </div>
-        <div class="p-3 rounded-2xl bg-[#0A2A66] text-white space-y-2 shadow-sm">
+        <div class="p-3 rounded-2xl bg-gradient-to-br from-[#033172] to-[#0550A6] text-white space-y-2 shadow-sm">
           <div class="flex items-center justify-between">
             <div>
-              <div class="text-[8px] text-white/70">Rekening Utama</div>
-              <div class="text-[11px] font-extrabold tracking-wide">1234 5678 90</div>
+              <div class="text-[7.5px] text-sky-200 uppercase font-bold">Dana Mandiri</div>
+              <div class="text-[10px] font-bold tracking-wide">•••• •••• •••• 3653</div>
             </div>
-            <span class="px-2 py-0.5 rounded-full bg-white text-[#0A2A66] text-[8px] font-bold">Salin</span>
+            <span class="px-2 py-0.5 rounded-full bg-white/15 text-white text-[7.5px] font-bold">Salin</span>
           </div>
           <div class="flex items-end justify-between">
             <div>
-              <div class="text-[7.5px] text-white/70">Saldo Tersedia</div>
+              <div class="text-[7.5px] text-white/75">Saldo Tersedia</div>
               <div class="text-[12px] font-black">Rp ••••••••</div>
             </div>
-            <span class="px-2 py-0.5 rounded-full bg-emerald-400 text-[#064E3B] text-[8px] font-bold">👁 Lihat</span>
+            <span class="px-2 py-0.5 rounded-full bg-[#00E5FF] text-[#033172] text-[7.5px] font-bold">👁 Lihat</span>
           </div>
         </div>
         ${announceHtml}
-        <div class="pt-1">
-          <span class="text-[10px] font-extrabold text-slate-900">${esc(infoTitle)}</span>
-        </div>
-        <div class="space-y-1.5">
-          ${banners.length ? banners.map((b, idx) => `
-            <div class="rounded-xl overflow-hidden ${b.image ? 'bg-white border border-slate-200' : cardBgPalette[idx % 3]} p-2.5 relative">
-              ${b.image ? `<img src="${esc(b.image)}" alt="" class="w-full h-12 object-cover rounded-lg mb-1.5">` : ''}
-              <span class="inline-block px-1.5 py-0.5 rounded-full bg-white text-[7px] font-extrabold ${cardTagPalette[idx % 3]} uppercase">${esc(b.tag)}</span>
-              <div class="text-[9.5px] font-extrabold text-slate-900 leading-tight mt-1">${esc(b.title)}</div>
-              <div class="text-[8px] text-slate-600 truncate">${esc(b.subtitle)}</div>
+        ${firstBanner ? `
+          <div class="rounded-2xl overflow-hidden relative h-20 shadow-xs ${firstBanner.image ? 'bg-[#033172] text-white' : 'bg-gradient-to-r from-[#EAF3FE] to-[#DCEBFE] border border-[#D6E6FA] text-[#0A1628]'}">
+            ${firstBanner.image ? `<img src="${esc(firstBanner.image)}" alt="" class="absolute inset-0 w-full h-full object-cover object-right">` : ''}
+            ${firstBanner.image ? `<div class="absolute inset-0" style="background: linear-gradient(90deg, #033172 0%, rgba(3,49,114,0.86) 44%, rgba(3,49,114,0) 72%);"></div>` : ''}
+            <div class="relative z-10 h-full p-2.5 pr-14 flex flex-col justify-between">
+              <div class="text-[9.5px] font-extrabold leading-snug line-clamp-2">${esc(firstBanner.title)}</div>
+              <div>
+                <span class="inline-block px-2 py-0.5 rounded-full text-[7.5px] font-bold ${firstBanner.image ? 'bg-white text-[#033172]' : 'bg-[#033172] text-white'}">Pelajari</span>
+              </div>
             </div>
-          `).join('') : '<div class="text-[9px] text-slate-400 italic">Semua kartu info disembunyikan</div>'}
+          </div>
+        ` : '<div class="text-[9px] text-slate-400 italic">Semua banner promo disembunyikan</div>'}
+        <div class="grid grid-cols-4 gap-1.5 pt-1 text-center">
+          <div class="p-1.5 rounded-xl bg-white border border-slate-100 text-[7.5px] font-bold text-[#0A1628]">Mutasi</div>
+          <div class="p-1.5 rounded-xl bg-white border border-slate-100 text-[7.5px] font-bold text-[#0A1628]">Deposito</div>
+          <div class="p-1.5 rounded-xl bg-white border border-slate-100 text-[7.5px] font-bold text-[#0A1628]">Pinjaman</div>
+          <div class="p-1.5 rounded-xl bg-white border border-slate-100 text-[7.5px] font-bold text-[#0A1628]">Produk</div>
         </div>
-        <div class="text-[10px] font-extrabold text-slate-900 pt-1">Menu Utama</div>
-        <div class="grid grid-cols-2 gap-1.5 pb-10">
-          <div class="p-2 rounded-xl bg-white border border-slate-100 text-[8.5px] font-bold text-slate-800">Mutasi Tabungan</div>
-          <div class="p-2 rounded-xl bg-white border border-slate-100 text-[8.5px] font-bold text-slate-800">Fasilitas Pinjaman</div>
-          <div class="p-2 rounded-xl bg-white border border-slate-100 text-[8.5px] font-bold text-slate-800">Portofolio Deposito</div>
-          <div class="p-2 rounded-xl bg-white border border-slate-100 text-[8.5px] font-bold text-slate-800">Katalog Produk</div>
+        <div class="p-2.5 rounded-xl bg-white border border-slate-100 space-y-1">
+          <div class="text-[8.5px] font-extrabold text-[#0A1628]">Aktivitas Terakhir</div>
+          <div class="flex items-center justify-between text-[7.5px] text-slate-500">
+            <span>Setoran Tabungan</span>
+            <span class="font-bold text-emerald-600">+Rp 500.000</span>
+          </div>
         </div>
       </div>
-      <div class="mx-2 mb-2 px-2 py-1.5 rounded-full bg-[#0A2A66] text-white flex items-center justify-around text-[8px] font-bold shadow-md">
+      <div class="mx-2 mb-2 px-2 py-1.5 rounded-full bg-[#033172] text-white flex items-center justify-around text-[7.5px] font-bold shadow-md">
         <span class="bg-white/15 px-2 py-0.5 rounded-full">Beranda</span>
-        <span class="text-white/75">Riwayat</span>
+        <span class="text-white/75">Mutasi</span>
         <span class="text-white/75">Notifikasi</span>
-        <span class="text-white/75">Akun saya</span>
+        <span class="text-white/75">Akun Saya</span>
       </div>
     </div>`;
 }

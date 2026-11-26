@@ -20,6 +20,7 @@ type BalanceResponse struct {
 	BlockedBalance   money.Amount `json:"blocked_balance"`
 	EffectiveBalance money.Amount `json:"effective_balance"`
 	Status           string       `json:"status"`
+	OpenedDate       string       `json:"opened_date,omitempty"`
 	CBSRefID         string       `json:"cbs_ref_id,omitempty"`
 	UpdatedAt        time.Time    `json:"updated_at"`
 }

@@ -89,9 +89,11 @@ type cbsBalanceData struct {
 	ProdukTabungan           string       `json:"produk_tabungan"` // fallback
 	StatusRekening           int          `json:"status_rekening"`
 	StatusRekeningKeterangan string       `json:"status_rekening_keterangan"`
+	TanggalBuka              string       `json:"tanggal_buka"`
 	Saldo                    money.Amount `json:"saldo"`
 	SaldoMinimum             money.Amount `json:"saldo_minimum"`
 	SaldoTertahan            money.Amount `json:"saldo_tertahan"`
+	SaldoBlokir              money.Amount `json:"saldo_blokir"`
 	SaldoEfektif             money.Amount `json:"saldo_efektif"`
 }
 
@@ -660,6 +662,18 @@ func (p *OpenAPICBSProvider) GetBalance(ctx context.Context, accountNo string) (
 				prodCode = balData.ProdukTabungan
 			}
 			productName := p.resolveProductName(prodCode, balData.NamaProduk)
+			blocked := balData.SaldoBlokir
+			if blocked == 0 {
+				blocked = balData.SaldoTertahan
+			}
+			statusStr := strings.TrimSpace(balData.StatusRekeningKeterangan)
+			if statusStr == "" {
+				if balData.StatusRekening == 4 {
+					statusStr = "Pasif"
+				} else {
+					statusStr = model.AccountStatusActive
+				}
+			}
 			now := time.Now()
 
 			if p.db != nil {
@@ -671,7 +685,7 @@ func (p *OpenAPICBSProvider) GetBalance(ctx context.Context, accountNo string) (
 						"account_type":      productName,
 						"balance":           balData.Saldo,
 						"minimum_balance":   balData.SaldoMinimum,
-						"blocked_balance":   balData.SaldoTertahan,
+						"blocked_balance":   blocked,
 						"effective_balance": balData.SaldoEfektif,
 						"updated_at":        now,
 					}).Error; err != nil {
@@ -689,9 +703,10 @@ func (p *OpenAPICBSProvider) GetBalance(ctx context.Context, accountNo string) (
 				AccountType:      productName,
 				Balance:          balData.Saldo,
 				MinimumBalance:   balData.SaldoMinimum,
-				BlockedBalance:   balData.SaldoTertahan,
+				BlockedBalance:   blocked,
 				EffectiveBalance: balData.SaldoEfektif,
-				Status:           model.AccountStatusActive,
+				Status:           statusStr,
+				OpenedDate:       strings.TrimSpace(balData.TanggalBuka),
 				CBSRefID:         env.RefID,
 				UpdatedAt:        now,
 			}, nil

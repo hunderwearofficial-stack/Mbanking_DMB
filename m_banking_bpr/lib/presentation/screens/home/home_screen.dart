@@ -239,12 +239,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    Image.asset(
-                      'assets/images/home_header_landmark.jpg',
-                      fit: BoxFit.cover,
-                      alignment: Alignment.topRight,
+                    Opacity(
+                      opacity: 0.38,
+                      child: Image.asset(
+                        'assets/images/home_header_landmark.jpg',
+                        fit: BoxFit.cover,
+                        alignment: Alignment.topRight,
+                      ),
                     ),
-                    // Soft left-only fade into #F4F7FB so the Tugu landmark & trees on the right stay crisp
+                    // Soft left-only fade into #F4F7FB so greeting text stays crisp and readable
                     DecoratedBox(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
@@ -252,10 +255,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           end: Alignment.centerRight,
                           colors: [
                             canvasBg,
-                            canvasBg.withOpacity(0.65),
-                            canvasBg.withOpacity(0.0),
+                            canvasBg.withOpacity(0.75),
+                            canvasBg.withOpacity(0.15),
                           ],
-                          stops: const [0.0, 0.26, 0.54],
+                          stops: const [0.0, 0.42, 0.78],
                         ),
                       ),
                     ),
@@ -698,111 +701,150 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 18, 20),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
+                  padding: const EdgeInsets.fromLTRB(20, 18, 18, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Saldo Rekening Utama',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.white.withOpacity(0.84),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                onTap: onToggleVisibility,
+                                child: Icon(
+                                  isBalanceVisible
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
+                                  color: Colors.white.withOpacity(0.85),
+                                  size: 17,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.16),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.22),
+                              ),
+                            ),
+                            child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  'Saldo Rekening Utama',
+                                  'Lihat Semua',
                                   style: TextStyle(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.white.withOpacity(0.84),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
                                   ),
                                 ),
-                                const SizedBox(width: 8),
+                                SizedBox(width: 2),
+                                Icon(
+                                  Icons.chevron_right_rounded,
+                                  size: 14,
+                                  color: Colors.white,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  balance == null
+                                      ? 'Saldo belum tersedia'
+                                      : isBalanceVisible
+                                          ? CurrencyFormatter.formatRupiah(balance)
+                                          : 'Rp ••••••••',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: balance == null ? 16 : 25,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                    letterSpacing: -0.4,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
                                 GestureDetector(
-                                  onTap: onToggleVisibility,
-                                  child: Icon(
-                                    isBalanceVisible
-                                        ? Icons.visibility_outlined
-                                        : Icons.visibility_off_outlined,
-                                    color: Colors.white.withOpacity(0.85),
-                                    size: 17,
+                                  onTap: canCopy
+                                      ? () {
+                                          Clipboard.setData(ClipboardData(text: rawAccountNo));
+                                          _showToast('Nomor rekening disalin: $rawAccountNo');
+                                        }
+                                      : null,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.credit_card_rounded,
+                                        color: Color(0xFF00E5FF),
+                                        size: 14,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Flexible(
+                                        child: Text(
+                                          accountNoFormatted,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white.withOpacity(0.86),
+                                            letterSpacing: 0.3,
+                                          ),
+                                        ),
+                                      ),
+                                      if (canCopy) ...[
+                                        const SizedBox(width: 6),
+                                        Icon(
+                                          Icons.copy_rounded,
+                                          color: Colors.white.withOpacity(0.68),
+                                          size: 13,
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              balance == null
-                                  ? 'Saldo belum tersedia'
-                                  : isBalanceVisible
-                                      ? CurrencyFormatter.formatRupiah(balance)
-                                      : 'Rp ••••••••',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: balance == null ? 16 : 25,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                                letterSpacing: -0.4,
-                              ),
+                          ),
+                          const SizedBox(width: 12),
+                          Container(
+                            width: 38,
+                            height: 38,
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
                             ),
-                            const SizedBox(height: 8),
-                            GestureDetector(
-                              onTap: canCopy
-                                  ? () {
-                                      Clipboard.setData(ClipboardData(text: rawAccountNo));
-                                      _showToast('Nomor rekening disalin: $rawAccountNo');
-                                    }
-                                  : null,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.credit_card_rounded,
-                                    color: const Color(0xFF00E5FF),
-                                    size: 14,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Flexible(
-                                    child: Text(
-                                      accountNoFormatted,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white.withOpacity(0.86),
-                                        letterSpacing: 0.3,
-                                      ),
-                                    ),
-                                  ),
-                                  if (canCopy) ...[
-                                    const SizedBox(width: 6),
-                                    Icon(
-                                      Icons.copy_rounded,
-                                      color: Colors.white.withOpacity(0.68),
-                                      size: 13,
-                                    ),
-                                  ],
-                                ],
-                              ),
+                            child: const Icon(
+                              Icons.arrow_forward_rounded,
+                              color: deepCobalt,
+                              size: 19,
                             ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.arrow_forward_rounded,
-                          color: deepCobalt,
-                          size: 20,
-                        ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -903,10 +945,14 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                         ] else
-                          Image.asset(
-                            'assets/images/home_promo_plant.jpg',
-                            fit: BoxFit.cover,
-                            alignment: Alignment.centerRight,
+                          const DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [Color(0xFFEAF3FE), Color(0xFFDCEBFE)],
+                              ),
+                            ),
                           ),
                         Padding(
                           padding: const EdgeInsets.fromLTRB(18, 16, 128, 16),

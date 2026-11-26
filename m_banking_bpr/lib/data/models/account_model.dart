@@ -10,6 +10,7 @@ class AccountModel {
   final Money? blockedBalance;
   final Money? effectiveBalance;
   final String status;
+  final String openedDate;
   final String? cbsRefId;
   final String? updatedAt;
 
@@ -23,6 +24,7 @@ class AccountModel {
     this.blockedBalance,
     this.effectiveBalance,
     required this.status,
+    this.openedDate = '',
     this.cbsRefId,
     this.updatedAt,
   });
@@ -39,6 +41,7 @@ class AccountModel {
       blockedBalance: Money.tryParse(json['blocked_balance']),
       effectiveBalance: Money.tryParse(json['effective_balance']),
       status: (json['status'] ?? '').toString(),
+      openedDate: (json['opened_date'] ?? '').toString(),
       cbsRefId: json['cbs_ref_id']?.toString(),
       updatedAt: json['updated_at']?.toString(),
     );
