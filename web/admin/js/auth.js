@@ -336,12 +336,12 @@ async function openMfaSetupModal(admin) {
         <div class="space-y-1">
           <label class="block text-xs font-bold text-slate-700">Kode Autentikator (6 Digit)</label>
           <input type="text" id="mfaConfirmCode" maxlength="6" inputmode="numeric" placeholder="000000"
-            class="w-full px-3.5 py-2.5 text-sm font-mono text-center tracking-widest rounded-xl border border-slate-300 focus:outline-none focus:border-[#00897B]">
+            class="w-full px-3.5 py-2.5 text-sm font-mono text-center tracking-widest rounded-xl border border-slate-300 focus:outline-none focus:border-[#033172]">
         </div>
         <div id="mfaSetupErr" class="hidden text-xs text-rose-600 font-semibold"></div>
         <div class="flex justify-end gap-2 pt-2">
           <button type="button" onclick="closeMfaSetupModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100">Batal</button>
-          <button type="button" onclick="confirmMfaSetup()" class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B]">Aktifkan &amp; Masuk</button>
+          <button type="button" onclick="confirmMfaSetup()" class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#033172] hover:bg-[#022454]">Aktifkan &amp; Masuk</button>
         </div>
       </div>`;
     document.body.appendChild(modal);
@@ -409,18 +409,18 @@ function openInitialPasswordModal(admin) {
         <div class="space-y-1">
           <label for="initialPwNew" class="block text-xs font-bold text-slate-700">Kata Sandi Baru</label>
           <input type="password" id="initialPwNew" autocomplete="new-password" minlength="12"
-            class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 focus:outline-none focus:border-[#00897B]">
+            class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 focus:outline-none focus:border-[#033172]">
         </div>
         <div class="space-y-1">
           <label for="initialPwConfirm" class="block text-xs font-bold text-slate-700">Ulangi Kata Sandi Baru</label>
           <input type="password" id="initialPwConfirm" autocomplete="new-password" minlength="12"
-            class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 focus:outline-none focus:border-[#00897B]">
+            class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 focus:outline-none focus:border-[#033172]">
         </div>
         <p class="text-[10px] text-slate-400">Minimal 12 karakter, kombinasi huruf &amp; angka.</p>
         <div id="initialPwErr" class="hidden text-xs text-rose-600 font-semibold"></div>
         <div class="flex justify-end gap-2 pt-2">
           <button type="button" id="initialPwCancel" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100">Batal</button>
-          <button type="button" id="initialPwSubmit" class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B]">Simpan Kata Sandi</button>
+          <button type="button" id="initialPwSubmit" class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#033172] hover:bg-[#022454]">Simpan Kata Sandi</button>
         </div>
       </div>`;
     document.body.appendChild(modal);

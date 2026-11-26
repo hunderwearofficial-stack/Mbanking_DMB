@@ -22,7 +22,7 @@ import '../auth/login_screen.dart';
 import '../helpdesk/helpdesk_screen.dart';
 import '../mutation/mutation_screen.dart';
 import '../notification/notification_screen.dart';
-import '../product/product_catalog_screen.dart';
+import '../product/apply_hub_screen.dart';
 import '../profile/company_profile_screen.dart';
 import '../profile/profile_screen.dart';
 import '../profile/security_settings_screen.dart';
@@ -173,7 +173,7 @@ class _HomeScreenState extends State<HomeScreen> {
               index: _currentNavIndex,
               children: [
                 _buildHomeContent(),
-                const ProductCatalogScreen(isTab: true),
+                const SizedBox.shrink(),
                 const CompanyProfileScreen(),
                 const ProfileScreen(isTab: true),
               ],
@@ -256,10 +256,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           end: Alignment.centerRight,
                           colors: [
                             canvasBg,
-                            canvasBg.withOpacity(0.75),
-                            canvasBg.withOpacity(0.15),
+                            canvasBg.withOpacity(0.92),
+                            canvasBg.withOpacity(0.20),
                           ],
-                          stops: const [0.0, 0.42, 0.78],
+                          stops: const [0.0, 0.56, 0.88],
                         ),
                       ),
                     ),
@@ -529,8 +529,8 @@ class _HomeScreenState extends State<HomeScreen> {
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.plusJakartaSans(
               fontSize: 12.5,
-              fontWeight: FontWeight.w500,
-              color: const Color(0xFF475569),
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF334155),
             ),
           ),
         ],
@@ -543,7 +543,7 @@ class _HomeScreenState extends State<HomeScreen> {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 11.5,
               fontWeight: FontWeight.w500,
-              color: const Color(0xFF64748B),
+              color: const Color(0xFF334155),
               height: 1.35,
             ),
           ),
@@ -1191,11 +1191,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               Expanded(
                 child: _buildNavItem(
-                  icon: Icons.storefront_outlined,
-                  activeIcon: Icons.storefront_rounded,
-                  label: 'Katalog Produk',
-                  isSelected: _currentNavIndex == 1,
-                  onTap: () => setState(() => _currentNavIndex = 1),
+                  icon: Icons.add_circle_outline_rounded,
+                  activeIcon: Icons.add_circle_rounded,
+                  label: 'Ajukan',
+                  isSelected: false,
+                  onTap: () => showApplyBottomSheet(context),
                 ),
               ),
               Expanded(
@@ -1211,7 +1211,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: _buildNavItem(
                   icon: Icons.person_outline_rounded,
                   activeIcon: Icons.person_rounded,
-                  label: 'Akun Saya',
+                  label: 'Akun',
                   isSelected: _currentNavIndex == 3,
                   onTap: () => setState(() => _currentNavIndex = 3),
                 ),

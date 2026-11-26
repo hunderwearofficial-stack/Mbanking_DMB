@@ -13,13 +13,25 @@ import '../../widgets/auth_ui_kit.dart';
 
 class LoanApplicationBottomSheet extends StatefulWidget {
   final VoidCallback? onSuccess;
+  final String? initialProductName;
 
-  const LoanApplicationBottomSheet({super.key, this.onSuccess});
+  const LoanApplicationBottomSheet({
+    super.key,
+    this.onSuccess,
+    this.initialProductName,
+  });
 
-  static Future<void> show(BuildContext context, {VoidCallback? onSuccess}) {
+  static Future<void> show(
+    BuildContext context, {
+    VoidCallback? onSuccess,
+    String? initialProductName,
+  }) {
     return Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => LoanApplicationBottomSheet(onSuccess: onSuccess),
+        builder: (_) => LoanApplicationBottomSheet(
+          onSuccess: onSuccess,
+          initialProductName: initialProductName,
+        ),
       ),
     );
   }
@@ -76,7 +88,15 @@ class _LoanApplicationBottomSheetState extends State<LoanApplicationBottomSheet>
   @override
   void initState() {
     super.initState();
-    _selectedProduct = _loanProducts[0];
+    final pre = widget.initialProductName?.trim();
+    if (pre != null && pre.isNotEmpty) {
+      if (!_loanProducts.contains(pre)) {
+        _loanProducts.insert(0, pre);
+      }
+      _selectedProduct = pre;
+    } else {
+      _selectedProduct = _loanProducts[0];
+    }
     _selectedTenor = 12;
     _selectedPurpose = _purposes[0];
     _amountController.text = _currencyFormat.format(_nominal);

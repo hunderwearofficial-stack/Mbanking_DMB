@@ -98,7 +98,7 @@ function showIssuedPassword(password, message) {
       <p class="text-[11px] text-rose-700 font-semibold">Kata sandi ini tidak dapat ditampilkan lagi. Jangan kirim melalui chat atau email.</p>
       <div class="flex justify-end gap-2">
         <button type="button" class="copy-pw px-4 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200">Salin</button>
-        <button type="button" class="close-pw px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B]">Sudah Diserahkan</button>
+        <button type="button" class="close-pw px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#033172] hover:bg-[#022454]">Sudah Diserahkan</button>
       </div>
     </div>`;
   modal.querySelector('.issued-pw').textContent = password;

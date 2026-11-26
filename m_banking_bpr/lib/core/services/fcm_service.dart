@@ -134,6 +134,7 @@ class FCMService {
           channel.name,
           channelDescription: channel.description,
           icon: _smallIcon,
+          largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
           importance: Importance.high,
           priority: Priority.high,
         ),

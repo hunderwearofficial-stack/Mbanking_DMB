@@ -87,8 +87,11 @@ func (s *customerService) CreateProductApplication(ctx context.Context, userID s
 	if ptype == "LOAN" || ptype == "KREDIT" {
 		ptype = "PINJAMAN"
 	}
-	if ptype != "DEPOSITO" && ptype != "PINJAMAN" && ptype != "PENCAIRAN_DEPOSITO" {
-		return nil, fmt.Errorf("%w: jenis produk harus DEPOSITO, PINJAMAN, atau PENCAIRAN_DEPOSITO", ErrValidation)
+	if ptype == "SAVINGS" {
+		ptype = "TABUNGAN"
+	}
+	if ptype != "DEPOSITO" && ptype != "PINJAMAN" && ptype != "PENCAIRAN_DEPOSITO" && ptype != "TABUNGAN" {
+		return nil, fmt.Errorf("%w: jenis produk harus DEPOSITO, PINJAMAN, TABUNGAN, atau PENCAIRAN_DEPOSITO", ErrValidation)
 	}
 	if in.Amount <= 0 || in.Amount > money.Rupiah(100_000_000_000) || in.TenorMonths <= 0 || in.TenorMonths > 360 {
 		return nil, fmt.Errorf("%w: nominal/tenor tidak valid", ErrValidation)

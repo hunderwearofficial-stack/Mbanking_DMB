@@ -198,7 +198,7 @@ function renderAuditLogsTable() {
         <td class="py-3 px-3.5 text-slate-600 max-w-md break-words leading-relaxed text-[11.5px]">${esc(log.details || '-')}</td>
         <td class="py-3 px-3.5 whitespace-nowrap">
           <span title="${esc(hashTooltip)}"
-            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-mono text-[10px] font-semibold ${fullHash ? 'bg-teal-50 text-[#00897B] border border-teal-200' : 'bg-slate-100 text-slate-400 border border-slate-200'} cursor-help">
+            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-mono text-[10px] font-semibold ${fullHash ? 'bg-[#EFF6FF] text-[#033172] border border-blue-200' : 'bg-slate-100 text-slate-400 border border-slate-200'} cursor-help">
             <i data-lucide="link-2" class="w-3 h-3"></i>
             <span>${esc(shortHash)}</span>
           </span>

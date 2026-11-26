@@ -100,6 +100,21 @@ func Send(ctx context.Context, db *gorm.DB, phoneNumber, customerName, purpose s
 	}
 
 	provider := strings.ToUpper(strings.TrimSpace(cfg.OTPProvider))
+	if provider == "SANDBOX_DUMMY" {
+		if productionMode.Load() {
+			logger.GetLogger().Error("OTP SANDBOX_DUMMY ditolak di production", map[string]interface{}{
+				"phone_masked": maskPhone(phoneNumber), "purpose": purpose,
+			})
+			return "", ErrOTPGatewayNotConfigured
+		}
+		const dummyCode = "123456"
+		logger.GetLogger().Warn("[LOCAL/DEV] OTP mode SANDBOX_DUMMY: menggunakan kode dummy 123456", map[string]interface{}{
+			"phone_masked": maskPhone(phoneNumber), "purpose": purpose,
+		})
+		fmt.Fprintf(os.Stderr, "[SANDBOX DUMMY OTP - HANYA LOCAL/DEV] %s %s: %s\n", purpose, maskPhone(phoneNumber), dummyCode)
+		return dummyCode, nil
+	}
+
 	// SECURITY (audit E-08): the token is stored AES-GCM encrypted; legacy plaintext is still read.
 	token, decErr := crypto.DecryptString(strings.TrimSpace(cfg.OTPGatewayToken))
 	if decErr != nil {

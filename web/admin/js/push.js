@@ -177,7 +177,7 @@ async function loadPushCampaigns() {
       actions.push(`<button type="button" onclick="submitPushCampaign(${id})" class="text-blue-700 font-bold hover:underline">Ajukan</button>`);
     }
     if (['SENT', 'PARTIAL', 'FAILED', 'SENDING'].includes(c.status)) {
-      actions.push(`<button type="button" onclick="showPushDeliveries(${id})" class="text-[#00897B] font-bold hover:underline">Detail</button>`);
+      actions.push(`<button type="button" onclick="showPushDeliveries(${id})" class="text-[#033172] font-bold hover:underline">Detail</button>`);
     }
     const result = c.send_started_at
       ? `${esc(c.target_devices)} perangkat &middot; diterima FCM ${esc(c.accepted_count)} &middot; gagal ${esc(c.failed_count)} &middot; token tidak valid ${esc(c.invalid_token_count)}${c.last_error ? `<div class="text-rose-600">${esc(c.last_error)}</div>` : ''}`

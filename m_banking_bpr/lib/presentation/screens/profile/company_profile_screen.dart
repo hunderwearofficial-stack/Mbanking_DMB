@@ -131,7 +131,7 @@ class CompanyProfileScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       SizedBox(
-                        height: 205,
+                        height: 245,
                         child: Stack(
                           fit: StackFit.expand,
                           children: [
@@ -183,11 +183,9 @@ class CompanyProfileScreen extends StatelessWidget {
                                   const SizedBox(height: 4),
                                   Text(
                                     aboutDesc,
-                                    maxLines: 3,
-                                    overflow: TextOverflow.ellipsis,
                                     style: GoogleFonts.plusJakartaSans(
                                       fontSize: 12,
-                                      color: Colors.white.withOpacity(0.88),
+                                      color: Colors.white.withOpacity(0.92),
                                       height: 1.4,
                                     ),
                                   ),

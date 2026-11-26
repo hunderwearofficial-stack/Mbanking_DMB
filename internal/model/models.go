@@ -375,3 +375,27 @@ type ApprovalRequest struct {
 	// or resets a password. It is returned once to the approving checker and never stored.
 	IssuedPassword string `json:"issued_password,omitempty" gorm:"-"`
 }
+
+type HelpdeskFAQ struct {
+	ID        string    `json:"id" gorm:"primaryKey;type:uuid"`
+	Topic     string    `json:"topic" gorm:"type:varchar(120);not null"`
+	Keywords  string    `json:"keywords" gorm:"type:text;not null"`
+	Answer    string    `json:"answer" gorm:"type:text;not null"`
+	IsActive  bool      `json:"is_active" gorm:"default:true"`
+	SortOrder int       `json:"sort_order" gorm:"default:0"`
+	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+type HelpdeskInquiry struct {
+	ID           string    `json:"id" gorm:"primaryKey;type:uuid"`
+	UserID       string    `json:"user_id" gorm:"type:varchar(60);index"`
+	CIF          string    `json:"cif" gorm:"type:varchar(30)"`
+	FullName     string    `json:"full_name" gorm:"type:varchar(100)"`
+	PhoneNumber  string    `json:"phone_number" gorm:"type:varchar(30)"`
+	Question     string    `json:"question" gorm:"type:text;not null"`
+	MatchedFAQID string    `json:"matched_faq_id" gorm:"type:varchar(64)"`
+	IsAnswered   bool      `json:"is_answered" gorm:"default:false"`
+	Status       string    `json:"status" gorm:"type:varchar(20);default:'OPEN'"`
+	CreatedAt    time.Time `json:"created_at" gorm:"autoCreateTime;index"`
+}

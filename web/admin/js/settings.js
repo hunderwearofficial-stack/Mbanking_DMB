@@ -13,10 +13,14 @@ async function loadConfig() {
       document.getElementById('cfgTagline').value = c.tagline || 'Mitra Terpercaya Menuju Sejahtera';
       document.getElementById('cfgLogoUrl').value = c.logo_url || '';
       document.getElementById('cfgAddress').value = c.head_office_address || '';
-      document.getElementById('cfgCallCenter').value = c.call_center || '';
-      document.getElementById('cfgWhatsApp').value = c.whats_app_cs || c.whatsapp_cs || '';
-      document.getElementById('cfgEmail').value = c.email_cs || '';
-      document.getElementById('cfgWebsite').value = c.website_url || '';
+      const ccEl = document.getElementById('cfgCallCenter');
+      if (ccEl) ccEl.value = c.call_center || '';
+      const waEl = document.getElementById('cfgWhatsApp');
+      if (waEl) waEl.value = c.whats_app_cs || c.whatsapp_cs || '';
+      const emEl = document.getElementById('cfgEmail');
+      if (emEl) emEl.value = c.email_cs || '';
+      const webEl = document.getElementById('cfgWebsite');
+      if (webEl) webEl.value = c.website_url || '';
       document.getElementById('cfgMaintenance').checked = Boolean(c.maintenance_mode);
       document.getElementById('cfgMaintenanceMsg').value = c.maintenance_message || '';
       if (document.getElementById('cfgMaxLoginAttempts')) {
@@ -130,18 +134,22 @@ async function handleSaveConfig(e) {
   if (maxAttempts > 10) maxAttempts = 10;
   if (maxAttemptsEl) maxAttemptsEl.value = maxAttempts;
 
-  const waValue = document.getElementById('cfgWhatsApp').value.trim();
+  const waEl = document.getElementById('cfgWhatsApp');
+  const waValue = waEl ? waEl.value.trim() : '';
+
+  const ccEl = document.getElementById('cfgCallCenter');
+  const emEl = document.getElementById('cfgEmail');
+  const webEl = document.getElementById('cfgWebsite');
 
   const payload = {
     bank_name: document.getElementById('cfgBankName').value.trim(),
     bank_short_name: document.getElementById('cfgBankShortName').value.trim(),
     tagline: document.getElementById('cfgTagline').value.trim(),
     logo_url: document.getElementById('cfgLogoUrl').value.trim(),
-    call_center: document.getElementById('cfgCallCenter').value.trim(),
-    whats_app_cs: waValue,
-    whatsapp_cs: waValue,
-    email_cs: document.getElementById('cfgEmail').value.trim(),
-    website_url: document.getElementById('cfgWebsite').value.trim(),
+    ...(ccEl ? { call_center: ccEl.value.trim() } : {}),
+    ...(waEl ? { whats_app_cs: waValue, whatsapp_cs: waValue } : {}),
+    ...(emEl ? { email_cs: emEl.value.trim() } : {}),
+    ...(webEl ? { website_url: webEl.value.trim() } : {}),
     head_office_address: document.getElementById('cfgAddress').value.trim(),
     max_login_attempts: maxAttempts,
     maintenance_mode: document.getElementById('cfgMaintenance').checked,

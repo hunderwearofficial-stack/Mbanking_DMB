@@ -27,13 +27,25 @@ class DepositProductOption {
 
 class DepositApplicationBottomSheet extends StatefulWidget {
   final VoidCallback? onSuccess;
+  final int? initialTenorMonths;
 
-  const DepositApplicationBottomSheet({super.key, this.onSuccess});
+  const DepositApplicationBottomSheet({
+    super.key,
+    this.onSuccess,
+    this.initialTenorMonths,
+  });
 
-  static Future<void> show(BuildContext context, {VoidCallback? onSuccess}) {
+  static Future<void> show(
+    BuildContext context, {
+    VoidCallback? onSuccess,
+    int? initialTenorMonths,
+  }) {
     return Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => DepositApplicationBottomSheet(onSuccess: onSuccess),
+        builder: (_) => DepositApplicationBottomSheet(
+          onSuccess: onSuccess,
+          initialTenorMonths: initialTenorMonths,
+        ),
       ),
     );
   }
@@ -109,7 +121,15 @@ class _DepositApplicationBottomSheetState extends State<DepositApplicationBottom
   void initState() {
     super.initState();
     _products = _buildDefaultOptions();
-    _selectedProduct = _products.length > 1 ? _products[1] : _products.first;
+    final targetTenor = widget.initialTenorMonths;
+    if (targetTenor != null) {
+      _selectedProduct = _products.firstWhere(
+        (p) => p.tenorMonths == targetTenor,
+        orElse: () => _products.first,
+      );
+    } else {
+      _selectedProduct = _products.length > 1 ? _products[1] : _products.first;
+    }
     _selectedAro = _aroOptions[0];
     _amountController.text = _currencyFormat.format(_nominal);
     _fetchCatalogProducts();

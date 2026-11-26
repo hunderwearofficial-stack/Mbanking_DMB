@@ -90,3 +90,188 @@ tbody tr {
   position: relative;
   z-index: 20;
 }
+
+/* Bank DMB Navy Theme Utilities (matching myDMB Mobile App) */
+.bg-\[\#033172\] { background-color: #033172 !important; }
+.hover\:bg-\[\#022454\]:hover { background-color: #022454 !important; }
+.active\:bg-\[\#022454\]:active { background-color: #022454 !important; }
+.bg-slate-800 { background-color: #1E293B !important; }
+.hover\:bg-slate-800:hover { background-color: #1E293B !important; }
+.bg-slate-900 { background-color: #0F172A !important; }
+.hover\:bg-slate-900:hover { background-color: #0F172A !important; }
+.text-\[\#033172\] { color: #033172 !important; }
+.border-\[\#033172\] { border-color: #033172 !important; }
+.focus\:border-\[\#033172\]:focus { border-color: #033172 !important; }
+.focus\:ring-\[\#033172\]:focus { --tw-ring-color: #033172 !important; }
+.bg-\[\#EFF6FF\] { background-color: #EFF6FF !important; }
+.group:hover .group-hover\:text-\[\#033172\] { color: #033172 !important; }
+
+/* Backoffice Login Split Layout */
+.login-split-left {
+  display: none;
+  background-color: #EFF6FF;
+}
+.login-split-right {
+  width: 100%;
+  background-color: #FFFFFF;
+}
+@media (min-width: 1024px) {
+  .login-split-left {
+    display: flex;
+    flex: 1 1 58%;
+    min-width: 0;
+  }
+  .login-split-right {
+    flex: 0 0 42%;
+    width: 42%;
+    max-width: 540px;
+  }
+}
+
+/* Bank DMB Navy Enterprise Sidebar */
+#adminSidebar {
+  background: linear-gradient(180deg, #033172 0%, #022454 68%, #01183B 100%) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #FFFFFF !important;
+}
+#adminSidebar .sidebar-brand-header {
+  background: rgba(1, 24, 59, 0.35) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10) !important;
+}
+#adminSidebar nav > div {
+  color: rgba(147, 197, 253, 0.72) !important;
+}
+#adminSidebar .nav-item {
+  color: rgba(255, 255, 255, 0.80) !important;
+  border: 1px solid transparent;
+}
+#adminSidebar .nav-item:hover {
+  background-color: rgba(255, 255, 255, 0.10) !important;
+  color: #FFFFFF !important;
+}
+#adminSidebar .nav-item.bg-\[\#EFF6FF\] {
+  background-color: #FFFFFF !important;
+  color: #033172 !important;
+  border-color: #FFFFFF !important;
+  box-shadow: 0 4px 14px rgba(1, 24, 59, 0.32) !important;
+}
+#adminSidebar .sidebar-footer-area {
+  background: rgba(1, 24, 59, 0.42) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.10) !important;
+}
+#adminSidebar .sidebar-user-card {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+#adminSidebar #adminFullName {
+  color: #FFFFFF !important;
+}
+#adminSidebar #adminAvatarInitial {
+  background-color: #00B4D8 !important;
+  color: #021838 !important;
+}
+#adminSidebar #adminRole {
+  background-color: rgba(0, 180, 216, 0.18) !important;
+  color: #7DD3FC !important;
+  border-color: rgba(125, 211, 252, 0.35) !important;
+}
+#adminSidebar .sidebar-footer-btn {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: rgba(255, 255, 255, 0.88) !important;
+}
+#adminSidebar .sidebar-footer-btn:hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+  color: #FFFFFF !important;
+}
+#adminSidebar .sidebar-logout-btn:hover {
+  background: rgba(244, 63, 94, 0.22) !important;
+  border-color: rgba(251, 113, 133, 0.45) !important;
+  color: #FFE4E6 !important;
+}
+@media (min-width: 1024px) {
+  #adminSidebar {
+    width: 260px !important;
+    min-width: 260px !important;
+    flex-shrink: 0 !important;
+  }
+}
+
+/* Executive Dashboard Responsive Grids (independent of purged Tailwind) */
+.dash-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 16px;
+}
+.dash-ops-grid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 20px;
+}
+@media (min-width: 640px) {
+  .dash-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1200px) {
+  .dash-kpi-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .dash-ops-grid {
+    grid-template-columns: 7fr 5fr;
+  }
+}
+
+/* Unified Bank DMB Navy Tab Header (consistent across every backoffice tab) */
+.tab-navy-header {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #033172 0%, #05449E 60%, #022454 100%);
+  border-radius: 16px;
+  padding: 20px 24px;
+  color: #FFFFFF;
+  box-shadow: 0 4px 16px rgba(3, 49, 114, 0.14);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.tab-navy-header::after {
+  content: '';
+  position: absolute;
+  right: -30px;
+  top: -50px;
+  width: 200px;
+  height: 200px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(0, 180, 216, 0.20) 0%, rgba(0, 180, 216, 0) 70%);
+  pointer-events: none;
+}
+.tab-navy-header-title {
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.25;
+  margin: 0;
+  color: #FFFFFF;
+}
+.tab-navy-header-sub {
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 4px 0 0 0;
+  color: rgba(255, 255, 255, 0.84);
+}
+.tab-navy-header-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #E0F2FE;
+}

@@ -785,7 +785,10 @@ func (p *OpenAPICBSProvider) GetLoanAccountsByCIF(ctx context.Context, cifNumber
 	}
 
 	env, statusCode, err := p.doSignedPost(ctx, "/api/loan-accounts", payload)
-	if err != nil || statusCode != http.StatusOK || env.Code != 10000 {
+	if statusCode == http.StatusNotFound || (env != nil && env.Code == 10003) {
+		return []domain.DMBLoanAccountItem{}, nil
+	}
+	if err != nil || statusCode != http.StatusOK || env == nil || env.Code != 10000 {
 		logger.GetLogger().Warn("OpenAPI /api/loan-accounts tidak dapat diakses", map[string]interface{}{"code": statusCode})
 		return nil, errors.New("data pinjaman sedang tidak dapat diambil dari layanan perbankan")
 	}
@@ -848,6 +851,9 @@ func (p *OpenAPICBSProvider) GetDepositAccountsByCIF(ctx context.Context, cifNum
 	}
 
 	env, statusCode, err := p.doSignedPost(ctx, "/api/deposit-accounts", payload)
+	if statusCode == http.StatusNotFound || (env != nil && env.Code == 10003) {
+		return []domain.DMBDepositAccountItem{}, nil
+	}
 	if err != nil || statusCode != http.StatusOK || env == nil || env.Code != 10000 {
 		logger.GetLogger().Warn("OpenAPI /api/deposit-accounts tidak dapat diakses", map[string]interface{}{"code": statusCode})
 		return nil, errors.New("data deposito sedang tidak dapat diambil dari layanan perbankan")

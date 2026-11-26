@@ -29,25 +29,48 @@
     style="z-index: 99999;"></div>
 
   <!-- ==================== MODERN ENTERPRISE LOGIN SCREEN ==================== -->
-  <div id="loginScreen" class="fixed inset-0 z-50 overflow-y-auto flex">
+  <div id="loginScreen" class="fixed inset-0 z-50 overflow-y-auto flex bg-white">
 
-    <!-- FULL-SCREEN BACKGROUND IMAGE -->
-    <div class="fixed inset-0 z-0 select-none pointer-events-none">
-      <img src="images/bank_login_bg.jpg" alt="Bank DMB Digital Banking"
-        class="w-full h-full object-cover object-left lg:object-center">
+    <!-- LEFT SIDE: Full-Bleed Fintech Illustration Panel (Investor-Grade) -->
+    <div class="login-split-left min-h-screen relative overflow-hidden"
+      style="flex-direction: column; justify-content: flex-end; padding: 40px 48px;">
+      <img src="images/backoffice_login_bg.jpg" alt="Bank DMB Digital Banking"
+        style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center;" />
+      <div
+        style="position: absolute; inset: 0; background: linear-gradient(to top, rgba(2, 24, 56, 0.94) 0%, rgba(3, 49, 114, 0.62) 34%, rgba(3, 49, 114, 0.08) 68%, rgba(3, 49, 114, 0) 100%);"></div>
+
+      <div
+        style="position: relative; z-index: 10; max-width: 520px; color: #ffffff; background: rgba(2, 24, 56, 0.58); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 16px; padding: 24px 28px; box-shadow: 0 12px 32px rgba(2, 24, 56, 0.35);">
+        <div
+          style="display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 9999px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 12px; background: rgba(255, 255, 255, 0.16); border: 1px solid rgba(255, 255, 255, 0.28); color: #ffffff;">
+          Enterprise Backoffice Console
+        </div>
+        <h1 style="font-size: 26px; line-height: 1.25; font-weight: 800; letter-spacing: -0.02em; color: #ffffff; margin: 0;">
+          PT BPR Dana Mandiri Bogor
+        </h1>
+        <p style="font-size: 14px; line-height: 1.6; margin: 8px 0 0 0; color: rgba(255, 255, 255, 0.9);">
+          Platform kendali operasional Mobile Banking <strong>myDMB</strong> yang terintegrasi real-time dengan Core Banking System.
+        </p>
+        <div
+          style="display: flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 600; margin-top: 16px; padding-top: 14px; color: rgba(255, 255, 255, 0.82); border-top: 1px solid rgba(255, 255, 255, 0.18);">
+          <span>Berizin &amp; Diawasi OJK</span>
+          <span>&bull;</span>
+          <span>Peserta Penjaminan LPS</span>
+        </div>
+      </div>
     </div>
 
     <!-- RIGHT SIDE: Login Section -->
     <div
-      class="w-full lg:w-[42%] xl:w-[40%] min-h-screen ml-auto flex flex-col justify-center px-8 sm:px-14 lg:px-16 xl:px-20 py-10 relative z-10 bg-white/90 lg:bg-transparent backdrop-blur-xs lg:backdrop-blur-none">
+      class="login-split-right min-h-screen ml-auto flex flex-col justify-center px-8 sm:px-14 lg:px-16 py-10 relative z-10 bg-white">
 
       <!-- DUAL BRANDING HEADER WITH VERTICAL DIVIDER -->
       <div class="flex items-center gap-4 mb-8">
-        <img id="loginLogoImg" src="images/bank_logo.png" alt="Logo Bank"
+        <img id="loginLogoImg" src="images/mydmb_logo_light.png" alt="Logo Bank"
           class="h-12 sm:h-14 w-auto max-w-[170px] object-contain drop-shadow-xs"
           onerror="this.classList.add('hidden'); document.getElementById('loginLogoFallback').classList.remove('hidden');">
         <div id="loginLogoFallback"
-          class="h-12 w-12 rounded-xl bg-teal-50 border border-teal-200 flex items-center justify-center text-[#00897B] font-black text-base hidden shadow-sm">
+          class="h-12 w-12 rounded-xl bg-[#EFF6FF] border border-blue-200 flex items-center justify-center text-[#033172] font-black text-base hidden shadow-sm">
           DMB
         </div>
 
@@ -56,7 +79,7 @@
         <div class="overflow-hidden">
           <div class="text-xs sm:text-sm font-extrabold text-slate-800 tracking-tight leading-tight uppercase"
             id="loginBankSub">PT BPR DANA MANDIRI BOGOR</div>
-          <div class="text-[10px] text-[#00897B] font-bold tracking-wider uppercase mt-0.5">Sistem Konsol Backoffice
+          <div class="text-[10px] text-[#033172] font-bold tracking-wider uppercase mt-0.5">Sistem Konsol Backoffice
             M-Banking</div>
         </div>
       </div>
@@ -71,12 +94,12 @@
 
         <div>
           <input type="text" id="loginUsername" required placeholder="Nama Pengguna"
-            class="w-full px-4 py-3 rounded-md border border-slate-300 text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:border-[#00897B] focus:ring-1 focus:ring-[#00897B] bg-white transition">
+            class="w-full px-4 py-3 rounded-md border border-slate-300 text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:border-[#033172] focus:ring-1 focus:ring-[#033172] bg-white transition">
         </div>
 
         <div class="relative">
           <input type="password" id="loginPassword" required placeholder="Kata Sandi"
-            class="w-full px-4 py-3 pr-10 rounded-md border border-slate-300 text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:border-[#00897B] focus:ring-1 focus:ring-[#00897B] bg-white transition">
+            class="w-full px-4 py-3 pr-10 rounded-md border border-slate-300 text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:border-[#033172] focus:ring-1 focus:ring-[#033172] bg-white transition">
           <button type="button" onclick="toggleLoginPasswordVisibility()" title="Tampilkan / Sembunyikan Sandi"
             class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition">
             <i id="loginEyeIcon" data-lucide="eye" class="w-4 h-4"></i>
@@ -87,20 +110,20 @@
           <label for="loginTotpCode" class="block text-xs font-bold text-slate-700">Kode Autentikator (MFA 6 Digit)</label>
           <input type="text" id="loginTotpCode" maxlength="6" inputmode="numeric" autocomplete="one-time-code"
             placeholder="000000"
-            class="w-full px-3.5 py-2.5 text-sm font-mono tracking-widest rounded-md border border-slate-300 focus:outline-none focus:border-[#00897B] focus:ring-1 focus:ring-[#00897B] bg-white">
+            class="w-full px-3.5 py-2.5 text-sm font-mono tracking-widest rounded-md border border-slate-300 focus:outline-none focus:border-[#033172] focus:ring-1 focus:ring-[#033172] bg-white">
         </div>
 
         <div class="flex items-center justify-start pt-1">
           <a href="javascript:void(0)"
             onclick="showToast('Silakan hubungi Tim IT / Super Admin BPR untuk reset kata sandi.', 'info')"
-            class="text-xs text-[#00897B] hover:underline font-medium">
+            class="text-xs text-[#033172] hover:underline font-medium">
             Lupa kata sandi ?
           </a>
         </div>
 
         <div class="pt-2">
           <button type="submit" id="loginBtn"
-            class="w-full py-2.5 px-4 rounded-md font-semibold text-sm text-white bg-[#00897B] hover:bg-[#00796B] active:bg-[#00695C] transition shadow-sm">
+            class="w-full py-2.5 px-4 rounded-md font-semibold text-sm text-white bg-[#033172] hover:bg-[#022454] active:bg-[#022454] transition shadow-sm">
             Masuk
           </button>
         </div>
@@ -125,21 +148,23 @@
       class="fixed lg:static inset-y-0 left-0 z-40 w-72 lg:w-64 bg-white text-slate-800 flex flex-col border-r border-slate-200/90 shadow-xl lg:shadow-sm select-none transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out">
 
       <!-- App Header with Dynamic Uploaded Bank Logo -->
-      <div class="p-4 px-5 flex items-center justify-between border-b border-slate-100 bg-[#FBFDFE]">
-        <div class="flex items-center gap-2">
-          <img id="sidebarLogoImg" src="images/bank_logo.png" alt="Logo Bank"
-            class="h-10 w-auto max-w-[180px] object-contain drop-shadow-xs"
+      <div class="sidebar-brand-header p-4 px-5 flex items-center justify-between border-b border-slate-100">
+        <div class="flex items-center gap-3 min-w-0">
+          <img id="sidebarLogoImg" src="images/mydmb_logo_official.png" alt="Logo Bank"
+            style="height: 38px; width: auto; max-width: 110px; object-fit: contain; flex-shrink: 0;"
             onerror="this.classList.add('hidden'); document.getElementById('sidebarLogoFallback').classList.remove('hidden');">
           <div id="sidebarLogoFallback"
-            class="w-10 h-10 rounded-xl bg-teal-50 text-[#00897B] border border-teal-200 flex items-center justify-center font-black text-sm hidden">
+            class="w-10 h-10 rounded-xl bg-white/15 text-white border border-white/25 flex items-center justify-center font-black text-sm hidden shrink-0">
             DMB
           </div>
-          <span id="sidebarBankTitle" class="hidden"></span>
-          <span id="sidebarBankSub" class="hidden"></span>
+          <div class="min-w-0" style="border-left: 1px solid rgba(255,255,255,0.18); padding-left: 10px;">
+            <div id="sidebarBankTitle" style="font-size: 12px; font-weight: 800; color: #ffffff; letter-spacing: 0.02em; line-height: 1.2;" class="truncate">BANK DMB</div>
+            <div id="sidebarBankSub" style="font-size: 10px; font-weight: 600; color: rgba(186,230,253,0.85); line-height: 1.25; margin-top: 2px;" class="truncate">Backoffice Console</div>
+          </div>
         </div>
         <!-- Close Drawer Button on Mobile/Tablet -->
         <button type="button" onclick="closeMobileSidebar()"
-          class="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+          class="lg:hidden p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10">
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
@@ -161,10 +186,20 @@
           <i data-lucide="users" class="w-4 h-4"></i>
           <span id="navCustomersLabel">Nasabah &amp; Perangkat</span>
         </button>
+        <button type="button" onclick="switchTab('product-applications')" id="nav-product-applications"
+          class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 transition">
+          <i data-lucide="briefcase" class="w-4 h-4"></i>
+          <span>Pengajuan Produk</span>
+        </button>
         <button type="button" onclick="switchTab('deposit-disbursements')" id="nav-deposit-disbursements"
           class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 transition">
           <i data-lucide="landmark" class="w-4 h-4"></i>
           <span>Pencairan Deposito</span>
+        </button>
+        <button type="button" onclick="switchTab('helpdesk')" id="nav-helpdesk"
+          class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 transition">
+          <i data-lucide="message-square-text" class="w-4 h-4"></i>
+          <span>Chatbot &amp; FAQ</span>
         </button>
 
         <div id="nav-group-konten"
@@ -212,25 +247,25 @@
       </nav>
 
       <!-- User Profile, Change My Password & Logout -->
-      <div class="p-3.5 border-t border-slate-200/80 bg-slate-50/70 space-y-2">
-        <div class="flex items-center gap-3 p-2.5 rounded-xl bg-white border border-slate-200/80 shadow-xs">
+      <div class="sidebar-footer-area p-3.5 border-t border-slate-200/80 space-y-2">
+        <div class="sidebar-user-card flex items-center gap-3 p-2.5 rounded-xl border shadow-xs">
           <div id="adminAvatarInitial"
-            class="w-9 h-9 rounded-xl bg-[#00897B] text-white flex items-center justify-center font-black text-xs shadow-sm shrink-0">
+            class="w-9 h-9 rounded-xl bg-[#033172] text-white flex items-center justify-center font-black text-xs shadow-sm shrink-0">
             AD
           </div>
           <div class="overflow-hidden">
             <div id="adminFullName" class="text-xs font-bold text-slate-900 truncate">Administrator</div>
             <span id="adminRole"
-              class="inline-block text-[9px] text-[#00897B] font-extrabold px-1.5 py-0.5 rounded bg-teal-50 border border-teal-200 uppercase tracking-wider">SUPER_ADMIN</span>
+              class="inline-block text-[9px] text-[#033172] font-extrabold px-1.5 py-0.5 rounded bg-[#EFF6FF] border border-blue-200 uppercase tracking-wider">SUPER_ADMIN</span>
           </div>
         </div>
         <button type="button" onclick="openChangeMyPasswordModal()"
-          class="w-full py-2 px-3 rounded-xl text-xs font-bold text-slate-700 hover:text-[#00897B] hover:bg-teal-50/80 bg-white border border-slate-200 hover:border-teal-200 transition flex items-center justify-center gap-2">
+          class="sidebar-footer-btn w-full py-2 px-3 rounded-xl text-xs font-bold border transition flex items-center justify-center gap-2">
           <i data-lucide="key-round" class="w-3.5 h-3.5"></i>
           <span>Ganti Password Saya</span>
         </button>
         <button type="button" onclick="handleLogout()"
-          class="w-full py-2 px-3 rounded-xl text-xs font-bold text-slate-600 hover:text-rose-600 hover:bg-rose-50 bg-white border border-slate-200 hover:border-rose-200 transition flex items-center justify-center gap-2">
+          class="sidebar-footer-btn sidebar-logout-btn w-full py-2 px-3 rounded-xl text-xs font-bold border transition flex items-center justify-center gap-2">
           <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
           <span>Keluar Sistem</span>
         </button>
@@ -248,7 +283,7 @@
             class="lg:hidden p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200/80">
             <i data-lucide="menu" class="w-5 h-5"></i>
           </button>
-          <img id="mobileTopbarLogoImg" src="images/bank_logo.png" alt="Logo"
+          <img id="mobileTopbarLogoImg" src="images/mydmb_logo_light.png" alt="Logo"
             class="h-7 w-auto object-contain lg:hidden" onerror="this.classList.add('hidden')">
           <h2 id="pageTitle" class="text-sm sm:text-base lg:text-lg font-black text-slate-900 tracking-tight truncate">
             Dashboard</h2>
@@ -260,7 +295,7 @@
           <!-- Live Date & Clock (initialized dynamically without hardcoded date) -->
           <div id="liveClockDisplay"
             class="flex items-center gap-1.5 text-[11px] sm:text-xs text-slate-600 font-semibold px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/80">
-            <i data-lucide="clock" class="w-3.5 h-3.5 text-[#00897B]"></i>
+            <i data-lucide="clock" class="w-3.5 h-3.5 text-[#033172]"></i>
             <span id="currentDateTime">-</span>
           </div>
         </div>
@@ -270,176 +305,317 @@
       <div class="p-4 sm:p-6 space-y-6 flex-1">
 
         <!-- ==================== TAB 1: DASHBOARD ==================== -->
-        <section id="tab-dashboard" class="space-y-6">
-          <!-- Metric Cards -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <!-- Card 1 -->
-            <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs card-hover">
-              <div class="flex items-center justify-between mb-3">
+        <section id="tab-dashboard" class="space-y-5">
+          <!-- Executive Hero Banner (Bank DMB Navy Theme) -->
+          <div class="relative overflow-hidden text-white shadow-sm"
+            style="background: linear-gradient(135deg, #033172 0%, #05449E 58%, #022454 100%); border-radius: 18px; padding: 24px 28px;">
+            <div
+              style="position: absolute; right: -40px; top: -60px; width: 260px; height: 260px; border-radius: 9999px; background: radial-gradient(circle, rgba(0,180,216,0.22) 0%, rgba(0,180,216,0) 70%); pointer-events: none;"></div>
+            <div class="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+              <div style="max-width: 640px;">
+                <div
+                  style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 9999px; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.24); color: #E0F2FE; margin-bottom: 10px;">
+                  <span>Enterprise Digital Banking Console</span>
+                  <span>&bull;</span>
+                  <span>OJK &amp; LPS Compliant</span>
+                </div>
+                <h1 style="font-size: 22px; line-height: 1.3; font-weight: 800; margin: 0; color: #ffffff;">
+                  Ringkasan Eksekutif Operasional Bank DMB
+                </h1>
+                <p style="font-size: 13px; line-height: 1.55; margin: 6px 0 0 0; color: rgba(255,255,255,0.85);">
+                  Pusat kendali nasabah, sinkronisasi rekening Core Banking System, antrean pengajuan layanan, serta kepatuhan keamanan <strong>myDMB</strong> secara real-time.
+                </p>
+              </div>
+              <div class="flex flex-wrap items-center gap-2.5 shrink-0">
+                <button type="button" onclick="loadDashboardStats()"
+                  style="padding: 9px 14px; border-radius: 12px; font-size: 12px; font-weight: 700; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.28); color: #ffffff; display: inline-flex; align-items: center; gap: 7px;">
+                  <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                  <span>Segarkan Data</span>
+                </button>
+                <button type="button" onclick="switchTab('customers')"
+                  style="padding: 9px 16px; border-radius: 12px; font-size: 12px; font-weight: 700; background: #ffffff; color: #033172; display: inline-flex; align-items: center; gap: 7px; box-shadow: 0 4px 14px rgba(1,24,59,0.25);">
+                  <i data-lucide="users" class="w-4 h-4"></i>
+                  <span>Kelola Nasabah</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4-Column KPI Metric Cards -->
+          <div class="dash-kpi-grid">
+            <!-- Card 1: Total Nasabah -->
+            <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs card-hover"
+              style="border-top: 3px solid #033172;">
+              <div class="flex items-center justify-between mb-2">
                 <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Nasabah</span>
-                <div class="w-9 h-9 rounded-xl bg-teal-50 text-[#00897B] flex items-center justify-center">
-                  <i data-lucide="users" class="w-5 h-5"></i>
+                <div class="w-9 h-9 rounded-xl bg-[#EFF6FF] text-[#033172] flex items-center justify-center">
+                  <i data-lucide="users" class="w-4 h-4"></i>
                 </div>
               </div>
-              <div class="text-2xl font-black text-slate-900 tracking-tight" id="statTotalUsers">0</div>
-              <p class="text-xs text-slate-500 mt-1 flex items-center gap-1 font-medium">
-                <span id="statActiveUsers" class="text-[#00897B] font-bold">0</span> aktif &bull; <span
+              <div class="text-3xl font-black text-slate-900 tracking-tight" id="statTotalUsers">0</div>
+              <p class="text-xs text-slate-500 mt-2 flex items-center gap-1.5 font-medium">
+                <span id="statActiveUsers" class="text-[#033172] font-bold">0</span> aktif &bull; <span
                   id="statBoundDevices" class="text-blue-600 font-bold">0</span> terikat device
               </p>
             </div>
 
-            <!-- Card 2 -->
-            <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs card-hover">
-              <div class="flex items-center justify-between mb-3">
+            <!-- Card 2: Rekening Terdaftar -->
+            <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs card-hover"
+              style="border-top: 3px solid #059669;">
+              <div class="flex items-center justify-between mb-2">
                 <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Rekening Terdaftar</span>
                 <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                  <i data-lucide="wallet" class="w-5 h-5"></i>
+                  <i data-lucide="wallet" class="w-4 h-4"></i>
                 </div>
               </div>
-              <div class="text-2xl font-black text-slate-900 tracking-tight" id="statTotalAccounts">0</div>
-              <p class="text-xs text-slate-500 mt-1 font-medium">Tabungan &amp; Deposito DMB</p>
+              <div class="text-3xl font-black text-slate-900 tracking-tight" id="statTotalAccounts">0</div>
+              <p class="text-xs text-slate-500 mt-2 font-medium">Tabungan &amp; Deposito DMB tersinkronisasi</p>
             </div>
 
-            <!-- Card 3 -->
-            <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs card-hover">
-              <div class="flex items-center justify-between mb-3">
-                <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Konten Aplikasi</span>
-                <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                  <i data-lucide="layout-template" class="w-5 h-5"></i>
+            <!-- Card 3: Antrean Pengajuan -->
+            <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs card-hover cursor-pointer"
+              onclick="switchTab('product-applications')" style="border-top: 3px solid #0284C7;">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Antrean Pengajuan</span>
+                <div class="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
+                  <i data-lucide="briefcase" class="w-4 h-4"></i>
                 </div>
               </div>
-              <div class="text-2xl font-black text-slate-900 tracking-tight" id="statContentVersion">-</div>
-              <p class="text-xs text-slate-500 mt-1 font-medium" id="statContentPending">Versi yang tampil di aplikasi
+              <div class="text-3xl font-black text-slate-900 tracking-tight" id="statPendingApps">0</div>
+              <p class="text-xs text-slate-500 mt-2 font-medium" id="statPendingAppsDetail">Menunggu tindak lanjut CS</p>
+            </div>
+
+            <!-- Card 4: Konten Aplikasi -->
+            <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs card-hover"
+              style="border-top: 3px solid #D97706;">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Konten Aplikasi</span>
+                <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                  <i data-lucide="layout-template" class="w-4 h-4"></i>
+                </div>
+              </div>
+              <div class="text-3xl font-black text-slate-900 tracking-tight" id="statContentVersion">-</div>
+              <p class="text-xs text-slate-500 mt-2 font-medium" id="statContentPending">Versi yang tampil di aplikasi
               </p>
             </div>
           </div>
 
-          <!-- Status Koneksi Layanan Inti (CBS) Card on Dashboard (Visible for SUPER_ADMIN) -->
-          <div id="dashboardCbsCard" class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div class="flex items-start gap-3">
-                <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center shrink-0">
-                  <i data-lucide="server" class="w-5 h-5"></i>
-                </div>
-                <div>
-                  <div class="flex items-center gap-2 flex-wrap">
-                    <h3 class="text-sm font-bold text-slate-900">Status Koneksi Layanan Inti (Core Banking System / CBS)
-                    </h3>
-                    <span id="dashCbsHealthBadge"
-                      class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">Memeriksa...</span>
+          <!-- 2-Column Executive Operations Grid -->
+          <div class="dash-ops-grid">
+            <!-- LEFT COLUMN: Recent Applications & Live Security Audit -->
+            <div class="space-y-5 min-w-0">
+              <!-- Pengajuan Layanan Terbaru -->
+              <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+                <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-[#EFF6FF] text-[#033172] flex items-center justify-center">
+                      <i data-lucide="file-check-2" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                      <h3 class="text-sm font-bold text-slate-900">Pengajuan Layanan Nasabah Terbaru</h3>
+                      <p class="text-[11px] text-slate-500">Permohonan Kredit, Deposito, Tabungan &amp; Pencairan</p>
+                    </div>
                   </div>
-                  <p id="dashCbsHealthDetail" class="text-xs text-slate-500 mt-1">Memeriksa konektivitas dan token
-                    OAuth2 CBS OpenAPI...</p>
+                  <button type="button" onclick="switchTab('product-applications')"
+                    class="text-xs font-bold text-[#033172] hover:underline shrink-0">Lihat Semua &rarr;</button>
+                </div>
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left border-collapse">
+                    <thead>
+                      <tr class="bg-slate-50/80 text-[10px] font-extrabold text-slate-500 uppercase tracking-wider border-b border-slate-100">
+                        <th class="px-5 py-2.5">Nasabah</th>
+                        <th class="px-4 py-2.5">Layanan</th>
+                        <th class="px-4 py-2.5">Nominal</th>
+                        <th class="px-5 py-2.5 text-right">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody id="dashRecentAppsBody" class="divide-y divide-slate-100 text-xs">
+                      <tr>
+                        <td colspan="4" class="px-5 py-6 text-center text-slate-400">Memuat pengajuan terbaru...</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
-              <div class="flex items-center gap-2 shrink-0">
-                <button type="button" onclick="checkCbsHealth()"
-                  class="px-3 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition flex items-center gap-1.5">
-                  <i data-lucide="activity" class="w-3.5 h-3.5 text-[#00897B]"></i>
-                  <span>Cek Kesehatan</span>
-                </button>
-                <button type="button" id="dashCbsRefreshTokenBtn" onclick="refreshCbsConnectionToken()"
-                  class="px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] transition flex items-center gap-1.5">
-                  <i data-lucide="key-round" class="w-3.5 h-3.5"></i>
-                  <span>Segarkan Token Koneksi</span>
-                </button>
+
+              <!-- Aktivitas & Audit Keamanan Terbaru -->
+              <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+                <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                      <i data-lucide="shield-check" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                      <h3 class="text-sm font-bold text-slate-900">Aktivitas &amp; Audit Keamanan Terbaru</h3>
+                      <p class="text-[11px] text-slate-500">Log integritas SHA-256 (Kepatuhan POJK MRTI)</p>
+                    </div>
+                  </div>
+                  <button type="button" onclick="switchTab('audit')"
+                    class="text-xs font-bold text-[#033172] hover:underline shrink-0">Buka Audit Trail &rarr;</button>
+                </div>
+                <div id="dashRecentAuditList" class="divide-y divide-slate-100">
+                  <div class="px-5 py-6 text-center text-xs text-slate-400">Memuat log aktivitas terbaru...</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- RIGHT COLUMN: CBS Health & Security Posture -->
+            <div class="space-y-5 min-w-0">
+              <!-- Status Koneksi Layanan Inti (CBS) Card on Dashboard (Visible for SUPER_ADMIN) -->
+              <div id="dashboardCbsCard" class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs"
+                style="border-left: 4px solid #033172;">
+                <div class="flex items-start justify-between gap-3 mb-3">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-[#EFF6FF] text-[#033172] flex items-center justify-center shrink-0">
+                      <i data-lucide="server" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                      <h3 class="text-sm font-bold text-slate-900">Koneksi Core Banking (CBS)</h3>
+                      <p class="text-[11px] text-slate-500">Gateway OAuth2 &amp; Sinkronisasi Real-Time</p>
+                    </div>
+                  </div>
+                  <span id="dashCbsHealthBadge"
+                    class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 shrink-0">Memeriksa...</span>
+                </div>
+                <p id="dashCbsHealthDetail" class="text-xs text-slate-600 bg-slate-50 rounded-xl p-3 border border-slate-100">
+                  Memeriksa konektivitas dan token OAuth2 CBS OpenAPI...
+                </p>
+                <div class="flex flex-wrap items-center gap-2 mt-3.5">
+                  <button type="button" onclick="checkCbsHealth()"
+                    class="px-3 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition flex items-center gap-1.5">
+                    <i data-lucide="activity" class="w-3.5 h-3.5 text-[#033172]"></i>
+                    <span>Cek Kesehatan</span>
+                  </button>
+                  <button type="button" id="dashCbsRefreshTokenBtn" onclick="refreshCbsConnectionToken()"
+                    class="px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-[#033172] hover:bg-[#022454] transition flex items-center gap-1.5">
+                    <i data-lucide="key-round" class="w-3.5 h-3.5"></i>
+                    <span>Segarkan Token</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Postur Keamanan & Tata Kelola Bank -->
+              <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs">
+                <div class="flex items-center justify-between mb-3">
+                  <div>
+                    <h3 class="text-sm font-bold text-slate-900">Postur Keamanan &amp; Kepatuhan</h3>
+                    <p class="text-[11px] text-slate-500">Standar operasional perbankan digital</p>
+                  </div>
+                  <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    TERPROTEKSI
+                  </span>
+                </div>
+                <div class="space-y-2.5 text-xs">
+                  <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <div class="flex items-center gap-2.5">
+                      <i data-lucide="smartphone" class="w-4 h-4 text-[#033172]"></i>
+                      <span class="font-semibold text-slate-700">Device Binding Kriptografis</span>
+                    </div>
+                    <span class="font-bold text-emerald-700">Aktif</span>
+                  </div>
+                  <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <div class="flex items-center gap-2.5">
+                      <i data-lucide="link" class="w-4 h-4 text-[#033172]"></i>
+                      <span class="font-semibold text-slate-700">Audit Trail Hash-Chain SHA-256</span>
+                    </div>
+                    <span class="font-bold text-emerald-700">Terverifikasi</span>
+                  </div>
+                  <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <div class="flex items-center gap-2.5">
+                      <i data-lucide="message-square" class="w-4 h-4 text-[#033172]"></i>
+                      <span class="font-semibold text-slate-700">Gateway Pengiriman OTP</span>
+                    </div>
+                    <span id="dashOtpModeBadge" class="font-bold text-[#033172]">Terhubung</span>
+                  </div>
+                  <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <div class="flex items-center gap-2.5">
+                      <i data-lucide="check-circle-2" class="w-4 h-4 text-[#033172]"></i>
+                      <span class="font-semibold text-slate-700">Dual-Control Maker-Checker</span>
+                    </div>
+                    <span class="font-bold text-emerald-700">Aktif</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
           <!-- Quick Actions -->
-          <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs">
-            <h3 class="text-sm font-bold text-slate-900 mb-1">Aksi Cepat Operasional</h3>
-            <p class="text-xs text-slate-500 mb-4">Pintasan operasional sesuai hak akses petugas</p>
+          <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <h3 class="text-sm font-bold text-slate-900">Aksi Cepat Operasional</h3>
+                <p class="text-[11px] text-slate-500">Pintasan operasional sesuai hak akses petugas</p>
+              </div>
+            </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div class="dash-kpi-grid">
               <button type="button" id="qaBtnCustomers" onclick="switchTab('customers')"
-                class="w-full p-3.5 rounded-xl bg-slate-50/80 hover:bg-teal-50/70 border border-slate-200 hover:border-teal-200 text-left transition flex items-center justify-between group">
-                <div class="flex items-center gap-3">
-                  <div
-                    class="w-9 h-9 rounded-lg bg-teal-50 text-[#00897B] flex items-center justify-center font-bold">
+                class="w-full p-3.5 rounded-xl bg-slate-50/80 hover:bg-[#EFF6FF]/70 border border-slate-200 hover:border-blue-200 text-left transition flex items-center justify-between group">
+                <div class="flex items-center gap-3 min-w-0">
+                  <div class="w-9 h-9 rounded-lg bg-[#EFF6FF] text-[#033172] flex items-center justify-center shrink-0">
                     <i data-lucide="smartphone" class="w-4 h-4"></i>
                   </div>
-                  <div>
-                    <div class="text-xs font-bold text-slate-800 group-hover:text-[#00897B]">Manajemen Nasabah &amp;
-                      Pengajuan Produk</div>
-                    <div class="text-[10px] text-slate-500">Unbind Device ID, blokir akun, serta pengajuan Deposito
-                      &amp; Pinjaman</div>
+                  <div class="min-w-0">
+                    <div class="text-xs font-bold text-slate-800 group-hover:text-[#033172] truncate">Nasabah &amp; Perangkat</div>
+                    <div class="text-[10px] text-slate-500 truncate">Unbind Device &amp; blokir</div>
                   </div>
                 </div>
-                <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:text-[#00897B]"></i>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:text-[#033172] shrink-0"></i>
               </button>
 
               <button type="button" id="qaBtnContent" onclick="switchTab('content')"
-                class="w-full p-3.5 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 text-left transition flex items-center justify-between group">
-                <div class="flex items-center gap-3">
-                  <div class="w-9 h-9 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
+                class="w-full p-3.5 rounded-xl bg-slate-50/80 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 text-left transition flex items-center justify-between group">
+                <div class="flex items-center gap-3 min-w-0">
+                  <div class="w-9 h-9 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
                     <i data-lucide="layout-template" class="w-4 h-4"></i>
                   </div>
-                  <div>
-                    <div class="text-xs font-bold text-slate-800 group-hover:text-blue-700">Kelola Konten Aplikasi &amp;
-                      Galeri Aset</div>
-                    <div class="text-[10px] text-slate-500">Teks, gambar &amp; banner aplikasi dengan pratinjau visual
-                      HP</div>
+                  <div class="min-w-0">
+                    <div class="text-xs font-bold text-slate-800 group-hover:text-blue-700 truncate">Konten &amp; Banner App</div>
+                    <div class="text-[10px] text-slate-500 truncate">Pratinjau visual HP</div>
                   </div>
                 </div>
-                <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:text-blue-600"></i>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:text-blue-600 shrink-0"></i>
               </button>
 
               <button type="button" id="qaBtnAudit" onclick="switchTab('audit')"
-                class="w-full p-3.5 rounded-xl bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 text-left transition flex items-center justify-between group">
-                <div class="flex items-center gap-3">
-                  <div
-                    class="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                class="w-full p-3.5 rounded-xl bg-slate-50/80 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 text-left transition flex items-center justify-between group">
+                <div class="flex items-center gap-3 min-w-0">
+                  <div class="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
                     <i data-lucide="scroll-text" class="w-4 h-4"></i>
                   </div>
-                  <div>
-                    <div class="text-xs font-bold text-slate-800 group-hover:text-emerald-700">Audit Trail &amp; Log
-                      Keamanan OJK</div>
-                    <div class="text-[10px] text-slate-500">Pantau rantai hash integritas aktivitas nasabah, admin &amp;
-                      sistem</div>
+                  <div class="min-w-0">
+                    <div class="text-xs font-bold text-slate-800 group-hover:text-emerald-700 truncate">Audit Trail OJK</div>
+                    <div class="text-[10px] text-slate-500 truncate">Rantai hash integritas</div>
                   </div>
                 </div>
-                <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:text-emerald-600"></i>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:text-emerald-600 shrink-0"></i>
               </button>
 
               <button type="button" id="qaBtnSettings" onclick="switchTab('settings')"
-                class="w-full p-3.5 rounded-xl bg-slate-50 hover:bg-purple-50 border border-slate-200 hover:border-purple-200 text-left transition flex items-center justify-between group">
-                <div class="flex items-center gap-3">
-                  <div
-                    class="w-9 h-9 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+                class="w-full p-3.5 rounded-xl bg-slate-50/80 hover:bg-purple-50 border border-slate-200 hover:border-purple-200 text-left transition flex items-center justify-between group">
+                <div class="flex items-center gap-3 min-w-0">
+                  <div class="w-9 h-9 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
                     <i data-lucide="settings" class="w-4 h-4"></i>
                   </div>
-                  <div>
-                    <div class="text-xs font-bold text-slate-800 group-hover:text-purple-700">Pengaturan Operasional
-                      Bank</div>
-                    <div class="text-[10px] text-slate-500">Identitas bank, keamanan login, OTP &amp; koneksi Core
-                      Banking</div>
+                  <div class="min-w-0">
+                    <div class="text-xs font-bold text-slate-800 group-hover:text-purple-700 truncate">Pengaturan Bank</div>
+                    <div class="text-[10px] text-slate-500 truncate">Identitas, OTP &amp; CBS</div>
                   </div>
                 </div>
-                <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:text-purple-600"></i>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:text-purple-600 shrink-0"></i>
               </button>
             </div>
           </div>
         </section>
 
-        <!-- ==================== TAB 2: NASABAH, PERANGKAT & PENGAJUAN PRODUK ==================== -->
+        <!-- ==================== TAB 2: NASABAH & PERANGKAT ==================== -->
         <section id="tab-customers" class="hidden space-y-5">
-
-          <!-- Sub-Tabs Navigation Switcher -->
-          <div id="customerSubTabsBar" class="flex flex-wrap items-center gap-2">
-            <button type="button" id="subTabBtnCustomers" onclick="switchCustomerSubTab('customers')"
-              class="px-4 py-2 rounded-xl text-xs font-bold bg-[#00897B] text-white shadow-xs transition flex items-center gap-2">
-              <i data-lucide="users" class="w-4 h-4"></i>
-              <span>Data Nasabah &amp; Ikatan Perangkat</span>
-            </button>
-            <button type="button" id="subTabBtnApplications" onclick="switchCustomerSubTab('applications')"
-              class="px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition flex items-center gap-2">
-              <i data-lucide="briefcase" class="w-4 h-4"></i>
-              <span>Pengajuan Produk (Deposito &amp; Pinjaman)</span>
-              <span id="productAppsCountBadge"
-                class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800">0</span>
-            </button>
+          <div class="tab-navy-header">
+            <div class="relative z-10">
+              <div class="tab-navy-header-badge mb-2">Layanan Nasabah &amp; Keamanan Perangkat</div>
+              <h2 class="tab-navy-header-title">Manajemen Nasabah &amp; Device Binding</h2>
+              <p class="tab-navy-header-sub">Kelola status akun nasabah, pantau gagal login/PIN, dan buka ikatan perangkat (Unbind Device ID).</p>
+            </div>
           </div>
 
           <!-- SECTION 1: DATA NASABAH & IKATAN PERANGKAT -->
@@ -478,10 +654,10 @@
                     </span>
                     <input type="text" id="customerSearchInput" placeholder="Cari nama, CIF, atau no HP..."
                       onkeyup="if(event.key==='Enter') loadCustomers(true)"
-                      class="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B] bg-slate-50 focus:bg-white">
+                      class="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172] bg-slate-50 focus:bg-white">
                   </div>
                   <button type="button" onclick="loadCustomers(true)"
-                    class="px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] transition">
+                    class="px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-[#033172] hover:bg-[#022454] transition">
                     Cari
                   </button>
                 </div>
@@ -540,29 +716,43 @@
             </div>
           </div>
 
-          <!-- SECTION 2: PENGAJUAN PRODUK NASABAH (DEPOSITO & PINJAMAN) -->
-          <div id="productApplicationsSection" class="hidden">
+        </section>
+
+        <!-- ==================== TAB 2A: PENGAJUAN PRODUK (KREDIT, DEPOSITO, TABUNGAN) ==================== -->
+        <section id="tab-product-applications" class="hidden space-y-5">
+          <div class="tab-navy-header">
+            <div class="relative z-10">
+              <div class="tab-navy-header-badge mb-2">Akuisisi &amp; Produk Perbankan</div>
+              <h2 class="tab-navy-header-title">Pengajuan Produk Nasabah</h2>
+              <p class="tab-navy-header-sub">Tinjau dan tindak lanjuti pengajuan Kredit, Deposito Berjangka, dan Tabungan dari aplikasi myDMB.</p>
+            </div>
+          </div>
+          <div id="productApplicationsSection">
             <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
               <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                  <h3 class="text-base font-bold text-slate-800">Pengajuan Produk Nasabah (Deposito &amp; Pinjaman)</h3>
-                  <p class="text-xs text-slate-500">Daftar pengajuan pembukaan Deposito Berjangka dan Kredit/Pinjaman
-                    dari aplikasi Mobile DMB</p>
+                  <div class="flex items-center gap-2.5">
+                    <h3 class="text-base font-bold text-slate-800">Pengajuan Produk Nasabah</h3>
+                    <span id="productAppsCountBadge"
+                      class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800">0</span>
+                  </div>
+                  <p class="text-xs text-slate-500">Daftar pengajuan Kredit, Deposito Berjangka, dan Tabungan dari aplikasi Mobile DMB</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
                   <select id="appProductFilter" onchange="loadProductApplications()"
-                    class="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-slate-50 focus:outline-none focus:border-[#00897B]">
-                    <option value="ALL">Semua Produk (Deposito &amp; Pinjaman)</option>
-                    <option value="DEPOSITO">Deposito Berjangka</option>
+                    class="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-slate-50 focus:outline-none focus:border-[#033172]">
+                    <option value="ALL">Semua Produk (Kredit, Deposito, Tabungan)</option>
                     <option value="PINJAMAN">Pinjaman / Kredit</option>
+                    <option value="DEPOSITO">Deposito Berjangka</option>
+                    <option value="TABUNGAN">Tabungan</option>
                   </select>
                   <select id="appStatusFilter" onchange="loadProductApplications()"
-                    class="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-slate-50 focus:outline-none focus:border-[#00897B]">
+                    class="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-slate-50 focus:outline-none focus:border-[#033172]">
                     <option value="ALL">Semua Status</option>
-                    <option value="PENDING">PENDING (Menunggu CS)</option>
-                    <option value="CONTACTED">CONTACTED (Dihubungi CS)</option>
-                    <option value="APPROVED">APPROVED (Disetujui)</option>
-                    <option value="REJECTED">REJECTED (Ditolak)</option>
+                    <option value="PENDING">Diajukan (Menunggu Tinjauan)</option>
+                    <option value="CONTACTED">Diproses / Dihubungi</option>
+                    <option value="APPROVED">Selesai</option>
+                    <option value="REJECTED">Dibatalkan</option>
                   </select>
                   <button type="button" onclick="loadProductApplications()"
                     class="px-3.5 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-700 transition flex items-center gap-1.5">
@@ -600,28 +790,35 @@
 
         <!-- ==================== TAB 2B: PENCAIRAN DEPOSITO ==================== -->
         <section id="tab-deposit-disbursements" class="hidden space-y-5">
+          <div class="tab-navy-header">
+            <div class="relative z-10">
+              <div class="tab-navy-header-badge mb-2">Operasional Deposito</div>
+              <h2 class="tab-navy-header-title">Pengajuan Pencairan Deposito</h2>
+              <p class="tab-navy-header-sub">Proses permohonan pencairan Pokok, Bunga, atau Pokok &amp; Bunga dari aplikasi mobile nasabah.</p>
+            </div>
+          </div>
           <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
             <div class="px-6 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div class="flex items-center gap-2.5">
-                  <h3 class="text-sm font-bold text-slate-800">Pengajuan Pencairan Deposito</h3>
+                  <h3 class="text-sm font-bold text-slate-800">Daftar Pengajuan Pencairan</h3>
                   <span id="disbursementsCountBadge"
-                    class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">0
+                    class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#EFF6FF] text-[#033172] border border-blue-200">0
                     pengajuan</span>
                 </div>
-                <p class="text-xs text-slate-500 mt-0.5">Daftar pengajuan pencairan deposito (Pokok, Bunga, Pokok &amp; Bunga) dari aplikasi mobile nasabah.</p>
+                <p class="text-xs text-slate-500 mt-0.5">Filter berdasarkan status tindak lanjut petugas.</p>
               </div>
               <div class="flex items-center gap-2">
                 <select id="disbursementStatusFilter" onchange="loadDepositDisbursements()"
                   class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none">
                   <option value="ALL">Semua Status</option>
-                  <option value="PENDING">PENDING</option>
-                  <option value="CONTACTED">CONTACTED</option>
-                  <option value="APPROVED">APPROVED</option>
-                  <option value="REJECTED">REJECTED</option>
+                  <option value="PENDING">Diajukan</option>
+                  <option value="CONTACTED">Diproses / Dihubungi</option>
+                  <option value="APPROVED">Selesai</option>
+                  <option value="REJECTED">Dibatalkan</option>
                 </select>
                 <button type="button" onclick="loadDepositDisbursements()"
-                  class="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition">
+                  class="px-3.5 py-2 bg-[#033172] hover:bg-[#022454] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition">
                   <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Muat Ulang
                 </button>
               </div>
@@ -648,24 +845,144 @@
           </div>
         </section>
 
+        <!-- ==================== TAB 2C: CHATBOT & FAQ ==================== -->
+        <section id="tab-helpdesk" class="hidden space-y-5">
+          <div class="tab-navy-header">
+            <div class="relative z-10">
+              <div class="tab-navy-header-badge mb-2">Dukungan &amp; Layanan Nasabah</div>
+              <h2 class="tab-navy-header-title">Chatbot &amp; FAQ Pusat Bantuan</h2>
+              <p class="tab-navy-header-sub">Kelola basis pengetahuan chatbot myDMB dan pantau log pertanyaan nasabah secara real-time.</p>
+            </div>
+          </div>
+          <!-- Form Tambah / Edit FAQ -->
+          <div id="faqEditorCard" class="hidden bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 id="faqEditorTitle" class="text-sm font-bold text-slate-800">Tambah FAQ Chatbot</h3>
+              <button type="button" onclick="closeFaqEditor()" class="text-xs font-bold text-slate-500 hover:text-slate-800">Tutup</button>
+            </div>
+            <input type="hidden" id="faqEditId" />
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-600 mb-1">Judul Topik</label>
+                <input id="faqTopicInput" type="text" placeholder="Misal: Cara Tarik Tunai"
+                  class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50 outline-none focus:border-[#033172]" />
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-slate-600 mb-1">Kata Kunci (pisah koma)</label>
+                <input id="faqKeywordsInput" type="text" placeholder="tarik,tunai,atm,cash"
+                  class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50 outline-none focus:border-[#033172]" />
+              </div>
+              <div class="flex items-end gap-3">
+                <div class="flex-1">
+                  <label class="block text-[11px] font-bold text-slate-600 mb-1">Urutan</label>
+                  <input id="faqSortInput" type="number" value="10"
+                    class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50 outline-none focus:border-[#033172]" />
+                </div>
+                <label class="flex items-center gap-2 pb-2 text-xs font-bold text-slate-700 cursor-pointer">
+                  <input id="faqActiveInput" type="checkbox" checked class="rounded" /> Aktif
+                </label>
+              </div>
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">Jawaban Bot</label>
+              <textarea id="faqAnswerInput" rows="3" placeholder="Tulis jawaban resmi Bank DMB..."
+                class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50 outline-none focus:border-[#033172]"></textarea>
+            </div>
+            <div class="flex justify-end gap-2">
+              <button type="button" onclick="closeFaqEditor()"
+                class="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50">Batal</button>
+              <button type="button" onclick="saveHelpdeskFaq()"
+                class="px-4 py-2 rounded-xl bg-[#033172] hover:bg-[#022454] text-white text-xs font-bold transition">Simpan FAQ</button>
+            </div>
+          </div>
+
+          <!-- Daftar FAQ Chatbot -->
+          <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 class="text-sm font-bold text-slate-800">Daftar Topik &amp; FAQ Chatbot</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Atur topik cepat, kata kunci, dan jawaban otomatis Asisten Virtual di aplikasi mobile.</p>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                <button type="button" onclick="openFaqEditor()"
+                  class="px-3.5 py-2 bg-[#033172] hover:bg-[#022454] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition">
+                  <i data-lucide="plus" class="w-3.5 h-3.5"></i> Tambah FAQ
+                </button>
+                <button type="button" onclick="loadHelpdeskAdmin()"
+                  class="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition">
+                  <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Muat Ulang
+                </button>
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="bg-slate-50/80 border-b border-slate-100 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    <th class="px-5 py-3">Topik &amp; Kata Kunci</th>
+                    <th class="px-5 py-3">Jawaban</th>
+                    <th class="px-5 py-3">Status</th>
+                    <th class="px-5 py-3 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="helpdeskFaqTableBody" class="divide-y divide-slate-100 text-xs">
+                  <tr><td colspan="4" class="px-5 py-8 text-center text-slate-400">Memuat FAQ...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Log Pertanyaan Nasabah -->
+          <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h3 class="text-sm font-bold text-slate-800">Pertanyaan Masuk dari Nasabah</h3>
+                  <span id="helpdeskOpenBadge"
+                    class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">0 belum dijawab</span>
+                </div>
+                <p class="text-xs text-slate-500 mt-0.5">Pertanyaan yang diketik nasabah di Chatbot (klik "Jadikan FAQ" untuk menambahkannya ke jawaban otomatis).</p>
+              </div>
+              <select id="inquiryStatusFilter" onchange="loadHelpdeskInquiries()"
+                class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none">
+                <option value="OPEN">Belum Terjawab (OPEN)</option>
+                <option value="ALL">Semua Pertanyaan</option>
+                <option value="RESOLVED">Sudah Ditangani (RESOLVED)</option>
+              </select>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="bg-slate-50/80 border-b border-slate-100 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    <th class="px-5 py-3">Waktu</th>
+                    <th class="px-5 py-3">Nasabah</th>
+                    <th class="px-5 py-3">Pertanyaan Nasabah</th>
+                    <th class="px-5 py-3">Status</th>
+                    <th class="px-5 py-3 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="helpdeskInquiriesTableBody" class="divide-y divide-slate-100 text-xs">
+                  <tr><td colspan="5" class="px-5 py-8 text-center text-slate-400">Memuat pertanyaan nasabah...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
         <!-- ==================== TAB 3: KONTEN APLIKASI (Maker-Checker + Live Mobile Mockup + Asset Gallery) ==================== -->
         <section id="tab-content" class="hidden space-y-5">
-          <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
-            <div>
-              <h3 class="text-lg font-black text-slate-900 tracking-tight">Konten Aplikasi Mobile</h3>
-              <p class="text-xs text-slate-500 mt-1 max-w-2xl">
-                Teks, gambar, dan pengaturan tampil yang dibaca aplikasi nasabah dari server, dikelompokkan per layar
-                aplikasi. Perubahan disimpan sebagai draf, diajukan, lalu disetujui petugas lain sebelum tampil di
-                aplikasi &mdash; tanpa build APK baru.
-              </p>
+          <div class="tab-navy-header">
+            <div class="relative z-10" style="max-width: 680px;">
+              <div class="tab-navy-header-badge mb-2">Manajemen Konten &amp; Aset Mobile</div>
+              <h2 class="tab-navy-header-title">Konten Aplikasi Mobile (myDMB)</h2>
+              <p class="tab-navy-header-sub">Teks, gambar, dan banner aplikasi yang disinkronkan OTA ke aplikasi nasabah melalui persetujuan Maker-Checker tanpa build APK baru.</p>
             </div>
-            <div class="flex flex-wrap items-center gap-2">
+            <div class="relative z-10 flex flex-wrap items-center gap-2">
               <button type="button" onclick="switchContentView('editor')"
-                class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition flex items-center gap-1.5">
-                <i data-lucide="smartphone" class="w-4 h-4 text-[#00897B]"></i><span>Editor &amp; Pratinjau HP</span>
+                style="padding: 8px 14px; border-radius: 10px; font-size: 12px; font-weight: 700; background: #ffffff; color: #033172; display: inline-flex; align-items: center; gap: 6px;">
+                <i data-lucide="smartphone" class="w-3.5 h-3.5"></i><span>Editor &amp; Pratinjau HP</span>
               </button>
               <button type="button" onclick="switchContentView('assets')" id="contentAssetsBtn"
-                class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition flex items-center gap-1.5">
+                style="padding: 8px 14px; border-radius: 10px; font-size: 12px; font-weight: 700; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.28); color: #ffffff; display: inline-flex; align-items: center; gap: 6px;">
                 <i data-lucide="images" class="w-4 h-4 text-blue-600"></i><span>Galeri Aset &amp; Gambar Server</span>
               </button>
               <button type="button" onclick="switchContentView('history')" id="contentHistoryBtn"
@@ -693,13 +1010,13 @@
               <div class="flex-1 flex flex-col sm:flex-row sm:items-center gap-2">
                 <label for="contentRevisionNote"
                   class="text-xs font-bold text-slate-700 whitespace-nowrap flex items-center gap-1">
-                  <i data-lucide="file-text" class="w-3.5 h-3.5 text-[#00897B]"></i>
+                  <i data-lucide="file-text" class="w-3.5 h-3.5 text-[#033172]"></i>
                   <span>Catatan Perubahan:</span>
                 </label>
                 <input type="text" id="contentRevisionNote" maxlength="250"
                   oninput="onRevisionNoteInput(this.value)"
                   placeholder="Tuliskan ringkasan alasan perubahan draf ini (terekam di Riwayat Versi)..."
-                  class="flex-1 px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B] bg-slate-50 focus:bg-white">
+                  class="flex-1 px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172] bg-slate-50 focus:bg-white">
               </div>
 
               <div class="flex flex-wrap gap-2" id="contentActions">
@@ -710,7 +1027,7 @@
                   class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition disabled:opacity-40 disabled:cursor-not-allowed">Ajukan
                   Persetujuan</button>
                 <button type="button" id="contentApproveBtn" onclick="approveContent()"
-                  class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] transition disabled:opacity-40 disabled:cursor-not-allowed">Setujui
+                  class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#033172] hover:bg-[#022454] transition disabled:opacity-40 disabled:cursor-not-allowed">Setujui
                   &amp; Publikasikan</button>
                 <button type="button" id="contentRejectBtn" onclick="rejectContent()"
                   class="px-4 py-2 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 transition disabled:opacity-40 disabled:cursor-not-allowed">Kembalikan
@@ -737,13 +1054,13 @@
               <div class="flex items-center justify-between mb-3">
                 <div>
                   <h4 class="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                    <i data-lucide="smartphone" class="w-4 h-4 text-[#00897B]"></i>
+                    <i data-lucide="smartphone" class="w-4 h-4 text-[#033172]"></i>
                     <span>Pratinjau Layar Aplikasi</span>
                   </h4>
                   <p class="text-[11px] text-slate-400">Simulasi real-time perubahan draf</p>
                 </div>
                 <span id="mobileMockupPageBadge"
-                  class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 text-[#00897B] border border-teal-200">Layar</span>
+                  class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#EFF6FF] text-[#033172] border border-blue-200">Layar</span>
               </div>
 
               <div class="flex justify-center py-2">
@@ -774,7 +1091,7 @@
                   <option value="login_bg">Kategori: Latar Login</option>
                 </select>
                 <label
-                  class="px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] cursor-pointer transition flex items-center gap-1.5">
+                  class="px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-[#033172] hover:bg-[#022454] cursor-pointer transition flex items-center gap-1.5">
                   <i data-lucide="upload-cloud" class="w-4 h-4"></i>
                   <span>Unggah Gambar Baru</span>
                   <input type="file" accept="image/png,image/jpeg,image/webp" class="hidden"
@@ -788,7 +1105,7 @@
 
             <!-- Slot Selection Info Banner -->
             <div id="assetSelectTargetBanner"
-              class="hidden p-3 rounded-xl bg-teal-50 border border-teal-200 text-xs text-teal-900"></div>
+              class="hidden p-3 rounded-xl bg-[#EFF6FF] border border-blue-200 text-xs text-teal-900"></div>
 
             <!-- Category Filter Pills -->
             <div class="flex flex-wrap items-center gap-1.5">
@@ -821,7 +1138,7 @@
             <div class="flex items-center justify-between p-4 border-b border-slate-100">
               <h4 class="text-sm font-bold text-slate-800">Riwayat Versi Konten</h4>
               <button type="button" onclick="switchContentView('editor')"
-                class="text-xs font-bold text-[#00897B] hover:underline">Kembali ke editor</button>
+                class="text-xs font-bold text-[#033172] hover:underline">Kembali ke editor</button>
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-left text-xs">
@@ -845,10 +1162,12 @@
 
         <!-- ==================== TAB 4: SYARAT & KETENTUAN (Structured Visual Form Builder + Maker-Checker) ==================== -->
         <section id="tab-terms" class="hidden space-y-5">
-          <div>
-            <h3 class="text-lg font-black text-slate-900 tracking-tight">Syarat &amp; Ketentuan Layanan</h3>
-            <p class="text-xs text-slate-500 mt-1 max-w-2xl">Dokumen PDF yang wajib dibaca dan disetujui nasabah sebelum
-              login. Setiap perubahan menjadi versi baru dan disetujui petugas lain (Maker-Checker).</p>
+          <div class="tab-navy-header">
+            <div class="relative z-10">
+              <div class="tab-navy-header-badge mb-2">Kepatuhan Hukum &amp; Maker-Checker</div>
+              <h2 class="tab-navy-header-title">Syarat &amp; Ketentuan Layanan</h2>
+              <p class="tab-navy-header-sub">Dokumen PDF resmi yang wajib disetujui nasabah sebelum login, dikelola dengan persetujuan dua petugas.</p>
+            </div>
           </div>
           <div class="space-y-5 max-w-5xl">
 
@@ -859,7 +1178,7 @@
                   <span>Syarat dan Ketentuan Layanan Mobile Banking</span>
                 </h4>
                 <button type="button" onclick="loadTermsVersions()"
-                  class="text-[11px] font-bold text-[#00897B] hover:underline flex items-center gap-1">
+                  class="text-[11px] font-bold text-[#033172] hover:underline flex items-center gap-1">
                   <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i><span>Muat ulang</span>
                 </button>
               </div>
@@ -872,7 +1191,7 @@
               <div id="termsVersionList" class="space-y-2"></div>
               <div class="flex flex-wrap gap-2 pt-1">
                 <button type="button" id="termsNewDraftBtn" onclick="createTermsDraft()"
-                  class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+                  class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#033172] hover:bg-[#022454] transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
                   <i data-lucide="file-plus" class="w-4 h-4"></i><span>Buat Draf Versi Baru (salin versi
                     terakhir)</span>
                 </button>
@@ -889,7 +1208,7 @@
                 </h4>
                 <div class="flex items-center gap-1.5">
                   <button type="button" id="termsModeVisualBtn" onclick="toggleTermsEditorMode('visual')"
-                    class="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#00897B] text-white shadow-xs">
+                    class="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#033172] text-white shadow-xs">
                     Editor Visual Terstruktur
                   </button>
                   <button type="button" id="termsModeJsonBtn" onclick="toggleTermsEditorMode('json')"
@@ -904,12 +1223,12 @@
                   <label class="block text-xs font-bold text-slate-700 mb-1">Nomor Dokumen Resmi (opsional)</label>
                   <input type="text" id="termsDocNumber" maxlength="100"
                     placeholder="Kosongkan bila belum ada nomor resmi"
-                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
+                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172]">
                 </div>
                 <div>
                   <label class="block text-xs font-bold text-slate-700 mb-1">Ringkasan Perubahan</label>
                   <input type="text" id="termsChangeSummary" maxlength="500"
-                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
+                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172]">
                 </div>
               </div>
 
@@ -925,12 +1244,12 @@
                   <code>consent_instruction</code>, <code>consent_statements[]</code>.
                 </p>
                 <textarea id="termsContentJson" rows="18" spellcheck="false"
-                  class="w-full px-3.5 py-2.5 text-[11px] font-mono rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]"></textarea>
+                  class="w-full px-3.5 py-2.5 text-[11px] font-mono rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172]"></textarea>
               </div>
 
               <div class="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
                 <button type="button" onclick="saveTermsDraft()"
-                  class="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] transition">Simpan
+                  class="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#033172] hover:bg-[#022454] transition">Simpan
                   Draf Dokumen</button>
                 <button type="button" onclick="closeTermsEditor()"
                   class="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition">Tutup
@@ -946,9 +1265,9 @@
               </h4>
               <div class="flex gap-2">
                 <input type="text" id="termsAcceptUserId" placeholder="Filter ID nasabah (opsional)"
-                  class="flex-1 px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
+                  class="flex-1 px-3.5 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172]">
                 <button type="button" onclick="loadTermsAcceptances()"
-                  class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] transition">Tampilkan</button>
+                  class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#033172] hover:bg-[#022454] transition">Tampilkan</button>
               </div>
               <div id="termsAcceptanceList" class="text-xs text-slate-500">Klik Tampilkan untuk memuat bukti persetujuan
                 nasabah.</div>
@@ -959,13 +1278,12 @@
 
         <!-- ==================== TAB 5: NOTIFIKASI PUSH (Firebase Cloud Messaging HTTP v1) ==================== -->
         <section id="tab-push" class="hidden space-y-5">
-          <div>
-            <h3 class="text-lg font-black text-slate-900 tracking-tight">Notifikasi Push</h3>
-            <p class="text-xs text-slate-500 mt-1 max-w-3xl">
-              Notifikasi ke HP nasabah melalui Firebase Cloud Messaging. Notifikasi dari petugas harus disetujui
-              petugas lain sebelum dikirim. Status "Diterima FCM" berarti Firebase menerima pesan untuk diantar &mdash;
-              bukan bukti pesan tampil di HP; "Dibuka" tercatat hanya bila nasabah mengetuk notifikasi.
-            </p>
+          <div class="tab-navy-header">
+            <div class="relative z-10" style="max-width: 720px;">
+              <div class="tab-navy-header-badge mb-2">Komunikasi Nasabah &amp; FCM HTTP v1</div>
+              <h2 class="tab-navy-header-title">Notifikasi Push Mobile Banking</h2>
+              <p class="tab-navy-header-sub">Kirim pengumuman &amp; informasi layanan ke perangkat nasabah melalui Firebase Cloud Messaging dengan persetujuan Maker-Checker.</p>
+            </div>
           </div>
 
           <!-- Integrasi Firebase -->
@@ -990,7 +1308,7 @@
                   class="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40">Uji
                   Koneksi</button>
                 <button type="button" id="pushEnableBtn" onclick="togglePushEnabled()"
-                  class="px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] disabled:opacity-40">Aktifkan</button>
+                  class="px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-[#033172] hover:bg-[#022454] disabled:opacity-40">Aktifkan</button>
               </div>
               <p class="text-[11px] text-slate-500">
                 Berkas service account diperiksa langsung ke Firebase, lalu disimpan terenkripsi di server. Isinya tidak
@@ -1010,13 +1328,13 @@
                   <label for="pushTitle" class="block text-xs font-bold text-slate-700 mb-1">Judul <span
                       class="text-rose-500">*</span></label>
                   <input id="pushTitle" type="text" maxlength="100" required
-                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
+                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172]">
                 </div>
                 <div>
                   <label for="pushBody" class="block text-xs font-bold text-slate-700 mb-1">Isi <span
                       class="text-rose-500">*</span></label>
                   <textarea id="pushBody" rows="4" maxlength="500" required
-                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]"></textarea>
+                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172]"></textarea>
                   <p class="text-[10.5px] text-slate-400 mt-1">Maks. 500 karakter. Jangan menulis data nasabah, saldo,
                     nomor rekening, PIN, atau OTP.</p>
                 </div>
@@ -1025,7 +1343,7 @@
                 <div>
                   <label for="pushCategory" class="block text-xs font-bold text-slate-700 mb-1">Kategori</label>
                   <select id="pushCategory"
-                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
+                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172]">
                     <option value="INFO">Informasi</option>
                     <option value="PROMO">Promo</option>
                   </select>
@@ -1034,7 +1352,7 @@
                   <label for="pushTarget" class="block text-xs font-bold text-slate-700 mb-1">Penerima</label>
                   <select id="pushTarget"
                     onchange="document.getElementById('pushTargetUserWrap').classList.toggle('hidden', this.value !== 'USER')"
-                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
+                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172]">
                     <option value="ALL">Semua nasabah aktif</option>
                     <option value="USER">Satu nasabah</option>
                   </select>
@@ -1042,7 +1360,7 @@
                 <div id="pushTargetUserWrap" class="hidden">
                   <label for="pushTargetUser" class="block text-xs font-bold text-slate-700 mb-1">ID nasabah</label>
                   <input id="pushTargetUser" type="text" maxlength="36" placeholder="ID dari menu Nasabah & Perangkat"
-                    class="w-full px-3.5 py-2.5 text-xs font-mono rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
+                    class="w-full px-3.5 py-2.5 text-xs font-mono rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172]">
                 </div>
                 <button type="submit"
                   class="px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-slate-800 hover:bg-slate-900">Simpan
@@ -1056,7 +1374,7 @@
             <div class="flex items-center justify-between p-4 border-b border-slate-100">
               <h4 class="text-sm font-bold text-slate-800">Riwayat Notifikasi</h4>
               <button type="button" onclick="loadPush()"
-                class="text-xs font-bold text-[#00897B] hover:underline">Muat ulang</button>
+                class="text-xs font-bold text-[#033172] hover:underline">Muat ulang</button>
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-left text-xs">
@@ -1078,7 +1396,14 @@
         </section>
 
         <!-- ==================== TAB 6: AUDIT TRAIL KEAMANAN OJK ==================== -->
-        <section id="tab-audit" class="hidden space-y-6">
+        <section id="tab-audit" class="hidden space-y-5">
+          <div class="tab-navy-header">
+            <div class="relative z-10">
+              <div class="tab-navy-header-badge mb-2">POJK MRTI &bull; SHA-256 Hash Chain</div>
+              <h2 class="tab-navy-header-title">Audit Trail &amp; Integritas Keamanan OJK</h2>
+              <p class="tab-navy-header-sub">Rekam jejak berantai hash kriptografis atas seluruh aktivitas nasabah, petugas admin, dan proses sistem.</p>
+            </div>
+          </div>
           <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
             <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div>
@@ -1086,7 +1411,7 @@
                   <h3 class="text-base font-bold text-slate-800">Audit Trail &amp; Log Keamanan Sistem (Kepatuhan OJK)
                   </h3>
                   <span
-                    class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-teal-50 text-[#00897B] border border-teal-200">POJK
+                    class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#EFF6FF] text-[#033172] border border-blue-200">POJK
                     MRTI &bull; SHA-256 Hash Chain</span>
                   <span id="auditCountBadge"
                     class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">0 Entri</span>
@@ -1114,7 +1439,7 @@
                 <label for="auditActorFilter" class="block text-[10px] font-extrabold text-slate-500 uppercase mb-1">Tipe
                   Aktor</label>
                 <select id="auditActorFilter" onchange="loadAuditLogs(false)"
-                  class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white focus:outline-none focus:border-[#00897B]">
+                  class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white focus:outline-none focus:border-[#033172]">
                   <option value="ALL">SEMUA AKTOR</option>
                   <option value="NASABAH">NASABAH</option>
                   <option value="ADMIN">ADMIN (PETUGAS)</option>
@@ -1127,23 +1452,23 @@
                 <input type="text" id="auditSearchInput"
                   placeholder="Cari aksi, nama aktor, target, IP, atau rincian..."
                   onkeyup="if(event.key==='Enter') loadAuditLogs(false)"
-                  class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:border-[#00897B]">
+                  class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:border-[#033172]">
               </div>
               <div class="lg:col-span-2">
                 <label for="auditFromDate" class="block text-[10px] font-extrabold text-slate-500 uppercase mb-1">Dari
                   Tanggal</label>
                 <input type="date" id="auditFromDate" onchange="loadAuditLogs(false)"
-                  class="w-full px-2.5 py-2 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:border-[#00897B]">
+                  class="w-full px-2.5 py-2 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:border-[#033172]">
               </div>
               <div class="lg:col-span-2">
                 <label for="auditToDate" class="block text-[10px] font-extrabold text-slate-500 uppercase mb-1">Sampai
                   Tanggal</label>
                 <input type="date" id="auditToDate" onchange="loadAuditLogs(false)"
-                  class="w-full px-2.5 py-2 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:border-[#00897B]">
+                  class="w-full px-2.5 py-2 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:border-[#033172]">
               </div>
               <div class="lg:col-span-1 flex items-end gap-1">
                 <button type="button" onclick="loadAuditLogs(false)" title="Terapkan Filter"
-                  class="flex-1 py-2 px-2.5 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] transition">
+                  class="flex-1 py-2 px-2.5 rounded-xl text-xs font-bold text-white bg-[#033172] hover:bg-[#022454] transition">
                   Filter
                 </button>
                 <button type="button" onclick="resetAuditFilters()" title="Reset Filter"
@@ -1187,41 +1512,43 @@
         </section>
 
         <!-- ==================== TAB APPROVALS (MAKER-CHECKER) ==================== -->
-        <section id="tab-approvals" class="hidden space-y-6">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h3 class="text-base font-bold text-slate-800">Antrean Persetujuan (Maker-Checker)</h3>
-              <p class="text-xs text-slate-500">Persetujuan dua petugas untuk perubahan konfigurasi OTP, reset perangkat, buka blokir nasabah, dan publikasi banner.</p>
+        <section id="tab-approvals" class="hidden space-y-5">
+          <div class="tab-navy-header">
+            <div class="relative z-10" style="max-width: 680px;">
+              <div class="tab-navy-header-badge mb-2">Dual-Control Tata Kelola Bank</div>
+              <h2 class="tab-navy-header-title">Antrean Persetujuan (Maker-Checker)</h2>
+              <p class="tab-navy-header-sub">Persetujuan dua petugas untuk perubahan konfigurasi OTP, reset perangkat, buka blokir nasabah, dan publikasi konten.</p>
             </div>
-            <div class="flex items-center gap-2">
-              <select id="approvalsFilterStatus" onchange="loadApprovals()" class="px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white font-semibold">
+            <div class="relative z-10 flex items-center gap-2">
+              <select id="approvalsFilterStatus" onchange="loadApprovals()" class="px-3 py-2 text-xs rounded-xl border border-white/25 bg-white text-slate-800 font-semibold">
                 <option value="PENDING">Menunggu Persetujuan</option>
                 <option value="APPROVED">Disetujui</option>
                 <option value="REJECTED">Ditolak</option>
                 <option value="">Semua Status</option>
               </select>
-              <button type="button" onclick="loadApprovals()" class="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50">Muat Ulang</button>
+              <button type="button" onclick="loadApprovals()"
+                style="padding: 8px 14px; border-radius: 10px; font-size: 12px; font-weight: 700; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.28); color: #ffffff;">Muat Ulang</button>
             </div>
           </div>
           <div id="approvalsList" class="space-y-3"></div>
         </section>
 
         <!-- ==================== TAB 7: MANAJEMEN PETUGAS & HAK AKSES (RBAC) ==================== -->
-        <section id="tab-admin-users" class="hidden space-y-6">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h3 class="text-base font-bold text-slate-800">Manajemen Petugas Admin &amp; Hak Akses (RBAC)</h3>
-              <p class="text-xs text-slate-500">Kelola akun operasional bank, peran petugas (Roles), reset sandi, dan
-                pembagian wewenang sistem</p>
+        <section id="tab-admin-users" class="hidden space-y-5">
+          <div class="tab-navy-header">
+            <div class="relative z-10">
+              <div class="tab-navy-header-badge mb-2">Role-Based Access Control (RBAC)</div>
+              <h2 class="tab-navy-header-title">Manajemen Petugas Admin &amp; Hak Akses</h2>
+              <p class="tab-navy-header-sub">Kelola akun operasional bank, peran petugas (Roles), reset sandi, dan pembagian wewenang sistem.</p>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="relative z-10 flex items-center gap-2">
               <button type="button" onclick="loadAdminUsers()"
-                class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition flex items-center gap-1.5 shadow-sm">
+                style="padding: 8px 14px; border-radius: 10px; font-size: 12px; font-weight: 700; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.28); color: #ffffff; display: inline-flex; align-items: center; gap: 6px;">
                 <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
                 <span>Refresh</span>
               </button>
               <button type="button" onclick="openCreateAdminModal()"
-                class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] active:scale-[0.99] shadow-md shadow-teal-700/20 transition flex items-center gap-1.5">
+                style="padding: 8px 14px; border-radius: 10px; font-size: 12px; font-weight: 700; background: #ffffff; color: #033172; display: inline-flex; align-items: center; gap: 6px;">
                 <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
                 <span>Tambah Petugas</span>
               </button>
@@ -1290,9 +1617,9 @@
               <div class="flex flex-wrap items-center gap-2">
                 <input type="text" id="adminUserSearchInput" oninput="filterAdminUsersTable()"
                   placeholder="Cari nama, username, email..."
-                  class="px-3 py-1.5 rounded-xl border border-slate-200 text-xs bg-slate-50 focus:bg-white focus:outline-none focus:border-[#00897B]">
+                  class="px-3 py-1.5 rounded-xl border border-slate-200 text-xs bg-slate-50 focus:bg-white focus:outline-none focus:border-[#033172]">
                 <select id="adminUserRoleFilter" onchange="filterAdminUsersTable()"
-                  class="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-slate-50 focus:outline-none focus:border-[#00897B]">
+                  class="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-slate-50 focus:outline-none focus:border-[#033172]">
                   <option value="ALL">Semua Peran</option>
                   <option value="SUPER_ADMIN">SUPER_ADMIN</option>
                   <option value="CS">CUSTOMER SERVICE (CS)</option>
@@ -1324,16 +1651,15 @@
         </section>
 
         <!-- ==================== TAB 8: PENGATURAN OPERASIONAL & KONEKSI CBS ==================== -->
-        <section id="tab-settings" class="hidden space-y-6">
-          <div class="flex items-center justify-between">
-            <div>
-              <h3 class="text-base font-bold text-slate-800">Pengaturan Logo, Identitas Bank, Keamanan &amp; Core
-                Banking</h3>
-              <p class="text-xs text-slate-500">Kelola logo institusi, kontak helpdesk, kebijakan keamanan login, OTP
-                SMS, dan koneksi CBS</p>
+        <section id="tab-settings" class="hidden space-y-5">
+          <div class="tab-navy-header">
+            <div class="relative z-10">
+              <div class="tab-navy-header-badge mb-2">Konfigurasi Sistem &amp; Core Banking</div>
+              <h2 class="tab-navy-header-title">Pengaturan Operasional &amp; Core Banking</h2>
+              <p class="tab-navy-header-sub">Kelola identitas bank, logo institusi, kebijakan keamanan login, gateway OTP, dan koneksi CBS.</p>
             </div>
-            <button type="button" onclick="loadConfig()"
-              class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition flex items-center gap-1.5">
+            <button type="button" onclick="loadConfig()" class="relative z-10"
+              style="padding: 8px 14px; border-radius: 10px; font-size: 12px; font-weight: 700; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.28); color: #ffffff; display: inline-flex; align-items: center; gap: 6px;">
               <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
               <span>Muat Ulang</span>
             </button>
@@ -1360,11 +1686,11 @@
               <div class="flex flex-wrap items-center gap-2 shrink-0">
                 <button type="button" onclick="checkCbsHealth()"
                   class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition flex items-center gap-1.5">
-                  <i data-lucide="activity" class="w-3.5 h-3.5 text-[#00897B]"></i>
+                  <i data-lucide="activity" class="w-3.5 h-3.5 text-[#033172]"></i>
                   <span>Periksa Kesehatan CBS</span>
                 </button>
                 <button type="button" id="cbsRefreshTokenBtn" onclick="refreshCbsConnectionToken()"
-                  class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] transition flex items-center gap-1.5 shadow-sm">
+                  class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#033172] hover:bg-[#022454] transition flex items-center gap-1.5 shadow-sm">
                   <i data-lucide="key-round" class="w-3.5 h-3.5"></i>
                   <span>Segarkan Token Koneksi</span>
                 </button>
@@ -1380,7 +1706,7 @@
                 class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm flex flex-col items-center justify-center text-center">
                 <div
                   class="w-24 h-24 rounded-2xl bg-slate-50 border-2 border-dashed border-slate-200 flex items-center justify-center p-2 mb-4 overflow-hidden relative shadow-inner">
-                  <img id="cfgLogoPreview" src="images/bank_logo.png" alt="Logo Bank"
+                  <img id="cfgLogoPreview" src="images/mydmb_logo_light.png" alt="Logo Bank"
                     class="max-h-full max-w-full object-contain">
                 </div>
                 <h4 id="cfgBankShortNameDisplay" class="text-sm font-extrabold text-slate-900">Bank DMB</h4>
@@ -1408,13 +1734,13 @@
                       *</label>
                     <input type="text" id="cfgBankName" required placeholder="PT BPR DANA MANDIRI BOGOR"
                       oninput="document.getElementById('cfgBankNameBadge').innerText=this.value"
-                      class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500">
+                      class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172]">
                   </div>
                   <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Nama Singkat / Brand Aplikasi *</label>
                     <input type="text" id="cfgBankShortName" required placeholder="Bank DMB"
                       oninput="document.getElementById('cfgBankShortNameDisplay').innerText=this.value"
-                      class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500">
+                      class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172]">
                   </div>
                 </div>
 
@@ -1422,7 +1748,7 @@
                   <label class="block text-xs font-bold text-slate-700 mb-1">Tagline / Slogan Bank</label>
                   <input type="text" id="cfgTagline" placeholder="Mitra Terpercaya Menuju Sejahtera"
                     oninput="document.getElementById('cfgTaglineDisplay').innerText=this.value"
-                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500">
+                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172]">
                 </div>
 
                 <div>
@@ -1450,45 +1776,14 @@
                     <span class="text-[11px] font-semibold text-slate-500">Tautan Gambar:</span>
                     <input type="text" id="cfgLogoUrl" required placeholder="/admin/uploads/logo... atau https://..."
                       oninput="document.getElementById('cfgLogoPreview').src=this.value"
-                      class="flex-1 px-3 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:border-emerald-500 font-mono text-[11px] bg-white">
+                      class="flex-1 px-3 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:border-[#033172] font-mono text-[11px] bg-white">
                   </div>
                 </div>
 
                 <div>
                   <label class="block text-xs font-bold text-slate-700 mb-1">Alamat Kantor Pusat</label>
                   <textarea id="cfgAddress" rows="2" placeholder="Jl. Pajajaran No. 88, Bogor, Jawa Barat"
-                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500"></textarea>
-                </div>
-              </div>
-            </div>
-
-            <!-- Card 3: Kontak Layanan & CS -->
-            <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
-              <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-2">
-                <i data-lucide="headphones" class="w-4 h-4 text-blue-600"></i>
-                <span>Kontak Layanan Nasabah &amp; Pusat Bantuan (Helpdesk)</span>
-              </h4>
-
-              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div>
-                  <label class="block text-xs font-bold text-slate-700 mb-1">Call Center / Telepon</label>
-                  <input type="text" id="cfgCallCenter" placeholder="(0251) 832-1234"
-                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500">
-                </div>
-                <div>
-                  <label class="block text-xs font-bold text-slate-700 mb-1">WhatsApp Customer Service</label>
-                  <input type="text" id="cfgWhatsApp" placeholder="081199887766"
-                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500">
-                </div>
-                <div>
-                  <label class="block text-xs font-bold text-slate-700 mb-1">Email Layanan Pengaduan</label>
-                  <input type="email" id="cfgEmail" placeholder="layanan@bprdanamandiribogor.co.id"
-                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500">
-                </div>
-                <div>
-                  <label class="block text-xs font-bold text-slate-700 mb-1">Website Resmi Bank</label>
-                  <input type="url" id="cfgWebsite" placeholder="https://bprdanamandiribogor.co.id"
-                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500">
+                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172]"></textarea>
                 </div>
               </div>
             </div>
@@ -1518,7 +1813,7 @@
                     <div class="text-[10px] text-slate-500">Blokir akun otomatis setelah gagal (3–10x)</div>
                   </div>
                   <input type="number" id="cfgMaxLoginAttempts" min="3" max="10" value="5" required
-                    class="w-20 px-3 py-2 text-xs font-extrabold text-center rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-emerald-500">
+                    class="w-20 px-3 py-2 text-xs font-extrabold text-center rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-[#033172]">
                 </div>
               </div>
 
@@ -1526,7 +1821,7 @@
                 <label class="block text-xs font-bold text-slate-700 mb-1">Pesan Saat Pemeliharaan</label>
                 <input type="text" id="cfgMaintenanceMsg"
                   placeholder="Sistem sedang dalam peningkatan layanan berkala."
-                  class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500">
+                  class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172]">
               </div>
             </div>
 
@@ -1546,8 +1841,9 @@
                 <div>
                   <label class="block text-xs font-bold text-slate-700 mb-1">Provider Pengiriman OTP</label>
                   <select id="cfgOtpProvider"
-                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 bg-white font-semibold">
+                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172] bg-white font-semibold">
                     <option value="SANDBOX">SANDBOX (Mode Ujicoba / Cetak ke Terminal)</option>
+                    <option value="SANDBOX_DUMMY">SANDBOX DUMMY (Khusus Local/Dev — OTP 123456)</option>
                     <option value="JATIS">Jatis Mobile SMS Gateway (SMS Masking)</option>
                     <option value="SMS_GATEWAY">SMS Gateway (Generic REST API)</option>
                   </select>
@@ -1555,12 +1851,12 @@
                 <div>
                   <label class="block text-xs font-bold text-slate-700 mb-1">Endpoint URL Gateway SMS</label>
                   <input type="text" id="cfgOtpGatewayUrl" placeholder="https://api.jatismobile.com/v1/sms/send"
-                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 font-mono">
+                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172] font-mono">
                 </div>
                 <div>
                   <label class="block text-xs font-bold text-slate-700 mb-1">API Key / Token SMS Gateway</label>
                   <input type="password" id="cfgOtpGatewayToken" placeholder="Masukkan API Key / Token SMS Gateway"
-                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 font-mono">
+                    class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172] font-mono">
                 </div>
               </div>
             </div>
@@ -1568,7 +1864,7 @@
             <!-- Submit Button Bar -->
             <div class="pt-2 flex items-center justify-end gap-3">
               <button type="submit" id="saveConfigBtn"
-                class="px-6 py-3 rounded-xl font-bold text-xs text-white bg-[#00897B] hover:bg-[#00796B] active:scale-[0.99] shadow-lg shadow-teal-700/20 transition flex items-center gap-2">
+                class="px-6 py-3 rounded-xl font-bold text-xs text-white bg-[#033172] hover:bg-[#022454] active:scale-[0.99] shadow-lg shadow-teal-700/20 transition flex items-center gap-2">
                 <i data-lucide="check" class="w-4 h-4"></i>
                 <span>Simpan Seluruh Pengaturan &amp; Logo</span>
               </button>
@@ -1599,7 +1895,7 @@
       class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 border border-slate-100 space-y-4 modal-fade-in">
       <div class="flex items-start gap-3.5">
         <div id="ecmIconWrap"
-          class="w-10 h-10 rounded-2xl bg-teal-50 text-[#00897B] border border-teal-200 flex items-center justify-center shrink-0">
+          class="w-10 h-10 rounded-2xl bg-[#EFF6FF] text-[#033172] border border-blue-200 flex items-center justify-center shrink-0">
           <i id="ecmIcon" data-lucide="check-circle-2" class="w-5 h-5"></i>
         </div>
         <div class="flex-1 min-w-0">
@@ -1613,7 +1909,7 @@
         <label id="ecmSelectLabel" for="ecmSelectField" class="block text-xs font-bold text-slate-700">Pilih
           Status</label>
         <select id="ecmSelectField"
-          class="w-full px-3.5 py-2.5 text-xs font-bold rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-[#00897B]">
+          class="w-full px-3.5 py-2.5 text-xs font-bold rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:border-[#033172]">
         </select>
       </div>
 
@@ -1621,9 +1917,9 @@
       <div id="ecmInputWrap" class="hidden space-y-1.5">
         <label id="ecmInputLabel" for="ecmInputField" class="block text-xs font-bold text-slate-700">Keterangan</label>
         <input id="ecmInputField" type="text"
-          class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
+          class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172]">
         <textarea id="ecmTextareaField" rows="3"
-          class="hidden w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]"></textarea>
+          class="hidden w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172]"></textarea>
         <p id="ecmInputHelp" class="hidden text-[10.5px] text-slate-400"></p>
         <p id="ecmInputError" class="hidden text-[11px] font-bold text-rose-600"></p>
       </div>
@@ -1634,7 +1930,7 @@
           Batal
         </button>
         <button type="button" id="ecmConfirmBtn"
-          class="px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] shadow-sm transition flex items-center gap-1.5">
+          class="px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-[#033172] hover:bg-[#022454] shadow-sm transition flex items-center gap-1.5">
           Konfirmasi
         </button>
       </div>
@@ -1664,7 +1960,7 @@
           Keluar Sekarang
         </button>
         <button type="button" onclick="extendIdleSession()"
-          class="px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] transition">
+          class="px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-[#033172] hover:bg-[#022454] transition">
           Tetap Masuk (Perpanjang Sesi)
         </button>
       </div>
@@ -1677,7 +1973,7 @@
     <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 border border-slate-100 modal-fade-in">
       <div class="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
         <div class="flex items-center gap-2.5">
-          <div class="w-8 h-8 rounded-xl bg-teal-50 text-[#00897B] flex items-center justify-center">
+          <div class="w-8 h-8 rounded-xl bg-[#EFF6FF] text-[#033172] flex items-center justify-center">
             <i data-lucide="key-round" class="w-4 h-4"></i>
           </div>
           <div>
@@ -1698,14 +1994,14 @@
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Kata Sandi Saat Ini *</label>
           <input type="password" id="myOldPassword" required placeholder="Masukkan kata sandi saat ini"
-            class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
+            class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172]">
         </div>
 
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Kata Sandi Baru *</label>
           <input type="password" id="myNewPassword" required minlength="12"
             placeholder="Minimal 12 karakter (kombinasi huruf & angka)"
-            class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
+            class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172]">
           <p class="text-[10px] text-slate-400 mt-1">Wajib minimal 12 karakter dengan kombinasi huruf dan angka.</p>
         </div>
 
@@ -1713,7 +2009,7 @@
           <label class="block text-xs font-bold text-slate-700 mb-1">Konfirmasi Kata Sandi Baru *</label>
           <input type="password" id="myConfirmPassword" required minlength="12"
             placeholder="Ulangi kata sandi baru"
-            class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
+            class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172]">
         </div>
 
         <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
@@ -1722,7 +2018,7 @@
             Batal
           </button>
           <button type="submit" id="submitChangeMyPasswordBtn"
-            class="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] shadow-sm transition flex items-center gap-1.5">
+            class="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#033172] hover:bg-[#022454] shadow-sm transition flex items-center gap-1.5">
             <i data-lucide="key-round" class="w-4 h-4"></i>
             <span>Simpan Kata Sandi Baru</span>
           </button>
@@ -1756,19 +2052,19 @@
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap Petugas *</label>
           <input type="text" id="newAdminFullName" required placeholder="Contoh: Siti Rahmawati, S.E."
-            class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500">
+            class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172]">
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">Username Login *</label>
             <input type="text" id="newAdminUsername" required minlength="4" maxlength="50" placeholder="Contoh: sitics"
-              class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 font-mono">
+              class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172] font-mono">
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">Email Resmi</label>
             <input type="email" id="newAdminEmail" placeholder="siti@bprdanamandiribogor.co.id"
-              class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500">
+              class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172]">
           </div>
         </div>
 
@@ -1776,7 +2072,7 @@
           <label class="block text-xs font-bold text-slate-700 mb-1">Password Awal (khusus CS &amp; Marketing)</label>
           <input type="password" id="newAdminPassword" minlength="12" autocomplete="new-password"
             placeholder="Minimal 12 karakter (kombinasi huruf & angka)"
-            class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500">
+            class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172]">
           <p class="text-[10px] text-slate-400 mt-1">Untuk SUPER_ADMIN &amp; COMPLIANCE, kata sandi awal dibuat sistem saat
             permintaan disetujui petugas lain dan hanya ditampilkan kepada penyetuju. Semua petugas wajib mengganti
             kata sandi awal saat login pertama.</p>
@@ -1785,7 +2081,7 @@
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Hak Akses / Peran (Role) *</label>
           <select id="newAdminRole" required onchange="updateRoleDescription()"
-            class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 bg-white font-semibold">
+            class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172] bg-white font-semibold">
             <option value="CS">CUSTOMER_SERVICE - Operasional Nasabah &amp; Reset Device</option>
             <option value="SUPER_ADMIN">SUPER_ADMIN - Administrator Penuh (Seluruh Modul)</option>
             <option value="MARKETING">MARKETING - Konten Aplikasi, Push Notification &amp; Pengajuan Produk</option>
@@ -1810,7 +2106,7 @@
             Batal
           </button>
           <button type="submit" id="submitNewAdminBtn"
-            class="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] shadow-md shadow-teal-700/20 transition flex items-center gap-1.5">
+            class="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#033172] hover:bg-[#022454] shadow-md shadow-teal-700/20 transition flex items-center gap-1.5">
             <i data-lucide="check" class="w-4 h-4"></i>
             <span>Daftarkan Petugas</span>
           </button>
@@ -1826,7 +2122,7 @@
       class="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 border border-slate-100 overflow-y-auto max-h-[90vh] modal-fade-in">
       <div class="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
         <div class="flex items-center gap-2.5">
-          <div class="w-8 h-8 rounded-xl bg-teal-50 text-[#00897B] flex items-center justify-center">
+          <div class="w-8 h-8 rounded-xl bg-[#EFF6FF] text-[#033172] flex items-center justify-center">
             <i data-lucide="user-cog" class="w-4 h-4"></i>
           </div>
           <div>
@@ -1845,19 +2141,19 @@
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap Petugas *</label>
           <input type="text" id="editAdminFullName" required
-            class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
+            class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172]">
         </div>
 
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Email Resmi</label>
           <input type="email" id="editAdminEmail"
-            class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
+            class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172]">
         </div>
 
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Hak Akses / Peran (Role) *</label>
           <select id="editAdminRole" required
-            class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B] bg-white font-semibold">
+            class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172] bg-white font-semibold">
             <option value="CS">CUSTOMER_SERVICE - Operasional Nasabah &amp; Reset Device</option>
             <option value="SUPER_ADMIN">SUPER_ADMIN - Administrator Penuh (Seluruh Modul)</option>
             <option value="MARKETING">MARKETING - Konten Aplikasi, Push Notification &amp; Pengajuan Produk</option>
@@ -1880,7 +2176,7 @@
             Batal
           </button>
           <button type="submit" id="submitEditAdminBtn"
-            class="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] shadow-sm transition flex items-center gap-1.5">
+            class="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#033172] hover:bg-[#022454] shadow-sm transition flex items-center gap-1.5">
             <i data-lucide="check" class="w-4 h-4"></i>
             <span>Simpan Perubahan</span>
           </button>
@@ -1894,6 +2190,7 @@
   <script src="js/auth.js?v=20261120_03"></script>
   <script src="js/dashboard.js?v=20261119_02"></script>
   <script src="js/customers.js?v=20261119_02"></script>
+  <script src="js/helpdesk.js?v=20261127_01"></script>
   <script src="js/audit_logs.js?v=20261120_01"></script>
   <script src="js/approvals.js?v=20261120_03"></script>
   <script src="js/admin_users.js?v=20261120_03"></script>

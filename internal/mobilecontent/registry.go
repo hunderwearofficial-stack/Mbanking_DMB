@@ -168,15 +168,11 @@ func init() {
 			Default: "Tim Customer Care Bank DMB siap melayani Anda melalui kanal komunikasi resmi."},
 		Field{Key: "helpdesk.call_center_desc", Page: "helpdesk", Group: "Kanal", Label: "Keterangan Call Center", Used: "HelpdeskScreen", Type: TypeText, Max: 100, Required: true,
 			Default: "Layanan bebas pulsa untuk nasabah aktif"},
-		Field{Key: "helpdesk.whatsapp_desc", Page: "helpdesk", Group: "Kanal", Label: "Keterangan WhatsApp", Used: "HelpdeskScreen", Type: TypeText, Max: 100, Required: true,
-			Default: "Akun bisnis resmi terverifikasi dengan centang hijau"},
 		Field{Key: "helpdesk.email_desc", Page: "helpdesk", Group: "Kanal", Label: "Keterangan Email", Used: "HelpdeskScreen", Type: TypeText, Max: 100, Required: true,
 			Default: "Dukungan surat elektronik resmi Bank DMB"},
 
 		Field{Key: "contact.call_center_display", Page: "kontak", Group: "Call Center", Label: "Nomor ditampilkan", Used: "Login, Pusat Bantuan, Beranda", Type: TypeText, Max: 30, Required: true, Default: "(0251) 832-1234"},
 		Field{Key: "contact.call_center_dial", Page: "kontak", Group: "Call Center", Label: "Nomor untuk disalin", Used: "Login, Pusat Bantuan", Type: TypePhone, Max: 20, Required: true, Default: "02518321234"},
-		Field{Key: "contact.whatsapp_display", Page: "kontak", Group: "WhatsApp", Label: "Nomor ditampilkan", Used: "Login, Pusat Bantuan, Beranda", Type: TypeText, Max: 30, Required: true, Default: "0811-9988-7766"},
-		Field{Key: "contact.whatsapp_dial", Page: "kontak", Group: "WhatsApp", Label: "Nomor untuk disalin", Used: "Login, Pusat Bantuan", Type: TypePhone, Max: 20, Required: true, Default: "081199887766"},
 		Field{Key: "contact.email", Page: "kontak", Group: "Email", Label: "Email layanan", Used: "Login, Pusat Bantuan", Type: TypeEmail, Max: 100, Required: true, Default: "layanan@bprdanamandiri.co.id"},
 		Field{Key: "contact.office_short", Page: "kontak", Group: "Kantor", Label: "Alamat singkat", Used: "Login", Type: TypeText, Max: 100, Required: true, Default: "Jl. Pajajaran No. 88, Bogor"},
 		Field{Key: "contact.office_address", Page: "kontak", Group: "Kantor", Label: "Alamat lengkap", Used: "Pusat Bantuan", Type: TypeMultiline, Max: 200, Required: true,
@@ -232,7 +228,6 @@ var legacyColumns = map[string]string{
 	"login.subtitle":              "login_subtitle",
 	"home.greeting_subtitle":      "home_greeting",
 	"contact.call_center_display": "call_center",
-	"contact.whatsapp_display":    "whats_app_cs",
 	"contact.email":               "email_cs",
 	"contact.office_address":      "head_office_address",
 }

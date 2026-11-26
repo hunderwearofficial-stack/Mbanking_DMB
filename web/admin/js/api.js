@@ -120,17 +120,20 @@ async function initAppBranding() {
 
 function updateDOMBranding(c) {
   if (!c) return;
-  const logoUrl = c.logo_url || '';
+  const rawLogoUrl = c.logo_url || '';
+  const hasCustomLogo = rawLogoUrl && !rawLogoUrl.includes('logo_a63ad9957ea4e615d48df351');
+  const logoUrl = hasCustomLogo ? rawLogoUrl : 'images/mydmb_logo_light.png';
+  const darkBgLogoUrl = hasCustomLogo ? rawLogoUrl : 'images/mydmb_logo_official.png';
   const bankName = c.bank_name || 'PT BPR DANA MANDIRI BOGOR';
   const shortName = c.bank_short_name || 'Bank DMB';
   const tagline = c.tagline || 'Mitra Terpercaya Menuju Sejahtera';
 
-  // 1. Sidebar Brand & Mobile Drawer Brand
+  // 1. Sidebar Brand & Mobile Drawer Brand (Dark Navy Sidebar uses white-text official logo)
   const sidebarLogo = document.getElementById('sidebarLogoImg');
   const sidebarFallback = document.getElementById('sidebarLogoFallback');
   if (sidebarLogo) {
-    if (logoUrl) {
-      sidebarLogo.src = logoUrl;
+    if (darkBgLogoUrl) {
+      sidebarLogo.src = darkBgLogoUrl;
       sidebarLogo.classList.remove('hidden');
       if (sidebarFallback) sidebarFallback.classList.add('hidden');
     } else {

@@ -25,6 +25,7 @@ import (
 	customerHttp "mbanking-bpr/internal/module/customer/delivery/http"
 	customerRepo "mbanking-bpr/internal/module/customer/repository"
 	customerSvc "mbanking-bpr/internal/module/customer/service"
+	"mbanking-bpr/internal/module/helpdesk"
 	"mbanking-bpr/internal/notification"
 	"mbanking-bpr/internal/otp"
 	"mbanking-bpr/internal/ownership"
@@ -53,6 +54,7 @@ func NewRouter(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, cbsPr
 	terms := legaldoc.NewService(db, legaldoc.NewDBFileStore(db), pdfdoc.RenderPDF)
 	termsHandler := legaldoc.NewHandler(terms)
 	contentHandler := mobilecontent.NewHandler(mobilecontent.NewService(db))
+	helpdeskHandler := helpdesk.NewHandler(db)
 	pushSvc := push.NewService(db)
 	pushHandler := push.NewHandler(pushSvc)
 	bindOpts, err := devicebind.LoadOptions(cfg)
@@ -225,6 +227,12 @@ func NewRouter(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, cbsPr
 				a.GET("/push/campaigns/:id/deliveries", roles(SA, MK, CO), pushHandler.Deliveries)
 				a.GET("/applications", roles(SA, CS, MK, CO), adminHandler.ListAllApplicationsAdmin)
 				a.PUT("/applications/:id/status", roles(SA, CS, MK), adminHandler.UpdateApplicationStatusAdmin)
+				a.GET("/helpdesk/faqs", roles(SA, CS, MK, CO), helpdeskHandler.AdminListFAQs)
+				a.POST("/helpdesk/faqs", roles(SA, CS, MK), helpdeskHandler.AdminCreateFAQ)
+				a.PUT("/helpdesk/faqs/:id", roles(SA, CS, MK), helpdeskHandler.AdminUpdateFAQ)
+				a.DELETE("/helpdesk/faqs/:id", roles(SA, CS, MK), helpdeskHandler.AdminDeleteFAQ)
+				a.GET("/helpdesk/inquiries", roles(SA, CS, MK, CO), helpdeskHandler.AdminListInquiries)
+				a.PUT("/helpdesk/inquiries/:id", roles(SA, CS, MK), helpdeskHandler.AdminResolveInquiry)
 				a.GET("/config", roles(SA), adminHandler.GetConfig)
 				a.PUT("/config", roles(SA), adminHandler.UpdateConfig)
 				a.POST("/upload", roles(SA, MK), adminHandler.UploadFile)
@@ -276,6 +284,8 @@ func NewRouter(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, cbsPr
 
 			p.GET("/applications", customerHandler.ListProductApplications)
 			p.POST("/applications", rl(5, 3600, "applications", middleware.ByUser), customerHandler.CreateProductApplication)
+			p.GET("/helpdesk/faqs", helpdeskHandler.ListActiveFAQs)
+			p.POST("/helpdesk/inquiries", rl(30, 3600, "helpdesk_inquiry", middleware.ByUser), helpdeskHandler.CreateInquiry)
 
 			acc := p.Group("/account")
 			{

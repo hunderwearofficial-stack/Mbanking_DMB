@@ -70,6 +70,60 @@ class AccountRepository {
     return const MutationPage(items: []);
   }
 
+  Future<MutationPage> getDepositMutationsPage(
+    String accountNumber, {
+    int limit = 100,
+    String? startDate,
+    String? endDate,
+  }) async {
+    return _getAccountTypedMutationsPage(
+      '${ApiEndpoints.depositDetail}$accountNumber/mutations',
+      limit: limit,
+      startDate: startDate,
+      endDate: endDate,
+    );
+  }
+
+  Future<MutationPage> getLoanMutationsPage(
+    String accountNumber, {
+    int limit = 100,
+    String? startDate,
+    String? endDate,
+  }) async {
+    return _getAccountTypedMutationsPage(
+      '${ApiEndpoints.loanDetail}$accountNumber/mutations',
+      limit: limit,
+      startDate: startDate,
+      endDate: endDate,
+    );
+  }
+
+  Future<MutationPage> _getAccountTypedMutationsPage(
+    String path, {
+    int limit = 100,
+    String? startDate,
+    String? endDate,
+  }) async {
+    final Map<String, dynamic> query = {'limit': limit};
+    if (startDate != null && startDate.isNotEmpty) query['start_date'] = startDate;
+    if (endDate != null && endDate.isNotEmpty) query['end_date'] = endDate;
+
+    final response = await apiClient.get(path, queryParameters: query);
+    if (response is Map && response['mutations'] is List) {
+      return MutationPage(
+        items: (response['mutations'] as List).map((m) => MutationModel.fromJson(m)).toList(),
+        hasMore: response['has_more'] == true,
+      );
+    } else if (response is Map && response['data'] is List) {
+      return MutationPage(
+        items: (response['data'] as List).map((m) => MutationModel.fromJson(m)).toList(),
+      );
+    } else if (response is List) {
+      return MutationPage(items: response.map((m) => MutationModel.fromJson(m)).toList());
+    }
+    return const MutationPage(items: []);
+  }
+
   /// Unmasked identity data, released by the server only after it verified the PIN.
   Future<Map<String, dynamic>> revealCustomerProfile(String pin) async {
     final response = await apiClient.post(ApiEndpoints.accountProfileReveal, data: {'pin': pin});
@@ -277,6 +331,38 @@ class AccountRepository {
       }
     }
     return [];
+  }
+
+  Future<List<Map<String, dynamic>>> getHelpdeskFaqs() async {
+    final response = await apiClient.get(ApiEndpoints.helpdeskFaqs);
+    if (response is List) {
+      return List<Map<String, dynamic>>.from(
+        response.map((e) => Map<String, dynamic>.from(e as Map)),
+      );
+    }
+    if (response is Map && response['data'] is List) {
+      return List<Map<String, dynamic>>.from(
+        (response['data'] as List).map((e) => Map<String, dynamic>.from(e as Map)),
+      );
+    }
+    return [];
+  }
+
+  Future<void> logHelpdeskInquiry({
+    required String question,
+    String matchedFaqId = '',
+    required bool isAnswered,
+  }) async {
+    try {
+      await apiClient.post(
+        ApiEndpoints.helpdeskInquiries,
+        data: {
+          'question': question,
+          'matched_faq_id': matchedFaqId,
+          'is_answered': isAnswered,
+        },
+      );
+    } catch (_) {}
   }
 
   Future<Map<String, dynamic>> submitProductApplication({

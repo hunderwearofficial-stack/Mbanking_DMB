@@ -115,7 +115,7 @@ function renderAdminUsers(users) {
             <div>
               <div class="font-bold text-xs text-slate-800 flex items-center gap-2">
                 ${esc(u.full_name || u.username)}
-                ${isCurrent ? '<span class="text-[9px] bg-teal-50 text-[#00897B] px-1.5 py-0.5 rounded border border-teal-200 font-bold">Anda</span>' : ''}
+                ${isCurrent ? '<span class="text-[9px] bg-[#EFF6FF] text-[#033172] px-1.5 py-0.5 rounded border border-blue-200 font-bold">Anda</span>' : ''}
               </div>
               <div class="text-[11px] text-slate-400">${esc(u.email || '-')}</div>
             </div>
@@ -135,7 +135,7 @@ function renderAdminUsers(users) {
           <div class="flex items-center justify-end gap-1.5 flex-wrap">
             <button type="button" onclick="openEditAdminModal(${jsArg(u.id)})" title="Edit Profil / Reset Kata Sandi Petugas"
               class="px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 text-xs font-semibold transition flex items-center gap-1">
-              <i data-lucide="key-round" class="w-3.5 h-3.5 text-[#00897B]"></i>
+              <i data-lucide="key-round" class="w-3.5 h-3.5 text-[#033172]"></i>
               <span>Edit / Reset Sandi</span>
             </button>
             ${!isCurrent ? `

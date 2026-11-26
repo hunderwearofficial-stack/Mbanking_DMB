@@ -38,6 +38,8 @@ class ApiEndpoints {
   static const String deposits = '/api/v1/account/deposits';
   static const String depositDetail = '/api/v1/account/deposits/';
   static const String products = '/api/v1/account/products';
+  static const String helpdeskFaqs = '/api/v1/helpdesk/faqs';
+  static const String helpdeskInquiries = '/api/v1/helpdesk/inquiries';
   static const String health = '/health';
 
   static const Set<String> preAuthPaths = {

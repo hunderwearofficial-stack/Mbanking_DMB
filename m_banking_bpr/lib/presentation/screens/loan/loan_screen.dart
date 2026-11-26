@@ -12,16 +12,167 @@ import '../../blocs/auth/auth_cubit.dart';
 import '../../blocs/auth/auth_state.dart';
 import '../../widgets/app_validation_feedback.dart';
 import '../../widgets/auth_ui_kit.dart';
+import '../../widgets/empty_state_view.dart';
 import '../helpdesk/helpdesk_screen.dart';
 import 'loan_application_bottom_sheet.dart';
 import 'loan_detail_screen.dart';
 import 'loan_kkm_detail_screen.dart';
 
 class LoanScreen extends StatefulWidget {
-  const LoanScreen({super.key});
+  final String? categoryFilter; // null (all), 'KKM', 'MIL', 'KMG'
+  final bool openAttendanceDirect;
+
+  const LoanScreen({
+    super.key,
+    this.categoryFilter,
+    this.openAttendanceDirect = false,
+  });
 
   @override
   State<LoanScreen> createState() => _LoanScreenState();
+}
+
+/// Sub-menu Kredit: KKM, Micro Individual Loan (MIL), Kredit Multi Guna (KMG)
+class LoanSubMenuScreen extends StatelessWidget {
+  const LoanSubMenuScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      (
+        title: 'Kredit Kelompok Mandiri (KKM)',
+        subtitle: 'KKM Reguler & KILAT KKM beserta jadwal pertemuan dan setoran',
+        filter: 'KKM',
+        icon: Icons.people_outline_rounded,
+      ),
+      (
+        title: 'Micro Individual Loan (MIL)',
+        subtitle: 'Pinjaman modal kerja usaha mikro perorangan aktif',
+        filter: 'MIL',
+        icon: Icons.storefront_outlined,
+      ),
+      (
+        title: 'Kredit Multi Guna (KMG)',
+        subtitle: 'Fasilitas kredit serbaguna & konsumtif aktif',
+        filter: 'KMG',
+        icon: Icons.credit_card_outlined,
+      ),
+    ];
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF6F8FB),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        foregroundColor: AppColors.titleDark,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        title: Text(
+          'Fasilitas Kredit',
+          style: GoogleFonts.plusJakartaSans(fontSize: 17, fontWeight: FontWeight.w700),
+        ),
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1, color: Color(0xFFE2E8F0)),
+        ),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 2, bottom: 8),
+            child: Text(
+              'KATEGORI PINJAMAN',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.6,
+                color: AppColors.textMuted,
+              ),
+            ),
+          ),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              children: List.generate(items.length, (i) {
+                final item = items[i];
+                return Column(
+                  children: [
+                    InkWell(
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => LoanScreen(categoryFilter: item.filter),
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        child: Row(
+                          children: [
+                            Icon(item.icon, color: AppColors.primaryNavy, size: 22),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.title,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.titleDark,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    item.subtitle,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 12,
+                                      color: AppColors.textMuted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 20),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (i < items.length - 1)
+                      const Divider(height: 1, indent: 52, endIndent: 16, color: Color(0xFFF1F5F9)),
+                  ],
+                );
+              }),
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: OutlinedButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const LoanScreen()),
+              ),
+              style: OutlinedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: AppColors.primaryNavy,
+                side: const BorderSide(color: Color(0xFFE2E8F0)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: Text(
+                'Lihat Semua Rekening Kredit Aktif',
+                style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _LoanScreenState extends State<LoanScreen> {
@@ -109,16 +260,50 @@ class _LoanScreenState extends State<LoanScreen> {
       }));
 
       if (mounted) {
+        final filter = widget.categoryFilter?.toUpperCase();
+        final filteredKkm = filter == null || filter == 'KKM' ? kkmList : <LoanKkmBundle>[];
+        final filteredReg = filter == null
+            ? regularList
+            : filter == 'KKM'
+                ? <Map<String, dynamic>>[]
+                : regularList.where((l) {
+                    final name = (l['nama_produk'] ?? '').toString().toUpperCase();
+                    if (filter == 'MIL') {
+                      return name.contains('MIL') || name.contains('MIKRO') || name.contains('MICRO');
+                    }
+                    if (filter == 'KMG') {
+                      return name.contains('KMG') || name.contains('MULTI') || name.contains('KONSUM');
+                    }
+                    return true;
+                  }).toList();
+
         setState(() {
           _customerName = holderName;
-          _loans = loans;
-          _kkmLoans = kkmList;
-          _regularLoans = regularList;
+          _loans = filter == null
+              ? loans
+              : [...filteredKkm.map((e) => e.account), ...filteredReg];
+          _kkmLoans = filteredKkm;
+          _regularLoans = filteredReg;
           _detailsByAcc
             ..clear()
             ..addAll(detailsMap);
           _isLoading = false;
         });
+
+        if (widget.openAttendanceDirect && filteredKkm.isNotEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => LoanKkmDetailScreen(
+                  kkmLoans: filteredKkm,
+                  initialLoanIndex: 0,
+                  initialTabIndex: 1,
+                ),
+              ),
+            );
+          });
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -336,8 +521,130 @@ class _LoanScreenState extends State<LoanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_isLoading && _errorMessage == null && _kkmLoans.isNotEmpty) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF3F6FA),
+        body: SafeArea(
+          child: Stack(
+            children: [
+              Positioned(
+                top: 10,
+                left: 16,
+                child: Material(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: borderLight),
+                      ),
+                      child: const Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        size: 17,
+                        color: primaryNavy,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(color: primaryNavy),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Memuat data pinjaman...',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    if (_errorMessage == null && _kkmLoans.isNotEmpty) {
       return _buildKkmOverviewScaffold();
+    }
+    if (_errorMessage != null || _loans.isEmpty) {
+      final headerTitle = widget.openAttendanceDirect
+          ? 'Kehadiran Kelompok'
+          : widget.categoryFilter == 'KKM'
+              ? 'Pinjaman KKM'
+              : widget.categoryFilter == 'MIL'
+                  ? 'Micro Individual Loan'
+                  : widget.categoryFilter == 'KMG'
+                      ? 'Kredit Multi Guna'
+                      : 'Fasilitas Kredit';
+
+      return Scaffold(
+        backgroundColor: const Color(0xFFF6F8FB),
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          foregroundColor: titleDark,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          title: Text(
+            headerTitle,
+            style: GoogleFonts.plusJakartaSans(fontSize: 17, fontWeight: FontWeight.w700),
+          ),
+          actions: [
+            IconButton(
+              onPressed: _fetchLoanData,
+              icon: const Icon(Icons.refresh_rounded, color: primaryNavy, size: 21),
+            ),
+          ],
+          bottom: const PreferredSize(
+            preferredSize: Size.fromHeight(1),
+            child: Divider(height: 1, color: Color(0xFFE2E8F0)),
+          ),
+        ),
+        body: RefreshIndicator(
+          onRefresh: _fetchLoanData,
+          color: primaryNavy,
+          child: ListView(
+            children: [
+              const SizedBox(height: 36),
+              if (_errorMessage != null)
+                EmptyStateView(
+                  icon: Icons.cloud_off_outlined,
+                  title: 'Data Belum Dapat Dimuat',
+                  subtitle: _errorMessage!,
+                  actionLabel: 'Coba Lagi',
+                  onAction: _fetchLoanData,
+                )
+              else if (widget.openAttendanceDirect)
+                const EmptyStateView(
+                  icon: Icons.people_outline_rounded,
+                  title: 'Belum Ada Kehadiran Kelompok',
+                  subtitle: 'Data kehadiran kelompok hanya tersedia untuk nasabah aktif Kredit Kelompok Mandiri (KKM).',
+                )
+              else
+                EmptyStateView(
+                  icon: Icons.credit_card_outlined,
+                  title: 'Belum Ada Fasilitas Pinjaman',
+                  subtitle: 'Anda belum memiliki pinjaman aktif di kategori ini.',
+                  actionLabel: 'Ajukan Fasilitas Kredit Baru',
+                  onAction: () => LoanApplicationBottomSheet.show(
+                    context,
+                    onSuccess: _fetchLoanData,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
     }
     final bankName = DynamicConfigService().config.bankName.toUpperCase();
     Money? totalPlafon = const Money.zero();
@@ -464,74 +771,14 @@ class _LoanScreenState extends State<LoanScreen> {
                     ),
                   )
                 : _loans.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 72,
-                                height: 72,
-                                decoration: BoxDecoration(
-                                  color: AppColors.primaryLight,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: AppColors.primaryBorder),
-                                ),
-                                child: const Icon(Icons.credit_score_outlined, color: royalBlue, size: 36),
-                              ),
-                              const SizedBox(height: 18),
-                              Text(
-                                'Belum Ada Fasilitas Pinjaman',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 16.5,
-                                  fontWeight: FontWeight.w800,
-                                  color: titleDark,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                'Anda belum memiliki pinjaman aktif di Bank DMB. Ajukan pinjaman modal kerja atau kredit mikro dengan bunga kompetitif.',
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.plusJakartaSans(fontSize: 12.5, color: textMuted, height: 1.45),
-                              ),
-                              const SizedBox(height: 22),
-                              ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: primaryNavy,
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 13),
-                                ),
-                                onPressed: () => LoanApplicationBottomSheet.show(context, onSuccess: _fetchLoanData),
-                                icon: const Icon(Icons.add_rounded, size: 18),
-                                label: Text(
-                                  'Ajukan Fasilitas Kredit Baru',
-                                  style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700),
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              OutlinedButton.icon(
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: primaryNavy,
-                                  side: const BorderSide(color: borderLight),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                                ),
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (_) => const HelpdeskScreen()),
-                                  );
-                                },
-                                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
-                                label: Text(
-                                  'Konsultasi CS',
-                                  style: GoogleFonts.plusJakartaSans(fontSize: 12.5, fontWeight: FontWeight.w600),
-                                ),
-                              ),
-                            ],
-                          ),
+                    ? EmptyStateView(
+                        icon: Icons.credit_card_outlined,
+                        title: 'Belum Ada Fasilitas Pinjaman',
+                        subtitle: 'Anda belum memiliki pinjaman aktif di Bank DMB. Ajukan pinjaman modal kerja atau kredit mikro dengan bunga kompetitif.',
+                        actionLabel: 'Ajukan Fasilitas Kredit Baru',
+                        onAction: () => LoanApplicationBottomSheet.show(
+                          context,
+                          onSuccess: _fetchLoanData,
                         ),
                       )
                     : SingleChildScrollView(

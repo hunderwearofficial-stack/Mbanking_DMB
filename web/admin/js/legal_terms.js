@@ -90,21 +90,21 @@ async function loadTermsVersions() {
         actions.push(`<button type="button" onclick="generateTermsPdf(${id})" class="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 font-bold hover:bg-slate-50">Buat PDF Otomatis</button>`);
       }
       if (v.draft_pdf_sha256) {
-        actions.push(`<button type="button" onclick="openTermsPdf(${id}, 'draft')" class="px-2.5 py-1 rounded-lg bg-teal-50 border border-teal-200 text-[#00897B] font-bold hover:bg-teal-100">Unduh PDF Draf</button>`);
+        actions.push(`<button type="button" onclick="openTermsPdf(${id}, 'draft')" class="px-2.5 py-1 rounded-lg bg-[#EFF6FF] border border-blue-200 text-[#033172] font-bold hover:bg-blue-100">Unduh PDF Draf</button>`);
         if (canMutate) {
           actions.push(`<button type="button" onclick="submitTerms(${id}, ${jsArg(v.version_number)})" class="px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 font-bold hover:bg-blue-100">Ajukan Persetujuan</button>`);
         }
       }
     }
     if (v.status === 'PENDING_APPROVAL') {
-      actions.push(`<button type="button" onclick="openTermsPdf(${id}, 'draft')" class="px-2.5 py-1 rounded-lg bg-teal-50 border border-teal-200 text-[#00897B] font-bold hover:bg-teal-100">Unduh PDF Draf</button>`);
+      actions.push(`<button type="button" onclick="openTermsPdf(${id}, 'draft')" class="px-2.5 py-1 rounded-lg bg-[#EFF6FF] border border-blue-200 text-[#033172] font-bold hover:bg-blue-100">Unduh PDF Draf</button>`);
       if (canMutate) {
         actions.push(`<button type="button" onclick="approveTerms(${id}, ${jsArg(v.version_number)})" class="px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold hover:bg-emerald-100">Setujui &amp; Terbitkan</button>`);
         actions.push(`<button type="button" onclick="rejectTerms(${id})" class="px-2.5 py-1 rounded-lg bg-rose-50 border border-rose-200 text-rose-600 font-bold hover:bg-rose-100">Kembalikan ke Draf</button>`);
       }
     }
     if (v.status === 'PUBLISHED' || v.status === 'ARCHIVED') {
-      actions.push(`<button type="button" onclick="openTermsPdf(${id}, 'final')" class="px-2.5 py-1 rounded-lg bg-teal-50 border border-teal-200 text-[#00897B] font-bold hover:bg-teal-100">Unduh PDF Resmi</button>`);
+      actions.push(`<button type="button" onclick="openTermsPdf(${id}, 'final')" class="px-2.5 py-1 rounded-lg bg-[#EFF6FF] border border-blue-200 text-[#033172] font-bold hover:bg-blue-100">Unduh PDF Resmi</button>`);
     }
     if (v.status === 'PUBLISHED' && !v.is_active && canMutate) {
       actions.push(`<button type="button" onclick="archiveTerms(${id}, ${jsArg(v.version_number)})" class="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-600 font-bold hover:bg-slate-200">Arsipkan</button>`);
@@ -291,10 +291,10 @@ function updateTermsEditorModeUI() {
   if (jsonWrap) jsonWrap.classList.toggle('hidden', termsEditorMode !== 'json');
   if (btnVis && btnJson) {
     if (termsEditorMode === 'visual') {
-      btnVis.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-[#00897B] text-white shadow-xs';
+      btnVis.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-[#033172] text-white shadow-xs';
       btnJson.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200';
     } else {
-      btnJson.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-[#00897B] text-white shadow-xs';
+      btnJson.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-[#033172] text-white shadow-xs';
       btnVis.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200';
     }
   }
@@ -312,12 +312,12 @@ function renderTermsVisualBuilder() {
         <div class="sm:col-span-4">
           <input type="text" value="${esc(f.label)}" placeholder="Label (contoh: Nama Produk)"
             oninput="termsVisualData.sections[${sIdx}].fields[${fIdx}].label = this.value"
-            class="w-full px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-[#00897B]">
+            class="w-full px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-[#033172]">
         </div>
         <div class="sm:col-span-7">
           <input type="text" value="${esc(f.value)}" placeholder="Nilai / Keterangan"
             oninput="termsVisualData.sections[${sIdx}].fields[${fIdx}].value = this.value"
-            class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-[#00897B]">
+            class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:border-[#033172]">
         </div>
         <div class="sm:col-span-1 flex justify-end">
           <button type="button" onclick="removeTermsField(${sIdx}, ${fIdx})" title="Hapus Baris"
@@ -360,7 +360,7 @@ function renderTermsVisualBuilder() {
             </label>
             <textarea rows="2" placeholder="Tulis isi klausul atau kalimat pengantar..."
               oninput="termsVisualData.sections[${sIdx}].blocks[${bIdx}].text = this.value"
-              class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-[#00897B]">${esc(b.text)}</textarea>
+              class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-[#033172]">${esc(b.text)}</textarea>
           </div>
           ${hasItems ? `
             <div>
@@ -369,7 +369,7 @@ function renderTermsVisualBuilder() {
               </label>
               <textarea rows="4" placeholder="${b.type === 'table' ? 'Biaya Admin : Rp 0\nLimit Harian : Sesuai ketentuan' : 'Tulis satu butir per baris...'}"
                 oninput="termsVisualData.sections[${sIdx}].blocks[${bIdx}].items = this.value.split('\\n')"
-                class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-[#00897B] font-mono">${esc(itemsText)}</textarea>
+                class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-[#033172] font-mono">${esc(itemsText)}</textarea>
             </div>
           ` : ''}
         </div>
@@ -380,10 +380,10 @@ function renderTermsVisualBuilder() {
       <div class="p-4 rounded-2xl border border-slate-200 bg-white shadow-xs space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100">
           <div class="flex items-center gap-2 flex-1 min-w-[240px]">
-            <span class="px-2.5 py-1 rounded-lg bg-teal-50 text-[#00897B] border border-teal-200 text-xs font-black">Pasal / Bagian ${sIdx + 1}</span>
+            <span class="px-2.5 py-1 rounded-lg bg-[#EFF6FF] text-[#033172] border border-blue-200 text-xs font-black">Pasal / Bagian ${sIdx + 1}</span>
             <input type="text" value="${esc(sec.heading)}" placeholder="Judul Bagian (contoh: BAGIAN I — KETENTUAN UMUM)"
               oninput="termsVisualData.sections[${sIdx}].heading = this.value"
-              class="flex-1 px-3 py-1.5 text-xs font-extrabold rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">
+              class="flex-1 px-3 py-1.5 text-xs font-extrabold rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172]">
           </div>
           <div class="flex items-center gap-1">
             <button type="button" onclick="moveTermsSection(${sIdx}, -1)" ${sIdx === 0 ? 'disabled' : ''}
@@ -400,7 +400,7 @@ function renderTermsVisualBuilder() {
           <div class="flex items-center justify-between">
             <span class="text-[11px] font-bold text-slate-600">Baris Ringkasan Informasi (Label : Nilai) — Opsional</span>
             <button type="button" onclick="addTermsField(${sIdx})"
-              class="px-2.5 py-1 rounded-lg text-[11px] font-bold text-[#00897B] bg-teal-50 border border-teal-200 hover:bg-teal-100">+ Tambah Baris Label:Nilai</button>
+              class="px-2.5 py-1 rounded-lg text-[11px] font-bold text-[#033172] bg-[#EFF6FF] border border-blue-200 hover:bg-blue-100">+ Tambah Baris Label:Nilai</button>
           </div>
           ${fieldsHtml || '<p class="text-[11px] text-slate-400 italic">Tidak ada baris label:nilai pada bagian ini.</p>'}
         </div>
@@ -423,7 +423,7 @@ function renderTermsVisualBuilder() {
       <span class="px-2 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-black">#${idx + 1}</span>
       <textarea rows="2" maxlength="600"
         oninput="termsVisualData.consent_statements[${idx}] = this.value"
-        class="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B]">${esc(st)}</textarea>
+        class="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172]">${esc(st)}</textarea>
       <button type="button" onclick="removeTermsConsentStatement(${idx})" ${v.consent_statements.length <= 1 ? 'disabled' : ''}
         class="p-2 rounded-xl text-rose-600 hover:bg-rose-50 disabled:opacity-30">
         <i data-lucide="trash-2" class="w-4 h-4"></i>
@@ -440,20 +440,20 @@ function renderTermsVisualBuilder() {
           <label class="block text-xs font-bold text-slate-700 mb-1">Judul Dokumen Utama *</label>
           <input type="text" value="${esc(v.title)}" maxlength="300"
             oninput="termsVisualData.title = this.value"
-            class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-[#00897B]">
+            class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-[#033172]">
         </div>
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Catatan Tanggal / Edisi (Opsional)</label>
           <input type="text" value="${esc(v.date_note)}" maxlength="300" placeholder="Contoh: Edisi Pembaruan Regulasi POJK"
             oninput="termsVisualData.date_note = this.value"
-            class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-[#00897B]">
+            class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-[#033172]">
         </div>
       </div>
       <div>
         <label class="block text-xs font-bold text-slate-700 mb-1">Paragraf Pengantar (Opsional)</label>
         <textarea rows="2" maxlength="5000"
           oninput="termsVisualData.intro = this.value"
-          class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-[#00897B]">${esc(v.intro)}</textarea>
+          class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-[#033172]">${esc(v.intro)}</textarea>
       </div>
     </div>
 
@@ -462,7 +462,7 @@ function renderTermsVisualBuilder() {
       <div class="flex items-center justify-between">
         <div class="text-xs font-extrabold text-slate-700 uppercase tracking-wider">2. Struktur Bagian &amp; Pasal (${v.sections.length} Bagian)</div>
         <button type="button" onclick="addTermsSection()"
-          class="px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] transition">+ Tambah Bagian / Pasal Baru</button>
+          class="px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-[#033172] hover:bg-[#022454] transition">+ Tambah Bagian / Pasal Baru</button>
       </div>
       <div class="space-y-3">${sectionsHtml}</div>
     </div>
@@ -472,20 +472,20 @@ function renderTermsVisualBuilder() {
       <div class="flex items-center justify-between">
         <div class="text-xs font-extrabold text-slate-700 uppercase tracking-wider">3. Kotak Centang Pernyataan Persetujuan Nasabah (1–5 Poin)</div>
         <button type="button" onclick="addTermsConsentStatement()" ${v.consent_statements.length >= 5 ? 'disabled' : ''}
-          class="px-3 py-1.5 rounded-xl text-xs font-bold text-[#00897B] bg-white border border-teal-200 hover:bg-teal-50 disabled:opacity-40">+ Tambah Poin Centang</button>
+          class="px-3 py-1.5 rounded-xl text-xs font-bold text-[#033172] bg-white border border-blue-200 hover:bg-[#EFF6FF] disabled:opacity-40">+ Tambah Poin Centang</button>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Judul Bagian Persetujuan *</label>
           <input type="text" value="${esc(v.consent_heading)}" maxlength="300"
             oninput="termsVisualData.consent_heading = this.value"
-            class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-[#00897B]">
+            class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-[#033172]">
         </div>
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Instruksi Persetujuan (Opsional)</label>
           <input type="text" value="${esc(v.consent_instruction)}" maxlength="300"
             oninput="termsVisualData.consent_instruction = this.value"
-            class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-[#00897B]">
+            class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-[#033172]">
         </div>
       </div>
       <div class="space-y-2">${statementsHtml}</div>

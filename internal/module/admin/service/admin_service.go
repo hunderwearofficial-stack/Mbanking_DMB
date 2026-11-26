@@ -1354,12 +1354,14 @@ func (s *adminService) UpdateApplicationStatus(ctx context.Context, id string, s
 	}
 	statusLabel := app.Status
 	switch app.Status {
+	case "PENDING":
+		statusLabel = "DIAJUKAN (MENUNGGU TINJAUAN PETUGAS)"
 	case "APPROVED":
-		statusLabel = "DISETUJUI"
+		statusLabel = "SELESAI DIPROSES"
 	case "CONTACTED":
-		statusLabel = "SEDANG DIPROSES / DIHUBUNGI CS"
+		statusLabel = "SEDANG DIPROSES / AKAN DIHUBUNGI PETUGAS"
 	case "REJECTED":
-		statusLabel = "BELUM DAPAT DISETUJUI"
+		statusLabel = "DIBATALKAN"
 	}
 	msg := fmt.Sprintf("Status pengajuan %s Anda sebesar %s kini: %s.", app.ProductName, money.FormatIDR(app.Amount), statusLabel)
 	if app.AdminNotes != "" {

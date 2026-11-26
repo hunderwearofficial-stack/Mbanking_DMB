@@ -45,10 +45,10 @@ function switchCustomerSubTab(subTab) {
 
   if (btnCustomers && btnApps) {
     if (subTab === 'customers') {
-      btnCustomers.className = 'px-4 py-2 rounded-xl text-xs font-bold bg-[#00897B] text-white shadow-xs transition flex items-center gap-2';
+      btnCustomers.className = 'px-4 py-2 rounded-xl text-xs font-bold bg-[#033172] text-white shadow-xs transition flex items-center gap-2';
       btnApps.className = 'px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition flex items-center gap-2';
     } else {
-      btnApps.className = 'px-4 py-2 rounded-xl text-xs font-bold bg-[#00897B] text-white shadow-xs transition flex items-center gap-2';
+      btnApps.className = 'px-4 py-2 rounded-xl text-xs font-bold bg-[#033172] text-white shadow-xs transition flex items-center gap-2';
       btnCustomers.className = 'px-4 py-2 rounded-xl text-xs font-bold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition flex items-center gap-2';
     }
   }
@@ -111,7 +111,7 @@ async function loadCustomers(resetPage = true) {
             : '<span class="text-[10px] text-slate-400 italic">Belum ada rekening</span>';
 
           const activatedBadge = c.activated
-            ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 text-[#00897B] border border-teal-200">Sudah Aktivasi</span>`
+            ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#EFF6FF] text-[#033172] border border-blue-200">Sudah Aktivasi</span>`
             : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">Belum Aktivasi</span>`;
 
           const loginFail = c.failed_login_attempts || 0;
@@ -310,7 +310,9 @@ async function loadProductApplications() {
     });
 
     if (ok && Array.isArray(json.data)) {
-      cachedApplications = json.data;
+      cachedApplications = type === 'ALL'
+        ? json.data.filter(a => (a.product_type || '').toUpperCase() !== 'PENCAIRAN_DEPOSITO')
+        : json.data;
       const badgeCount = document.getElementById('productAppsCountBadge');
       const pendingCount = cachedApplications.filter(a => a.status === 'PENDING').length;
       if (badgeCount) {
@@ -328,20 +330,23 @@ async function loadProductApplications() {
         tbody.innerHTML = filtered.map(app => {
           const dt = app.created_at ? new Date(app.created_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-';
           const isDeposito = app.product_type === 'DEPOSITO';
+          const isTabungan = app.product_type === 'TABUNGAN';
           const isDisbursement = app.product_type === 'PENCAIRAN_DEPOSITO';
           const prodBadge = isDisbursement
             ? `<span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200">PENCAIRAN DEPOSITO</span>`
-            : isDeposito
-              ? `<span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-teal-50 text-[#00897B] border border-teal-200">DEPOSITO</span>`
-              : `<span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200">PINJAMAN</span>`;
+            : isTabungan
+              ? `<span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-sky-50 text-sky-700 border border-sky-200">TABUNGAN</span>`
+              : isDeposito
+                ? `<span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-[#EFF6FF] text-[#033172] border border-blue-200">DEPOSITO</span>`
+                : `<span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200">PINJAMAN</span>`;
 
-          let statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">MENUNGGU CS (PENDING)</span>`;
+          let statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">DIAJUKAN</span>`;
           if (app.status === 'CONTACTED') {
-            statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">DIHUBUNGI CS</span>`;
+            statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">DIPROSES / DIHUBUNGI</span>`;
           } else if (app.status === 'APPROVED') {
-            statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">DISETUJUI</span>`;
+            statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">SELESAI</span>`;
           } else if (app.status === 'REJECTED') {
-            statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">DITOLAK</span>`;
+            statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">DIBATALKAN</span>`;
           }
 
           const amountFmt = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(app.amount || 0);
@@ -356,11 +361,11 @@ async function loadProductApplications() {
                 </button>
                 <button type="button" onclick="updateProductAppStatus(${jsArg(app.id)}, 'APPROVED', ${jsArg(app.product_name)}, ${jsArg(app.full_name)}, ${jsArg(app.admin_notes || '')})"
                   class="px-2 py-1 rounded-lg text-[10px] font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition">
-                  Setujui
+                  Selesai
                 </button>
                 <button type="button" onclick="updateProductAppStatus(${jsArg(app.id)}, 'REJECTED', ${jsArg(app.product_name)}, ${jsArg(app.full_name)}, ${jsArg(app.admin_notes || '')})"
                   class="px-2 py-1 rounded-lg text-[10px] font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition">
-                  Tolak
+                  Batalkan
                 </button>
               </div>`;
 
@@ -416,10 +421,10 @@ async function updateProductAppStatus(id, initialStatus, productName, customerNa
     selectLabel: 'Status Pengajuan',
     selectDefaultValue: initialStatus,
     selectOptions: [
-      { value: 'PENDING', label: 'PENDING — Menunggu Tindak Lanjut CS' },
-      { value: 'CONTACTED', label: 'CONTACTED — Sedang Dihubungi / Diproses CS' },
-      { value: 'APPROVED', label: 'APPROVED — Pengajuan Disetujui' },
-      { value: 'REJECTED', label: 'REJECTED — Pengajuan Ditolak' }
+      { value: 'PENDING', label: 'Diajukan — Menunggu Tinjauan Petugas' },
+      { value: 'CONTACTED', label: 'Diproses — Sedang Dihubungi CS / Tim Lapangan' },
+      { value: 'APPROVED', label: 'Selesai — Proses Tindak Lanjut Selesai' },
+      { value: 'REJECTED', label: 'Dibatalkan — Pengajuan Dibatalkan' }
     ],
     showInput: true,
     requireInput: true,
@@ -549,13 +554,13 @@ async function loadDepositDisbursements() {
       const dt = app.created_at ? new Date(app.created_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-';
       const amountFmt = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(app.amount || 0);
 
-      let statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">PENDING</span>`;
+      let statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">DIAJUKAN</span>`;
       if (app.status === 'CONTACTED') {
-        statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">DIPROSES</span>`;
+        statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">DIPROSES / DIHUBUNGI</span>`;
       } else if (app.status === 'APPROVED') {
-        statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">DISETUJUI</span>`;
+        statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">SELESAI</span>`;
       } else if (app.status === 'REJECTED') {
-        statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">DITOLAK</span>`;
+        statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">DIBATALKAN</span>`;
       }
 
       const actionsHtml = isReadOnly
@@ -567,11 +572,11 @@ async function loadDepositDisbursements() {
             </button>
             <button type="button" onclick="updateProductAppStatus(${jsArg(app.id)}, 'APPROVED', ${jsArg(app.product_name)}, ${jsArg(app.full_name)}, ${jsArg(app.admin_notes || '')})"
               class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition">
-              Setujui
+              Selesai
             </button>
             <button type="button" onclick="updateProductAppStatus(${jsArg(app.id)}, 'REJECTED', ${jsArg(app.product_name)}, ${jsArg(app.full_name)}, ${jsArg(app.admin_notes || '')})"
               class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition">
-              Tolak
+              Batalkan
             </button>
           </div>`;
 

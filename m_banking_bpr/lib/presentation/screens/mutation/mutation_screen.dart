@@ -32,8 +32,23 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
   bool _filterHasMore = false;
   bool _isFilterLoading = false;
   String? _filterError;
-  List<Map<String, dynamic>> _accounts = [];
+  List<Map<String, dynamic>> _savingsAccounts = [];
+  List<Map<String, dynamic>> _depositAccounts = [];
+  List<Map<String, dynamic>> _loanAccounts = [];
+  int _selectedCategory = 0; // 0: Tabungan, 1: Deposito, 2: Pinjaman
   String? _selectedAccountNumber;
+
+  List<Map<String, dynamic>> get _accounts {
+    if (_selectedCategory == 1) return _depositAccounts;
+    if (_selectedCategory == 2) return _loanAccounts;
+    return _savingsAccounts;
+  }
+
+  String get _categoryLabel {
+    if (_selectedCategory == 1) return 'Deposito';
+    if (_selectedCategory == 2) return 'Pinjaman';
+    return 'Tabungan';
+  }
 
   static const Color primaryNavy = AppColors.primaryNavy;
   static const Color royalBlue = AppColors.royalBlue;
@@ -75,12 +90,19 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
   Future<void> _loadAccounts() async {
     try {
       final repo = context.read<AccountCubit>().accountRepository;
-      final list = await repo.getSavingsAccounts();
-      if (!mounted || list.isEmpty) return;
+      final results = await Future.wait([
+        repo.getSavingsAccounts().catchError((_) => <Map<String, dynamic>>[]),
+        repo.getDeposits().catchError((_) => <Map<String, dynamic>>[]),
+        repo.getLoans().catchError((_) => <Map<String, dynamic>>[]),
+      ]);
+      if (!mounted) return;
       setState(() {
-        _accounts = list;
-        if (_selectedAccountNumber == null || _selectedAccountNumber!.isEmpty) {
-          final first = _extractAccountNo(list.first);
+        _savingsAccounts = results[0];
+        _depositAccounts = results[1];
+        _loanAccounts = results[2];
+        if ((_selectedAccountNumber == null || _selectedAccountNumber!.isEmpty) &&
+            _accounts.isNotEmpty) {
+          final first = _extractAccountNo(_accounts.first);
           if (first.isNotEmpty) _selectedAccountNumber = first;
         }
       });
@@ -132,16 +154,43 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
       final repo = context.read<AccountCubit>().accountRepository;
       final accountState = context.read<AccountCubit>().state;
       String? accNo = _selectedAccountNumber;
-      if ((accNo == null || accNo.isEmpty) && accountState is AccountLoaded) {
+      if (_selectedCategory == 0 &&
+          (accNo == null || accNo.isEmpty) &&
+          accountState is AccountLoaded) {
         accNo = accountState.account.accountNumber;
       }
 
-      final page = await repo.getMutationsPage(
-        limit: 100,
-        accountNumber: accNo,
-        startDate: sStr,
-        endDate: eStr,
-      );
+      if (_selectedCategory != 0 && (accNo == null || accNo.isEmpty)) {
+        if (mounted) {
+          setState(() {
+            _filteredMutations = [];
+            _filterHasMore = false;
+            _isFilterLoading = false;
+          });
+        }
+        return;
+      }
+
+      final page = _selectedCategory == 1
+          ? await repo.getDepositMutationsPage(
+              accNo!,
+              limit: 100,
+              startDate: sStr,
+              endDate: eStr,
+            )
+          : _selectedCategory == 2
+              ? await repo.getLoanMutationsPage(
+                  accNo!,
+                  limit: 100,
+                  startDate: sStr,
+                  endDate: eStr,
+                )
+              : await repo.getMutationsPage(
+                  limit: 100,
+                  accountNumber: accNo,
+                  startDate: sStr,
+                  endDate: eStr,
+                );
       final results = page.items;
 
       if (mounted) {
@@ -751,9 +800,9 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
 
   Widget _buildAccountSelector(AccountState state) {
     String accNo = _selectedAccountNumber ?? '';
-    String productName = 'Tabungan Bank DMB';
+    String productName = '$_categoryLabel Bank DMB';
 
-    if (accNo.isEmpty && state is AccountLoaded) {
+    if (_selectedCategory == 0 && accNo.isEmpty && state is AccountLoaded) {
       accNo = state.account.accountNumber;
       if (state.account.accountType.trim().isNotEmpty && state.account.accountType.trim() != '-') {
         productName = state.account.accountType.trim();
@@ -766,38 +815,54 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
       }
     }
 
-    if (accNo.isEmpty && _accounts.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
     final canSwitch = _accounts.length > 1;
-    final displayAcc = accNo.isNotEmpty ? accNo : '-';
+    final displayAcc = accNo.isNotEmpty ? accNo : 'Belum ada rekening $_categoryLabel';
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: canSwitch ? _showAccountPickerSheet : null,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      child: Column(
+        children: [
+          // Category Switcher: Tabungan | Deposito | Pinjaman
+          Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(color: const Color(0xFFE8EEF6)),
-              boxShadow: [
-                BoxShadow(
-                  color: AuthUiTokens.royalBlue.withOpacity(0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ],
             ),
             child: Row(
               children: [
-                Container(
-                  width: 34,
+                _buildCategoryPill(0, 'Tabungan', _savingsAccounts.length),
+                _buildCategoryPill(1, 'Deposito', _depositAccounts.length),
+                _buildCategoryPill(2, 'Pinjaman', _loanAccounts.length),
+              ],
+            ),
+          ),
+          if (accNo.isNotEmpty || _accounts.isNotEmpty)
+            Material(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: canSwitch ? _showAccountPickerSheet : null,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE8EEF6)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AuthUiTokens.royalBlue.withOpacity(0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 34,
                   height: 34,
                   decoration: const BoxDecoration(
                     color: AuthUiTokens.softBlueBg,
@@ -871,6 +936,42 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
           ),
         ),
       ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryPill(int index, String label, int count) {
+    final isSelected = _selectedCategory == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          if (_selectedCategory == index) return;
+          setState(() {
+            _selectedCategory = index;
+            _selectedAccountNumber = _accounts.isNotEmpty ? _extractAccountNo(_accounts.first) : null;
+          });
+          _applyDateFilter(_startDate, _endDate, _periodLabel, silent: true);
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? primaryNavy : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            count > 0 ? '$label ($count)' : label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              color: isSelected ? Colors.white : textMuted,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -902,7 +1003,7 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
               ),
               const SizedBox(height: 16),
               Text(
-                'Pilih Rekening Tabungan',
+                'Pilih Rekening $_categoryLabel',
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 16.5,
                   fontWeight: FontWeight.w800,
@@ -927,7 +1028,7 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
                     final item = _accounts[i];
                     final acc = _extractAccountNo(item);
                     final prod = _extractProductName(item);
-                    final bal = Money.tryParse(item['saldo'] ?? item['balance']);
+                    final bal = Money.tryParse(item['saldo'] ?? item['nominal'] ?? item['baki_debet'] ?? item['balance']);
                     final selected = acc == _selectedAccountNumber;
                     return Material(
                       color: selected ? AuthUiTokens.softBlueBg : AuthUiTokens.canvas,

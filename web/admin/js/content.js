@@ -151,7 +151,7 @@ function renderContentPages() {
     const n = fields.filter(f => changed.has(f.key)).length;
     const active = p.id === contentState.page;
     return `<button type="button" onclick="selectContentPage(${jsArg(p.id)})"
-      class="w-full text-left px-3 py-2.5 rounded-xl text-xs transition flex items-center justify-between gap-2 ${active ? 'bg-teal-50 text-[#00897B] font-bold border border-teal-200' : 'text-slate-700 hover:bg-slate-50 font-semibold border border-transparent'}">
+      class="w-full text-left px-3 py-2.5 rounded-xl text-xs transition flex items-center justify-between gap-2 ${active ? 'bg-[#EFF6FF] text-[#033172] font-bold border border-blue-200' : 'text-slate-700 hover:bg-slate-50 font-semibold border border-transparent'}">
       <span>${esc(p.name)}<span class="block text-[10px] font-medium text-slate-400">${fields.length} elemen</span></span>
       ${n ? `<span class="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">${n} diubah</span>` : ''}
     </button>`;
@@ -207,7 +207,7 @@ function renderContentField(f, readOnly) {
   const live = contentState.current.live[f.key] || '';
   const id = 'cf_' + f.key.replace(/[^a-z0-9]/gi, '_');
   const dis = readOnly ? 'disabled' : '';
-  const base = 'w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#00897B] disabled:bg-slate-50 disabled:text-slate-500';
+  const base = 'w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172] disabled:bg-slate-50 disabled:text-slate-500';
   const onInput = `oninput="setContentValue(${jsArg(f.key)}, this.value)"`;
   let input;
   switch (f.type) {
@@ -216,7 +216,7 @@ function renderContentField(f, readOnly) {
       break;
     case 'bool':
       input = `<label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-700">
-        <input id="${id}" type="checkbox" class="w-4 h-4 accent-[#00897B]" ${v === 'true' ? 'checked' : ''}
+        <input id="${id}" type="checkbox" class="w-4 h-4 accent-[#033172]" ${v === 'true' ? 'checked' : ''}
           onchange="setContentValue(${jsArg(f.key)}, this.checked ? 'true' : 'false')" ${dis}> Tampilkan di aplikasi</label>`;
       break;
     case 'enum':
@@ -232,12 +232,12 @@ function renderContentField(f, readOnly) {
         <div class="flex-1 space-y-2">
           <input id="${id}" type="text" maxlength="${f.max}" placeholder="Kosong = gambar bawaan aplikasi (PNG, JPG, atau WebP)" value="${esc(v)}" class="${base}" ${onInput} ${dis}>
           ${readOnly ? '' : `<div class="flex flex-wrap gap-2 items-center">
-            <label class="px-3 py-1.5 rounded-lg text-[11px] font-bold text-white bg-[#00897B] hover:bg-[#00796B] cursor-pointer flex items-center gap-1">
+            <label class="px-3 py-1.5 rounded-lg text-[11px] font-bold text-white bg-[#033172] hover:bg-[#022454] cursor-pointer flex items-center gap-1">
               <i data-lucide="upload" class="w-3 h-3"></i><span>Unggah Gambar</span>
               <input type="file" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="uploadContentImage(${jsArg(f.key)}, this)">
             </label>
             <button type="button" onclick="openAssetGalleryForSlot(${jsArg(f.key)})" class="px-3 py-1.5 rounded-lg text-[11px] font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 flex items-center gap-1">
-              <i data-lucide="images" class="w-3 h-3 text-[#00897B]"></i><span>Pilih dari Galeri Server</span>
+              <i data-lucide="images" class="w-3 h-3 text-[#033172]"></i><span>Pilih dari Galeri Server</span>
             </button>
             <button type="button" onclick="setContentValue(${jsArg(f.key)}, ''); renderContentPage();" class="px-3 py-1.5 rounded-lg text-[11px] font-bold text-slate-600 bg-slate-100 hover:bg-slate-200">Pakai Gambar Bawaan</button>
             <span id="${id}_status" class="text-[11px] text-slate-500"></span>
@@ -282,7 +282,7 @@ function renderMobileMockupPreview() {
 
   const v = contentState.values || {};
   const pageId = contentState.page || 'umum';
-  const logoUrl = v['app.logo'] || 'images/bank_logo.png';
+  const logoUrl = v['app.logo'] || 'images/mydmb_logo_official.png';
   const announcement = (v['app.announcement'] || '').trim();
 
   const pageObj = contentState.schema.pages.find(p => p.id === pageId);
@@ -439,7 +439,7 @@ function renderMobileMockupPreview() {
             <p>Isi pasal dan pernyataan persetujuan dikelola pada tab <b>Syarat &amp; Ketentuan</b>.</p>
           </div>
         </div>
-        <div class="py-2 rounded-xl bg-[#00897B] text-white text-center text-[9.5px] font-bold">Setuju &amp; Lanjutkan</div>
+        <div class="py-2 rounded-xl bg-[#033172] text-white text-center text-[9.5px] font-bold">Setuju &amp; Lanjutkan</div>
       </div>`;
     return;
   }
@@ -448,7 +448,6 @@ function renderMobileMockupPreview() {
     const introTitle = v['helpdesk.intro_title'] || 'Butuh Bantuan?';
     const introText = v['helpdesk.intro_text'] || '';
     const callDisp = v['contact.call_center_display'] || '(0251) 832-1234';
-    const waDisp = v['contact.whatsapp_display'] || '0811-9988-7766';
     const email = v['contact.email'] || 'layanan@bprdanamandiri.co.id';
     const addr = v['contact.office_address'] || 'Jl. Pajajaran No. 88, Kota Bogor';
     const hours = v['contact.office_hours'] || 'Senin - Jumat (08.00 - 15.30 WIB)';
@@ -456,7 +455,7 @@ function renderMobileMockupPreview() {
     container.innerHTML = `
       <div class="h-full flex flex-col justify-between p-3.5 bg-slate-50 text-slate-800 overflow-y-auto">
         <div class="space-y-2">
-          <div class="p-2.5 rounded-xl bg-gradient-to-r from-[#0A3B66] to-[#00897B] text-white">
+          <div class="p-2.5 rounded-xl bg-gradient-to-r from-[#0A3B66] to-[#033172] text-white">
             <div class="text-[11px] font-extrabold">${esc(introTitle)}</div>
             <div class="text-[8.5px] text-white/85 leading-snug mt-0.5">${esc(introText)}</div>
           </div>
@@ -466,15 +465,10 @@ function renderMobileMockupPreview() {
             <div class="text-[8px] text-slate-500">${esc(v['helpdesk.call_center_desc'] || '')}</div>
           </div>
           <div class="p-2 rounded-xl bg-white border border-slate-200 space-y-1">
-            <div class="text-[8px] font-bold text-emerald-600 uppercase">WhatsApp CS</div>
-            <div class="text-[10px] font-extrabold text-slate-800">${esc(waDisp)}</div>
-            <div class="text-[8px] text-slate-500">${esc(v['helpdesk.whatsapp_desc'] || '')}</div>
-          </div>
-          <div class="p-2 rounded-xl bg-white border border-slate-200 space-y-1">
             <div class="text-[8px] font-bold text-blue-600 uppercase">Email &amp; Kantor Pusat</div>
             <div class="text-[9px] font-bold text-slate-800 break-all">${esc(email)}</div>
             <div class="text-[8px] text-slate-500">${esc(addr)}</div>
-            <div class="text-[8px] text-[#00897B] font-semibold">${esc(hours)}</div>
+            <div class="text-[8px] text-[#033172] font-semibold">${esc(hours)}</div>
           </div>
         </div>
       </div>`;
@@ -761,7 +755,7 @@ async function loadContentHistory() {
     <td class="py-3 px-4">${esc(r.published_by_name || '-')}<div class="text-[10px] text-slate-400">${r.published_at ? esc(contentDate(r.published_at)) : ''}</div></td>
     <td class="py-3 px-4 text-slate-600">${esc(r.note || '-')}</td>
     <td class="py-3 px-4 text-right whitespace-nowrap space-x-2">
-      <button type="button" onclick="showContentDiff(${jsArg(r.id)})" class="text-[#00897B] font-bold hover:underline">Lihat perubahan</button>
+      <button type="button" onclick="showContentDiff(${jsArg(r.id)})" class="text-[#033172] font-bold hover:underline">Lihat perubahan</button>
       ${(r.status === 'PUBLISHED' || r.status === 'ARCHIVED') && canEditContent() ? `<button type="button" onclick="rollbackContent(${jsArg(r.id)}, ${jsArg(r.version_number)})" class="text-slate-600 font-bold hover:underline">Pulihkan ke draf</button>` : ''}
     </td></tr>`).join('');
 }
@@ -893,7 +887,7 @@ function renderServerAssetsGrid() {
         <div class="p-3 pt-0 flex flex-wrap items-center gap-1.5">
           ${contentState.assetSelectTargetKey && canEditContent() ? `
             <button type="button" onclick="applyAssetToSlot(${jsArg(a.url)}, ${jsArg(contentState.assetSelectTargetKey)})"
-              class="flex-1 py-1.5 px-2.5 rounded-lg text-[11px] font-bold text-white bg-[#00897B] hover:bg-[#00796B] transition">
+              class="flex-1 py-1.5 px-2.5 rounded-lg text-[11px] font-bold text-white bg-[#033172] hover:bg-[#022454] transition">
               Pasang ke Slot Ini
             </button>
           ` : (canEditContent() && imageFields.length ? `

@@ -5,11 +5,11 @@
 let currentTab = 'dashboard';
 
 const ROLE_ALLOWED_TABS = {
-  SUPER_ADMIN: ['dashboard', 'customers', 'deposit-disbursements', 'content', 'terms', 'push', 'approvals', 'audit', 'admin-users', 'settings'],
-  CS: ['dashboard', 'customers', 'deposit-disbursements', 'terms'],
-  MARKETING: ['dashboard', 'content', 'push', 'customers', 'deposit-disbursements'],
-  COMPLIANCE: ['dashboard', 'customers', 'deposit-disbursements', 'content', 'terms', 'push', 'approvals', 'audit'],
-  AUDITOR: ['dashboard', 'customers', 'deposit-disbursements', 'content', 'terms', 'push', 'audit']
+  SUPER_ADMIN: ['dashboard', 'customers', 'product-applications', 'deposit-disbursements', 'helpdesk', 'content', 'terms', 'push', 'approvals', 'audit', 'admin-users', 'settings'],
+  CS: ['dashboard', 'customers', 'product-applications', 'deposit-disbursements', 'helpdesk', 'terms'],
+  MARKETING: ['dashboard', 'content', 'push', 'customers', 'product-applications', 'deposit-disbursements', 'helpdesk'],
+  COMPLIANCE: ['dashboard', 'customers', 'product-applications', 'deposit-disbursements', 'helpdesk', 'content', 'terms', 'push', 'approvals', 'audit'],
+  AUDITOR: ['dashboard', 'customers', 'product-applications', 'deposit-disbursements', 'helpdesk', 'content', 'terms', 'push', 'audit']
 };
 
 function getCurrentUser() {
@@ -95,7 +95,7 @@ function applyRoleNavigation() {
   const user = getCurrentUser();
   const role = (user.role || 'SUPER_ADMIN').toUpperCase();
   const allowed = new Set(getAllowedTabsForRole(role));
-  const allTabs = ['dashboard', 'customers', 'deposit-disbursements', 'content', 'terms', 'push', 'approvals', 'audit', 'admin-users', 'settings'];
+  const allTabs = ['dashboard', 'customers', 'product-applications', 'deposit-disbursements', 'helpdesk', 'content', 'terms', 'push', 'approvals', 'audit', 'admin-users', 'settings'];
 
   allTabs.forEach(t => {
     const navBtn = document.getElementById(`nav-${t}`);
@@ -155,7 +155,7 @@ function switchTab(tabId) {
   }
 
   currentTab = tabId;
-  const tabs = ['dashboard', 'customers', 'deposit-disbursements', 'approvals', 'audit', 'content', 'terms', 'push', 'admin-users', 'settings'];
+  const tabs = ['dashboard', 'customers', 'product-applications', 'deposit-disbursements', 'helpdesk', 'approvals', 'audit', 'content', 'terms', 'push', 'admin-users', 'settings'];
 
   let matched = false;
   tabs.forEach(t => {
@@ -168,12 +168,12 @@ function switchTab(tabId) {
       el.classList.remove('hidden');
       if (nav) {
         nav.classList.remove('text-slate-600', 'hover:text-slate-900', 'hover:bg-slate-100/70', 'font-semibold');
-        nav.classList.add('text-[#00897B]', 'bg-teal-50/90', 'border', 'border-teal-200/80', 'shadow-xs', 'font-bold');
+        nav.classList.add('text-[#033172]', 'bg-[#EFF6FF]', 'border', 'border-blue-200', 'shadow-xs', 'font-bold');
       }
     } else {
       el.classList.add('hidden');
       if (nav) {
-        nav.classList.remove('text-[#00897B]', 'bg-teal-50/90', 'border', 'border-teal-200/80', 'shadow-xs', 'font-bold');
+        nav.classList.remove('text-[#033172]', 'bg-[#EFF6FF]', 'border', 'border-blue-200', 'shadow-xs', 'font-bold');
         nav.classList.add('text-slate-600', 'hover:text-slate-900', 'hover:bg-slate-100/70', 'font-semibold');
       }
     }
@@ -188,8 +188,10 @@ function switchTab(tabId) {
 
   const titleMap = {
     'dashboard': 'Dashboard Eksekutif',
-    'customers': role === 'MARKETING' ? 'Pengajuan Produk Nasabah' : 'Nasabah, Perangkat & Pengajuan Produk',
+    'customers': 'Nasabah & Perangkat',
+    'product-applications': 'Pengajuan Produk (Kredit, Deposito & Tabungan)',
     'deposit-disbursements': 'Pengajuan Pencairan Deposito',
+    'helpdesk': 'Chatbot & FAQ Pusat Bantuan',
     'audit': 'Audit Trail & Integritas Keamanan OJK',
     'content': 'Konten Aplikasi & Pratinjau Layar',
     'terms': 'Syarat & Ketentuan Layanan (Maker-Checker)',
@@ -214,7 +216,9 @@ function refreshCurrentTab() {
   try {
     if (currentTab === 'dashboard' && typeof loadDashboardStats === 'function') loadDashboardStats();
     if (currentTab === 'customers' && typeof loadCustomers === 'function') loadCustomers();
+    if (currentTab === 'product-applications' && typeof loadProductApplications === 'function') loadProductApplications();
     if (currentTab === 'deposit-disbursements' && typeof loadDepositDisbursements === 'function') loadDepositDisbursements();
+    if (currentTab === 'helpdesk' && typeof loadHelpdeskAdmin === 'function') loadHelpdeskAdmin();
     if (currentTab === 'content' && typeof loadContent === 'function') loadContent();
     if (currentTab === 'terms' && typeof loadTermsVersions === 'function') loadTermsVersions();
     if (currentTab === 'push' && typeof loadPush === 'function') loadPush();
@@ -236,7 +240,7 @@ function showToast(message, type = 'info') {
 
   const toastEl = document.createElement('div');
   const colors = {
-    success: 'bg-[#00897B] text-white shadow-lg shadow-teal-900/20 border border-teal-600/30',
+    success: 'bg-[#033172] text-white shadow-lg shadow-teal-900/20 border border-teal-600/30',
     error: 'bg-rose-600 text-white shadow-lg shadow-rose-900/20 border border-rose-500/30',
     warning: 'bg-amber-600 text-white shadow-lg shadow-amber-900/20 border border-amber-500/30',
     info: 'bg-slate-800 text-white shadow-lg shadow-slate-900/20 border border-slate-700'
@@ -343,9 +347,9 @@ function showConfirmModal(opts = {}) {
       iconEl.setAttribute('data-lucide', 'shield-alert');
       confirmBtn.className = 'px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 shadow-sm transition flex items-center gap-1.5';
     } else {
-      iconWrap.className = 'w-10 h-10 rounded-2xl bg-teal-50 text-[#00897B] border border-teal-200 flex items-center justify-center shrink-0';
+      iconWrap.className = 'w-10 h-10 rounded-2xl bg-[#EFF6FF] text-[#033172] border border-blue-200 flex items-center justify-center shrink-0';
       iconEl.setAttribute('data-lucide', 'check-circle-2');
-      confirmBtn.className = 'px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-[#00897B] hover:bg-[#00796B] shadow-sm transition flex items-center gap-1.5';
+      confirmBtn.className = 'px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-[#033172] hover:bg-[#022454] shadow-sm transition flex items-center gap-1.5';
     }
 
     confirmBtn.textContent = opts.confirmText || 'Konfirmasi';
