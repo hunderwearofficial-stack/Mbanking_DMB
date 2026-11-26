@@ -18,6 +18,7 @@ type CBSProvider interface {
 
 	GetLoanAccountsByCIF(ctx context.Context, cifNumber string) ([]domain.DMBLoanAccountItem, error)
 	GetLoanAccountDetail(ctx context.Context, cifNumber, accountNo string) (*domain.DMBLoanAccountDetail, error)
+	GetLoanAccountKKM(ctx context.Context, cifNumber, accountNo string) (*domain.DMBLoanKKM, error)
 	GetLoanMutations(ctx context.Context, cifNumber, accountNo, startDate, endDate string, limit int) ([]domain.Mutation, error)
 
 	GetDepositAccountsByCIF(ctx context.Context, cifNumber string) ([]domain.DMBDepositAccountItem, error)

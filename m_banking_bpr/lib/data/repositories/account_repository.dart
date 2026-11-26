@@ -185,6 +185,19 @@ class AccountRepository {
     return null;
   }
 
+  Future<Map<String, dynamic>?> getLoanKKM(String accountNumber) async {
+    final response = await apiClient.get(
+      '${ApiEndpoints.loanDetail}$accountNumber/kkm',
+    );
+    if (response is Map) {
+      if (response['data'] is Map) {
+        return Map<String, dynamic>.from(response['data'] as Map);
+      }
+      return Map<String, dynamic>.from(response);
+    }
+    return null;
+  }
+
   Future<List<Map<String, dynamic>>> getDeposits({String? cifNumber}) async {
     final response = await apiClient.get(
       ApiEndpoints.deposits,
@@ -242,6 +255,28 @@ class AccountRepository {
     }
 
     return null;
+  }
+
+  Future<List<Map<String, dynamic>>> getProductApplications() async {
+    final response = await apiClient.get(ApiEndpoints.applications);
+    if (response is List) {
+      return List<Map<String, dynamic>>.from(
+        response.map((e) => Map<String, dynamic>.from(e as Map)),
+      );
+    }
+    if (response is Map) {
+      if (response['data'] is List) {
+        return List<Map<String, dynamic>>.from(
+          (response['data'] as List).map((e) => Map<String, dynamic>.from(e as Map)),
+        );
+      }
+      if (response['applications'] is List) {
+        return List<Map<String, dynamic>>.from(
+          (response['applications'] as List).map((e) => Map<String, dynamic>.from(e as Map)),
+        );
+      }
+    }
+    return [];
   }
 
   Future<Map<String, dynamic>> submitProductApplication({

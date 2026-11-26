@@ -107,6 +107,7 @@ type AccountService interface {
 
 	GetLoans(ctx context.Context, caller Caller) ([]domain.DMBLoanAccountItem, error)
 	GetLoanDetail(ctx context.Context, caller Caller, accountNo string) (*domain.DMBLoanAccountDetail, error)
+	GetLoanKKM(ctx context.Context, caller Caller, accountNo string) (*domain.DMBLoanKKM, error)
 	GetLoanMutations(ctx context.Context, caller Caller, accountNo, startDate, endDate string, limit int) ([]domain.Mutation, bool, error)
 
 	GetDeposits(ctx context.Context, caller Caller) ([]domain.DMBDepositAccountItem, error)
@@ -210,6 +211,13 @@ func (s *accountService) GetLoanDetail(ctx context.Context, caller Caller, accou
 		return nil, ownershipErr(err)
 	}
 	return s.cbsProv.GetLoanAccountDetail(ctx, caller.CIF, accountNo)
+}
+
+func (s *accountService) GetLoanKKM(ctx context.Context, caller Caller, accountNo string) (*domain.DMBLoanKKM, error) {
+	if err := s.resolver.OwnsLoan(ctx, caller.CIF, accountNo); err != nil {
+		return nil, ownershipErr(err)
+	}
+	return s.cbsProv.GetLoanAccountKKM(ctx, caller.CIF, accountNo)
 }
 
 func (s *accountService) GetLoanMutations(ctx context.Context, caller Caller, accountNo, startDate, endDate string, limit int) ([]domain.Mutation, bool, error) {

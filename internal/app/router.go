@@ -286,6 +286,7 @@ func NewRouter(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, cbsPr
 				acc.GET("/list", accHandler.GetSavingsAccounts)
 				acc.GET("/loans", accHandler.GetLoans)
 				acc.GET("/loans/:account_no", accHandler.GetLoanDetail)
+				acc.GET("/loans/:account_no/kkm", accHandler.GetLoanKKM)
 				acc.GET("/loans/:account_no/mutations", accHandler.GetLoanMutations)
 				acc.GET("/deposits", accHandler.GetDeposits)
 				acc.GET("/deposits/:account_no", accHandler.GetDepositDetail)

@@ -63,9 +63,11 @@ type DMBSavingsAccountItem struct {
 	KodeProduk               string       `json:"kode_produk,omitempty"`
 	NamaProduk               string       `json:"nama_produk,omitempty"`
 	ProdukTabungan           string       `json:"produk_tabungan,omitempty"`
+	TanggalBuka              string       `json:"tanggal_buka,omitempty"`
 	StatusRekening           int          `json:"status_rekening,omitempty"`
 	StatusRekeningKeterangan string       `json:"status_rekening_keterangan,omitempty"`
 	Saldo                    money.Amount `json:"saldo"`
+	SaldoBlokir              money.Amount `json:"saldo_blokir,omitempty"`
 }
 type CBSSavingsAccountItem = DMBSavingsAccountItem
 
@@ -81,28 +83,133 @@ type DMBLoanAccountItem struct {
 	KolektibilitasKeterangan string       `json:"kolektibilitas_keterangan"`
 }
 
+type DMBLoanCollateral struct {
+	Jenis            string `json:"jenis"`
+	BuktiKepemilikan string `json:"bukti_kepemilikan"`
+}
+
+type DMBLoanTunggakan struct {
+	Kali    int          `json:"kali"`
+	Nominal money.Amount `json:"nominal"`
+}
+
+type DMBLoanProgress struct {
+	JumlahAngsuran int              `json:"jumlah_angsuran"`
+	SudahBayar     int              `json:"sudah_bayar"`
+	Tunggakan      DMBLoanTunggakan `json:"tunggakan"`
+	SisaBayar      int              `json:"sisa_bayar"`
+	SisaTagihan    money.Amount     `json:"sisa_tagihan"`
+}
+
+type DMBLoanScheduleItem struct {
+	Ke      int          `json:"ke"`
+	Tanggal string       `json:"tanggal"`
+	Tagihan money.Amount `json:"tagihan"`
+	Dibayar money.Amount `json:"dibayar"`
+	Status  string       `json:"status"`
+}
+
 type DMBLoanAccountDetail struct {
-	NomorRekening            string       `json:"nomor_rekening"`
-	KodeProduk               string       `json:"kode_produk"`
-	NamaProduk               string       `json:"nama_produk"`
-	StatusRekening           int          `json:"status_rekening"`
-	StatusRekeningKeterangan string       `json:"status_rekening_keterangan"`
-	Plafon                   money.Amount `json:"plafon"`
-	BakiDebet                money.Amount `json:"baki_debet"`
-	Kolektibilitas           int          `json:"kolektibilitas"`
-	KolektibilitasKeterangan string       `json:"kolektibilitas_keterangan"`
-	NomorPerjanjian          string       `json:"nomor_perjanjian"`
-	Angsuran                 money.Amount `json:"angsuran"`
-	JatuhTempoBerikutnya     string       `json:"jatuh_tempo_berikutnya"`
-	JangkaWaktu              int          `json:"jangka_waktu"`
-	SisaJangkaWaktu          int          `json:"sisa_jangka_waktu"`
-	SatuanWaktu              string       `json:"satuan_waktu"`
-	TanggalJatuhTempo        string       `json:"tanggal_jatuh_tempo"`
-	SukuBungaTahunan         float64      `json:"suku_bunga_tahunan"`
-	MetodeBunga              string       `json:"metode_bunga"`
-	Agunan                   string       `json:"agunan"`
-	SandiKantor              string       `json:"sandi_kantor"`
-	NamaKantor               string       `json:"nama_kantor"`
+	NomorRekening            string                `json:"nomor_rekening"`
+	KodeProduk               string                `json:"kode_produk"`
+	NamaProduk               string                `json:"nama_produk"`
+	StatusRekening           int                   `json:"status_rekening"`
+	StatusRekeningKeterangan string                `json:"status_rekening_keterangan"`
+	Plafon                   money.Amount          `json:"plafon"`
+	BakiDebet                money.Amount          `json:"baki_debet"`
+	Kolektibilitas           int                   `json:"kolektibilitas"`
+	KolektibilitasKeterangan string                `json:"kolektibilitas_keterangan"`
+	PRK                      bool                  `json:"prk"`
+	NomorPerjanjian          string                `json:"nomor_perjanjian"`
+	VirtualAccount           *string               `json:"virtual_account"`
+	Angsuran                 *money.Amount         `json:"angsuran"`
+	JatuhTempoBerikutnya     *string               `json:"jatuh_tempo_berikutnya"`
+	JangkaWaktu              int                   `json:"jangka_waktu"`
+	SisaJangkaWaktu          int                   `json:"sisa_jangka_waktu"`
+	SatuanWaktu              string                `json:"satuan_waktu"`
+	AngkaSatuan              int                   `json:"angka_satuan"`
+	TanggalJatuhTempo        string                `json:"tanggal_jatuh_tempo"`
+	SukuBungaTahunan         float64               `json:"suku_bunga_tahunan"`
+	MetodeBunga              string                `json:"metode_bunga"`
+	Agunan                   []DMBLoanCollateral   `json:"agunan"`
+	SandiKantor              string                `json:"sandi_kantor"`
+	NamaKantor               string                `json:"nama_kantor"`
+	JenisKKM                 *string               `json:"jenis_kkm"`
+	Progres                  *DMBLoanProgress      `json:"progres,omitempty"`
+	Jadwal                   []DMBLoanScheduleItem `json:"jadwal,omitempty"`
+}
+
+type DMBLoanKKMMingguIni struct {
+	MingguKe     *int          `json:"minggu_ke"`
+	Tanggal      *string       `json:"tanggal"`
+	Setoran      *money.Amount `json:"setoran"`
+	SudahSetor   bool          `json:"sudah_setor"`
+	HarusDibayar money.Amount  `json:"harus_dibayar"`
+}
+
+type DMBLoanKKMSetoran struct {
+	Nominal   *money.Amount    `json:"nominal"`
+	Jumlah    int              `json:"jumlah"`
+	Sudah     int              `json:"sudah"`
+	Sisa      int              `json:"sisa"`
+	Tunggakan DMBLoanTunggakan `json:"tunggakan"`
+}
+
+type DMBLoanKKMKehadiran struct {
+	Hadir        int `json:"hadir"`
+	Izin         int `json:"izin"`
+	TidakHadir   int `json:"tidak_hadir"`
+	TidakDitagih int `json:"tidak_ditagih"`
+	Dari         int `json:"dari"`
+}
+
+type DMBLoanKKMPertemuan struct {
+	Hari              *string `json:"hari"`
+	TanggalBerikutnya *string `json:"tanggal_berikutnya"`
+	Jam               *string `json:"jam"`
+	NamaCenter        *string `json:"nama_center"`
+	Alamat            *string `json:"alamat"`
+	PetugasLapangan   *string `json:"petugas_lapangan"`
+	KepalaUnit        *string `json:"kepala_unit"`
+}
+
+type DMBLoanKKMSebelumnya struct {
+	PinjamanKe  *int         `json:"pinjaman_ke"`
+	Plafon      money.Amount `json:"plafon"`
+	TanggalCair string       `json:"tanggal_cair"`
+}
+
+type DMBLoanKKMPinjaman struct {
+	PinjamanKe       *int                   `json:"pinjaman_ke"`
+	TanggalCair      string                 `json:"tanggal_cair"`
+	RekeningTabungan *string                `json:"rekening_tabungan"`
+	Sebelumnya       []DMBLoanKKMSebelumnya `json:"sebelumnya"`
+}
+
+type DMBLoanKKMHadir struct {
+	Status     string  `json:"status"`
+	Kode       *string `json:"kode"`
+	Keterangan *string `json:"keterangan"`
+}
+
+type DMBLoanKKMMingguanItem struct {
+	MingguKe int              `json:"minggu_ke"`
+	Tanggal  string           `json:"tanggal"`
+	Setoran  money.Amount     `json:"setoran"`
+	Disetor  money.Amount     `json:"disetor"`
+	Status   string           `json:"status"`
+	Hadir    *DMBLoanKKMHadir `json:"hadir"`
+}
+
+type DMBLoanKKM struct {
+	NomorRekening string                   `json:"nomor_rekening"`
+	Jenis         string                   `json:"jenis"`
+	MingguIni     DMBLoanKKMMingguIni      `json:"minggu_ini"`
+	Setoran       DMBLoanKKMSetoran        `json:"setoran"`
+	Kehadiran     DMBLoanKKMKehadiran      `json:"kehadiran"`
+	Pertemuan     DMBLoanKKMPertemuan      `json:"pertemuan"`
+	Pinjaman      DMBLoanKKMPinjaman       `json:"pinjaman"`
+	Mingguan      []DMBLoanKKMMingguanItem `json:"mingguan"`
 }
 
 type DMBDepositAccountItem struct {
@@ -133,6 +240,7 @@ type DMBDepositAccountDetail struct {
 	JenisARO                 string       `json:"jenis_aro"`
 	BungaBerjalan            money.Amount `json:"bunga_berjalan"`
 	SaldoTertahan            money.Amount `json:"saldo_tertahan"`
+	SaldoBlokir              money.Amount `json:"saldo_blokir"`
 	RekeningPencairanBunga   string       `json:"rekening_pencairan_bunga"`
 	SandiKantor              string       `json:"sandi_kantor"`
 	NamaKantor               string       `json:"nama_kantor"`

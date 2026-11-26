@@ -328,9 +328,12 @@ async function loadProductApplications() {
         tbody.innerHTML = filtered.map(app => {
           const dt = app.created_at ? new Date(app.created_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-';
           const isDeposito = app.product_type === 'DEPOSITO';
-          const prodBadge = isDeposito
-            ? `<span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-teal-50 text-[#00897B] border border-teal-200">DEPOSITO</span>`
-            : `<span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200">PINJAMAN</span>`;
+          const isDisbursement = app.product_type === 'PENCAIRAN_DEPOSITO';
+          const prodBadge = isDisbursement
+            ? `<span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200">PENCAIRAN DEPOSITO</span>`
+            : isDeposito
+              ? `<span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-teal-50 text-[#00897B] border border-teal-200">DEPOSITO</span>`
+              : `<span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200">PINJAMAN</span>`;
 
           let statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">MENUNGGU CS (PENDING)</span>`;
           if (app.status === 'CONTACTED') {
@@ -440,6 +443,7 @@ async function updateProductAppStatus(id, initialStatus, productName, customerNa
     if (ok && json.success) {
       showToast(`Status pengajuan ${customerName} diperbarui menjadi ${chosenStatus}!`, 'success');
       loadProductApplications();
+      if (typeof loadDepositDisbursements === 'function') loadDepositDisbursements();
     } else {
       showToast(json.message || 'Gagal memperbarui status pengajuan', 'error');
     }
@@ -505,5 +509,94 @@ async function toggleCustomerStatus(userId, newStatus, fullName = 'nasabah ini')
     }
   } catch (e) {
     showToast('Error: ' + e.message, 'error');
+  }
+}
+
+async function loadDepositDisbursements() {
+  const tbody = document.getElementById('depositDisbursementsTableBody');
+  const badgeCount = document.getElementById('disbursementsCountBadge');
+  const statusFilter = document.getElementById('disbursementStatusFilter')?.value || 'ALL';
+  if (!tbody) return;
+
+  try {
+    const { ok, json } = await safeFetch('/admin/applications?type=PENCAIRAN_DEPOSITO&limit=100', {
+      headers: getAuthHeaders()
+    });
+    if (!ok || !json.success) {
+      tbody.innerHTML = `<tr><td colspan="6" class="px-5 py-8 text-center text-rose-500">${esc(json.message || 'Gagal memuat pengajuan pencairan deposito')}</td></tr>`;
+      return;
+    }
+
+    const apps = json.data?.applications || json.data || [];
+    const pendingCount = apps.filter(a => (a.status || 'PENDING').toUpperCase() === 'PENDING').length;
+    if (badgeCount) {
+      badgeCount.textContent = pendingCount > 0 ? `${pendingCount} Baru (${apps.length} Total)` : `${apps.length} pengajuan`;
+    }
+
+    const filtered = statusFilter === 'ALL'
+      ? apps
+      : apps.filter(a => (a.status || 'PENDING').toUpperCase() === statusFilter);
+
+    const role = getCustomerAdminRole();
+    const isReadOnly = role === 'COMPLIANCE' || role === 'AUDITOR';
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="px-5 py-10 text-center text-slate-400">Belum ada pengajuan pencairan deposito pada filter ini.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(app => {
+      const dt = app.created_at ? new Date(app.created_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-';
+      const amountFmt = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(app.amount || 0);
+
+      let statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">PENDING</span>`;
+      if (app.status === 'CONTACTED') {
+        statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">DIPROSES</span>`;
+      } else if (app.status === 'APPROVED') {
+        statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">DISETUJUI</span>`;
+      } else if (app.status === 'REJECTED') {
+        statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">DITOLAK</span>`;
+      }
+
+      const actionsHtml = isReadOnly
+        ? `<span class="text-[10px] font-semibold text-slate-400 italic">Read-Only</span>`
+        : `<div class="flex items-center justify-end gap-1.5 flex-wrap">
+            <button type="button" onclick="updateProductAppStatus(${jsArg(app.id)}, 'CONTACTED', ${jsArg(app.product_name)}, ${jsArg(app.full_name)}, ${jsArg(app.admin_notes || '')})"
+              class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition">
+              Proses
+            </button>
+            <button type="button" onclick="updateProductAppStatus(${jsArg(app.id)}, 'APPROVED', ${jsArg(app.product_name)}, ${jsArg(app.full_name)}, ${jsArg(app.admin_notes || '')})"
+              class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition">
+              Setujui
+            </button>
+            <button type="button" onclick="updateProductAppStatus(${jsArg(app.id)}, 'REJECTED', ${jsArg(app.product_name)}, ${jsArg(app.full_name)}, ${jsArg(app.admin_notes || '')})"
+              class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition">
+              Tolak
+            </button>
+          </div>`;
+
+      return `
+        <tr class="hover:bg-slate-50/80 transition align-top">
+          <td class="px-5 py-3.5 font-mono text-[11px] text-slate-500 whitespace-nowrap">${esc(dt)}</td>
+          <td class="px-5 py-3.5">
+            <div class="font-bold text-slate-900">${esc(app.full_name)}</div>
+            <div class="text-[11px] font-mono text-slate-500">CIF: ${esc(app.cif || '-')} &bull; HP: ${esc(app.phone_number)}</div>
+          </td>
+          <td class="px-5 py-3.5">
+            <div class="font-bold text-slate-800">${esc(app.product_name)}</div>
+            <div class="text-[11px] text-slate-600 mt-0.5">${esc(app.purpose_or_source || '-')}</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Tenor ${esc(app.tenor_months || 0)} Bulan &bull; Bunga ${esc(app.interest_rate || '-')}</div>
+          </td>
+          <td class="px-5 py-3.5 font-extrabold text-slate-900 whitespace-nowrap">${esc(amountFmt)}</td>
+          <td class="px-5 py-3.5">
+            ${statusBadge}
+            ${app.admin_notes ? `<div class="text-[10px] text-slate-500 mt-1 italic max-w-xs">"${esc(app.admin_notes)}"</div>` : ''}
+          </td>
+          <td class="px-5 py-3.5 text-right">${actionsHtml}</td>
+        </tr>
+      `;
+    }).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="6" class="px-5 py-8 text-center text-rose-500">Error: ${esc(e.message)}</td></tr>`;
   }
 }

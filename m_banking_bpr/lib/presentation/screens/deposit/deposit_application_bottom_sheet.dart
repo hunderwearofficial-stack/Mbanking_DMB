@@ -568,12 +568,26 @@ class _DepositApplicationBottomSheetState extends State<DepositApplicationBottom
 
               DropdownButtonFormField<String>(
                 value: _selectedAro,
+                isExpanded: true,
+                selectedItemBuilder: (ctx) => _aroOptions
+                    .map((opt) => Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            opt,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                        ))
+                    .toList(),
                 items: _aroOptions
                     .map((opt) => DropdownMenuItem(
                           value: opt,
                           child: Text(
                             opt,
-                            style: GoogleFonts.plusJakartaSans(fontSize: 12.5, fontWeight: FontWeight.w600),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600),
                           ),
                         ))
                     .toList(),

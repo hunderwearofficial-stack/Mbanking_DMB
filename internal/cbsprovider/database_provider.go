@@ -175,6 +175,10 @@ func (p *DatabaseCBSProvider) GetLoanAccountDetail(ctx context.Context, cifNumbe
 	return nil, ErrAccountNotFound
 }
 
+func (p *DatabaseCBSProvider) GetLoanAccountKKM(ctx context.Context, cifNumber, accountNo string) (*domain.DMBLoanKKM, error) {
+	return nil, ErrAccountNotFound
+}
+
 func (p *DatabaseCBSProvider) GetLoanMutations(ctx context.Context, cifNumber, accountNo, startDate, endDate string, limit int) ([]domain.Mutation, error) {
 	return []domain.Mutation{}, nil
 }

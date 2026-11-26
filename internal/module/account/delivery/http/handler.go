@@ -126,6 +126,15 @@ func (h *AccountHandler) GetLoanDetail(c *gin.Context) {
 	response.Success(c, "Rincian pinjaman berhasil diambil", detail)
 }
 
+func (h *AccountHandler) GetLoanKKM(c *gin.Context) {
+	kkm, err := h.accountService.GetLoanKKM(c.Request.Context(), caller(c), accountParam(c))
+	if err != nil {
+		respondErr(c, err, "Rincian KKM pinjaman tidak ditemukan", "Rincian KKM pinjaman belum dapat ditampilkan. Silakan coba kembali.")
+		return
+	}
+	response.Success(c, "Rincian KKM pinjaman berhasil diambil", kkm)
+}
+
 func parseMutationLimit(c *gin.Context) int {
 	limit, err := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	if err != nil || limit <= 0 {

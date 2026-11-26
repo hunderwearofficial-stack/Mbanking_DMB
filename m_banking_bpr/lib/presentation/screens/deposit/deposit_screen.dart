@@ -12,6 +12,7 @@ import '../../blocs/auth/auth_state.dart';
 import '../../widgets/app_validation_feedback.dart';
 import '../../widgets/auth_ui_kit.dart';
 import 'deposit_application_bottom_sheet.dart';
+import 'deposit_detail_screen.dart';
 
 class DepositScreen extends StatefulWidget {
   const DepositScreen({super.key});
@@ -32,6 +33,9 @@ class _DepositScreenState extends State<DepositScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   List<Map<String, dynamic>> _deposits = [];
+  List<Map<String, dynamic>> _applications = [];
+  bool _isLoadingApps = false;
+  int _activeMainTab = 0; // 0: Deposito Saya, 1: Riwayat Pengajuan
   int _selectedFilterIndex = 0; // 0: Semua, 1: Aktif, 2: Non-Aktif / Lainnya
 
   @override
@@ -76,6 +80,7 @@ class _DepositScreenState extends State<DepositScreen> {
           _isLoading = false;
         });
       }
+      _fetchApplications();
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -85,6 +90,29 @@ class _DepositScreenState extends State<DepositScreen> {
           );
           _isLoading = false;
         });
+      }
+    }
+  }
+
+  Future<void> _fetchApplications() async {
+    if (!mounted) return;
+    setState(() => _isLoadingApps = true);
+    try {
+      final repo = context.read<AccountRepository>();
+      final allApps = await repo.getProductApplications();
+      final depositApps = allApps.where((a) {
+        final t = (a['product_type'] ?? '').toString().toUpperCase();
+        return t == 'DEPOSITO' || t == 'PENCAIRAN_DEPOSITO';
+      }).toList();
+      if (mounted) {
+        setState(() {
+          _applications = depositApps;
+          _isLoadingApps = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoadingApps = false);
       }
     }
   }
@@ -370,7 +398,7 @@ class _DepositScreenState extends State<DepositScreen> {
                     borderRadius: BorderRadius.circular(12),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(12),
-                      onTap: _fetchDepositData,
+                      onTap: _activeMainTab == 0 ? _fetchDepositData : _fetchApplications,
                       child: Container(
                         width: 38,
                         height: 38,
@@ -390,7 +418,29 @@ class _DepositScreenState extends State<DepositScreen> {
               ),
             ),
 
-            Expanded(
+            // Main Tab Switcher: Deposito Saya vs Riwayat Pengajuan
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: borderLight),
+                ),
+                child: Row(
+                  children: [
+                    _buildMainTabItem(0, 'Deposito Saya', _deposits.length),
+                    _buildMainTabItem(1, 'Riwayat Pengajuan', _applications.length),
+                  ],
+                ),
+              ),
+            ),
+
+            if (_activeMainTab == 1)
+              Expanded(child: _buildApplicationsHistoryView())
+            else
+              Expanded(
               child: RefreshIndicator(
                 onRefresh: _fetchDepositData,
                 color: const Color(0xFF033172),
@@ -514,7 +564,7 @@ class _DepositScreenState extends State<DepositScreen> {
                               ),
               ),
             ),
-            if (!_isLoading && _errorMessage == null && _deposits.isNotEmpty)
+            if (_activeMainTab == 0 && !_isLoading && _errorMessage == null && _deposits.isNotEmpty)
               SafeArea(
                 top: false,
                 child: Padding(
@@ -665,7 +715,16 @@ class _DepositScreenState extends State<DepositScreen> {
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(20),
         child: InkWell(
-          onTap: () => _showDepositDetailSheet(context, item),
+          onTap: () async {
+            final res = await Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => DepositDetailScreen(initialItem: item),
+              ),
+            );
+            if (res == true && mounted) {
+              _fetchDepositData();
+            }
+          },
           borderRadius: BorderRadius.circular(20),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -729,5 +788,284 @@ class _DepositScreenState extends State<DepositScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildMainTabItem(int index, String label, int count) {
+    final isSelected = _activeMainTab == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() => _activeMainTab = index);
+          if (index == 1 && _applications.isEmpty && !_isLoadingApps) {
+            _fetchApplications();
+          }
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFF033172) : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: isSelected ? Colors.white : textMuted,
+                ),
+              ),
+              if (count > 0) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? Colors.white.withOpacity(0.22)
+                        : const Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    '$count',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w800,
+                      color: isSelected ? Colors.white : titleDark,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildApplicationsHistoryView() {
+    if (_isLoadingApps && _applications.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(color: Color(0xFF033172)),
+            SizedBox(height: 16),
+            Text('Memuat riwayat pengajuan...', style: TextStyle(color: textMuted)),
+          ],
+        ),
+      );
+    }
+
+    if (_applications.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: _fetchApplications,
+        color: const Color(0xFF033172),
+        child: ListView(
+          padding: const EdgeInsets.all(32),
+          children: [
+            const SizedBox(height: 48),
+            Center(
+              child: Container(
+                width: 72,
+                height: 72,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.history_rounded, size: 34, color: Color(0xFF033172)),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              'Belum Ada Riwayat Pengajuan',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 16.5,
+                fontWeight: FontWeight.w800,
+                color: titleDark,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Pengajuan pembukaan maupun pencairan deposito Anda akan tampil di sini.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.plusJakartaSans(fontSize: 12.5, color: textMuted, height: 1.4),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _fetchApplications,
+      color: const Color(0xFF033172),
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(18, 4, 18, 32),
+        itemCount: _applications.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (_, index) => _buildApplicationCard(_applications[index]),
+      ),
+    );
+  }
+
+  Widget _buildApplicationCard(Map<String, dynamic> app) {
+    final productType = (app['product_type'] ?? '').toString().toUpperCase();
+    final isDisbursement = productType == 'PENCAIRAN_DEPOSITO';
+    final status = (app['status'] ?? 'PENDING').toString().toUpperCase();
+    final productName = (app['product_name'] ?? 'Deposito').toString();
+    final purpose = (app['purpose_or_source'] ?? '').toString().trim();
+    final adminNotes = (app['admin_notes'] ?? '').toString().trim();
+    final amount = Money.tryParse(app['amount']) ?? Money.zero();
+    final tenor = app['tenor_months']?.toString() ?? '-';
+    final rate = (app['interest_rate'] ?? '').toString().trim();
+    final createdAt = _formatAppDate(app['created_at']);
+
+    Color statusBg = const Color(0xFFFEF3C7);
+    Color statusText = const Color(0xFFB45309);
+    String statusLabel = 'Menunggu';
+    if (status == 'CONTACTED') {
+      statusBg = const Color(0xFFDBEAFE);
+      statusText = const Color(0xFF1D4ED8);
+      statusLabel = 'Diproses CS';
+    } else if (status == 'APPROVED') {
+      statusBg = const Color(0xFFDCFCE7);
+      statusText = const Color(0xFF15803D);
+      statusLabel = 'Disetujui';
+    } else if (status == 'REJECTED') {
+      statusBg = const Color(0xFFFEE2E2);
+      statusText = const Color(0xFFB91C1C);
+      statusLabel = 'Ditolak';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: borderLight),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                decoration: BoxDecoration(
+                  color: isDisbursement ? const Color(0xFFEEF2FF) : const Color(0xFFE6F4F1),
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: Text(
+                  isDisbursement ? 'PENCAIRAN DEPOSITO' : 'PEMBUKAAN DEPOSITO',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: isDisbursement ? const Color(0xFF4338CA) : const Color(0xFF0F766E),
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusBg,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  statusLabel,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                    color: statusText,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            productName,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: titleDark,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${CurrencyFormatter.formatRupiah(amount)} • Tenor $tenor Bln${rate.isNotEmpty && rate != '-' ? ' ($rate)' : ''}',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF033172),
+            ),
+          ),
+          if (purpose.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: bgCanvas,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                purpose,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w500,
+                  color: titleDark,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ],
+          if (adminNotes.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Catatan Bank: "$adminNotes"',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 11.5,
+                fontStyle: FontStyle.italic,
+                color: textMuted,
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          Text(
+            'Diajukan: $createdAt',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 11,
+              color: textMuted,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatAppDate(dynamic raw) {
+    if (raw == null) return '-';
+    final s = raw.toString().trim();
+    if (s.isEmpty) return '-';
+    final dt = DateTime.tryParse(s);
+    if (dt == null) return s;
+    final local = dt.toLocal();
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+    ];
+    final hh = local.hour.toString().padLeft(2, '0');
+    final mm = local.minute.toString().padLeft(2, '0');
+    return '${local.day} ${months[local.month - 1]} ${local.year}, $hh:$mm';
   }
 }

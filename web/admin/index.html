@@ -161,6 +161,11 @@
           <i data-lucide="users" class="w-4 h-4"></i>
           <span id="navCustomersLabel">Nasabah &amp; Perangkat</span>
         </button>
+        <button type="button" onclick="switchTab('deposit-disbursements')" id="nav-deposit-disbursements"
+          class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 transition">
+          <i data-lucide="landmark" class="w-4 h-4"></i>
+          <span>Pencairan Deposito</span>
+        </button>
 
         <div id="nav-group-konten"
           class="px-3 pt-4 pb-1.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Konten &amp;
@@ -591,6 +596,56 @@
             </div>
           </div>
 
+        </section>
+
+        <!-- ==================== TAB 2B: PENCAIRAN DEPOSITO ==================== -->
+        <section id="tab-deposit-disbursements" class="hidden space-y-5">
+          <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div class="flex items-center gap-2.5">
+                  <h3 class="text-sm font-bold text-slate-800">Pengajuan Pencairan Deposito</h3>
+                  <span id="disbursementsCountBadge"
+                    class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">0
+                    pengajuan</span>
+                </div>
+                <p class="text-xs text-slate-500 mt-0.5">Daftar pengajuan pencairan deposito (Pokok, Bunga, Pokok &amp; Bunga) dari aplikasi mobile nasabah.</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <select id="disbursementStatusFilter" onchange="loadDepositDisbursements()"
+                  class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 outline-none">
+                  <option value="ALL">Semua Status</option>
+                  <option value="PENDING">PENDING</option>
+                  <option value="CONTACTED">CONTACTED</option>
+                  <option value="APPROVED">APPROVED</option>
+                  <option value="REJECTED">REJECTED</option>
+                </select>
+                <button type="button" onclick="loadDepositDisbursements()"
+                  class="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition">
+                  <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Muat Ulang
+                </button>
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="bg-slate-50/80 border-b border-slate-100 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    <th class="px-5 py-3">Tanggal</th>
+                    <th class="px-5 py-3">Nasabah</th>
+                    <th class="px-5 py-3">Detail Pencairan &amp; Rekening</th>
+                    <th class="px-5 py-3">Nominal</th>
+                    <th class="px-5 py-3">Status</th>
+                    <th class="px-5 py-3 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="depositDisbursementsTableBody" class="divide-y divide-slate-100 text-xs">
+                  <tr>
+                    <td colspan="6" class="px-5 py-10 text-center text-slate-400">Memuat pengajuan pencairan deposito...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </section>
 
         <!-- ==================== TAB 3: KONTEN APLIKASI (Maker-Checker + Live Mobile Mockup + Asset Gallery) ==================== -->

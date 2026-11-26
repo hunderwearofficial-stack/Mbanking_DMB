@@ -87,8 +87,8 @@ func (s *customerService) CreateProductApplication(ctx context.Context, userID s
 	if ptype == "LOAN" || ptype == "KREDIT" {
 		ptype = "PINJAMAN"
 	}
-	if ptype != "DEPOSITO" && ptype != "PINJAMAN" {
-		return nil, fmt.Errorf("%w: jenis produk harus DEPOSITO atau PINJAMAN", ErrValidation)
+	if ptype != "DEPOSITO" && ptype != "PINJAMAN" && ptype != "PENCAIRAN_DEPOSITO" {
+		return nil, fmt.Errorf("%w: jenis produk harus DEPOSITO, PINJAMAN, atau PENCAIRAN_DEPOSITO", ErrValidation)
 	}
 	if in.Amount <= 0 || in.Amount > money.Rupiah(100_000_000_000) || in.TenorMonths <= 0 || in.TenorMonths > 360 {
 		return nil, fmt.Errorf("%w: nominal/tenor tidak valid", ErrValidation)
@@ -109,10 +109,17 @@ func (s *customerService) CreateProductApplication(ctx context.Context, userID s
 	if err := s.repo.CreateProductApplication(ctx, app); err != nil {
 		return nil, err
 	}
-	audit.Record(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "SUBMIT_PRODUCT_APPLICATION", app.ProductName, "SUCCESS", user.DeviceID,
-		fmt.Sprintf("Pengajuan %s sebesar %s (Tenor %d bulan)", app.ProductName, money.FormatIDR(app.Amount), app.TenorMonths))
-	notification.CreateAndPush(ctx, s.repo.DB(), user.ID, "Pengajuan "+app.ProductName+" Diterima",
-		fmt.Sprintf("Pengajuan %s sebesar %s (Tenor %d bulan) telah diterima. Petugas Bank DMB akan segera menindaklanjuti.", app.ProductName, money.FormatIDR(app.Amount), app.TenorMonths), notification.CategoryInfo)
+	if ptype == "PENCAIRAN_DEPOSITO" {
+		audit.Record(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "SUBMIT_DEPOSIT_DISBURSEMENT", app.ProductName, "SUCCESS", user.DeviceID,
+			fmt.Sprintf("Pengajuan pencairan deposito %s sebesar %s (%s)", app.ProductName, money.FormatIDR(app.Amount), app.PurposeOrSource))
+		notification.CreateAndPush(ctx, s.repo.DB(), user.ID, "Pengajuan Pencairan Deposito Diterima",
+			fmt.Sprintf("Pengajuan pencairan %s sebesar %s telah diterima dan sedang diproses petugas Bank DMB.", app.ProductName, money.FormatIDR(app.Amount)), notification.CategoryInfo)
+	} else {
+		audit.Record(ctx, s.repo.DB(), "NASABAH", user.ID, user.FullName, "SUBMIT_PRODUCT_APPLICATION", app.ProductName, "SUCCESS", user.DeviceID,
+			fmt.Sprintf("Pengajuan %s sebesar %s (Tenor %d bulan)", app.ProductName, money.FormatIDR(app.Amount), app.TenorMonths))
+		notification.CreateAndPush(ctx, s.repo.DB(), user.ID, "Pengajuan "+app.ProductName+" Diterima",
+			fmt.Sprintf("Pengajuan %s sebesar %s (Tenor %d bulan) telah diterima. Petugas Bank DMB akan segera menindaklanjuti.", app.ProductName, money.FormatIDR(app.Amount), app.TenorMonths), notification.CategoryInfo)
+	}
 	return app, nil
 }
 

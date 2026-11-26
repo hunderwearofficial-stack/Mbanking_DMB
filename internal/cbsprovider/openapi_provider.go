@@ -815,6 +815,24 @@ func (p *OpenAPICBSProvider) GetLoanAccountDetail(ctx context.Context, cifNumber
 	return &detail, nil
 }
 
+func (p *OpenAPICBSProvider) GetLoanAccountKKM(ctx context.Context, cifNumber, accountNo string) (*domain.DMBLoanKKM, error) {
+	payload := map[string]string{
+		"cif":            strings.TrimSpace(cifNumber),
+		"nomor_rekening": strings.TrimSpace(accountNo),
+	}
+
+	env, statusCode, err := p.doSignedPost(ctx, "/api/loan-account-kkm", payload)
+	if err != nil || statusCode != http.StatusOK || env.Code != 10000 {
+		return nil, errors.New("data KKM pinjaman tidak ditemukan")
+	}
+
+	var kkm domain.DMBLoanKKM
+	if err := json.Unmarshal(env.Data, &kkm); err != nil {
+		return nil, err
+	}
+	return &kkm, nil
+}
+
 func (p *OpenAPICBSProvider) GetLoanMutations(ctx context.Context, cifNumber, accountNo, startDate, endDate string, limit int) ([]domain.Mutation, error) {
 	return p.fetchMutations(ctx, "/api/loan-account-mutations", cifNumber, accountNo, startDate, endDate, limit, "LOAN")
 }

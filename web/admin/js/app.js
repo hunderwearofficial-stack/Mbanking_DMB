@@ -5,11 +5,11 @@
 let currentTab = 'dashboard';
 
 const ROLE_ALLOWED_TABS = {
-  SUPER_ADMIN: ['dashboard', 'customers', 'content', 'terms', 'push', 'approvals', 'audit', 'admin-users', 'settings'],
-  CS: ['dashboard', 'customers', 'terms'],
-  MARKETING: ['dashboard', 'content', 'push', 'customers'],
-  COMPLIANCE: ['dashboard', 'customers', 'content', 'terms', 'push', 'approvals', 'audit'],
-  AUDITOR: ['dashboard', 'customers', 'content', 'terms', 'push', 'audit']
+  SUPER_ADMIN: ['dashboard', 'customers', 'deposit-disbursements', 'content', 'terms', 'push', 'approvals', 'audit', 'admin-users', 'settings'],
+  CS: ['dashboard', 'customers', 'deposit-disbursements', 'terms'],
+  MARKETING: ['dashboard', 'content', 'push', 'customers', 'deposit-disbursements'],
+  COMPLIANCE: ['dashboard', 'customers', 'deposit-disbursements', 'content', 'terms', 'push', 'approvals', 'audit'],
+  AUDITOR: ['dashboard', 'customers', 'deposit-disbursements', 'content', 'terms', 'push', 'audit']
 };
 
 function getCurrentUser() {
@@ -95,7 +95,7 @@ function applyRoleNavigation() {
   const user = getCurrentUser();
   const role = (user.role || 'SUPER_ADMIN').toUpperCase();
   const allowed = new Set(getAllowedTabsForRole(role));
-  const allTabs = ['dashboard', 'customers', 'content', 'terms', 'push', 'approvals', 'audit', 'admin-users', 'settings'];
+  const allTabs = ['dashboard', 'customers', 'deposit-disbursements', 'content', 'terms', 'push', 'approvals', 'audit', 'admin-users', 'settings'];
 
   allTabs.forEach(t => {
     const navBtn = document.getElementById(`nav-${t}`);
@@ -155,7 +155,7 @@ function switchTab(tabId) {
   }
 
   currentTab = tabId;
-  const tabs = ['dashboard', 'customers', 'approvals', 'audit', 'content', 'terms', 'push', 'admin-users', 'settings'];
+  const tabs = ['dashboard', 'customers', 'deposit-disbursements', 'approvals', 'audit', 'content', 'terms', 'push', 'admin-users', 'settings'];
 
   let matched = false;
   tabs.forEach(t => {
@@ -189,6 +189,7 @@ function switchTab(tabId) {
   const titleMap = {
     'dashboard': 'Dashboard Eksekutif',
     'customers': role === 'MARKETING' ? 'Pengajuan Produk Nasabah' : 'Nasabah, Perangkat & Pengajuan Produk',
+    'deposit-disbursements': 'Pengajuan Pencairan Deposito',
     'audit': 'Audit Trail & Integritas Keamanan OJK',
     'content': 'Konten Aplikasi & Pratinjau Layar',
     'terms': 'Syarat & Ketentuan Layanan (Maker-Checker)',
@@ -213,6 +214,7 @@ function refreshCurrentTab() {
   try {
     if (currentTab === 'dashboard' && typeof loadDashboardStats === 'function') loadDashboardStats();
     if (currentTab === 'customers' && typeof loadCustomers === 'function') loadCustomers();
+    if (currentTab === 'deposit-disbursements' && typeof loadDepositDisbursements === 'function') loadDepositDisbursements();
     if (currentTab === 'content' && typeof loadContent === 'function') loadContent();
     if (currentTab === 'terms' && typeof loadTermsVersions === 'function') loadTermsVersions();
     if (currentTab === 'push' && typeof loadPush === 'function') loadPush();
