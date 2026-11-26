@@ -73,13 +73,13 @@ class _HomeScreenState extends State<HomeScreen> {
   void _onBannerAction(String action) {
     switch (action) {
       case 'profil':
-        setState(() => _currentNavIndex = 2);
+        setState(() => _currentNavIndex = 3);
         break;
       case 'keamanan':
         Navigator.push(context, MaterialPageRoute(builder: (_) => const SecuritySettingsScreen()));
         break;
       default:
-        setState(() => _currentNavIndex = 1);
+        setState(() => _currentNavIndex = 2);
         break;
     }
   }
@@ -174,6 +174,7 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 _buildHomeContent(),
                 const ProductCatalogScreen(isTab: true),
+                const CompanyProfileScreen(),
                 const ProfileScreen(isTab: true),
               ],
             ),
@@ -845,7 +846,7 @@ class _HomeScreenState extends State<HomeScreen> {
               tag: 'PERENCANAAN',
               title: 'Wujudkan Rencana Finansial Anda bersama myDMB',
               subtitle: 'Pelajari Selengkapnya',
-              onTap: () => setState(() => _currentNavIndex = 2),
+              onTap: () => setState(() => _currentNavIndex = 3),
             ),
           ];
 
@@ -1190,8 +1191,8 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               Expanded(
                 child: _buildNavItem(
-                  icon: Icons.grid_view_outlined,
-                  activeIcon: Icons.grid_view_rounded,
+                  icon: Icons.storefront_outlined,
+                  activeIcon: Icons.storefront_rounded,
                   label: 'Katalog Produk',
                   isSelected: _currentNavIndex == 1,
                   onTap: () => setState(() => _currentNavIndex = 1),
@@ -1199,11 +1200,20 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               Expanded(
                 child: _buildNavItem(
+                  icon: Icons.apartment_outlined,
+                  activeIcon: Icons.apartment_rounded,
+                  label: 'DMB',
+                  isSelected: _currentNavIndex == 2,
+                  onTap: () => setState(() => _currentNavIndex = 2),
+                ),
+              ),
+              Expanded(
+                child: _buildNavItem(
                   icon: Icons.person_outline_rounded,
                   activeIcon: Icons.person_rounded,
                   label: 'Akun Saya',
-                  isSelected: _currentNavIndex == 2,
-                  onTap: () => setState(() => _currentNavIndex = 2),
+                  isSelected: _currentNavIndex == 3,
+                  onTap: () => setState(() => _currentNavIndex = 3),
                 ),
               ),
             ],

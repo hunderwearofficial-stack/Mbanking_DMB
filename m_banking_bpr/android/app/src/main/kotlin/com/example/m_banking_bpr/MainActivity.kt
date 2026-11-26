@@ -14,10 +14,22 @@ import java.io.InputStreamReader
 class MainActivity : FlutterFragmentActivity() {
     private val CHANNEL = "com.bprdmb.mbanking/device_info"
 
+    private fun isProductionFlavor(): Boolean {
+        return try {
+            val appInfo = packageManager.getApplicationInfo(packageName, PackageManager.GET_META_DATA)
+            val flavor = appInfo.metaData?.getString("id.bprdmb.app_flavor")?.trim()?.lowercase()
+            flavor == "production"
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // SECURITY: FLAG_SECURE blocks screenshots, screen recording and the recent-apps preview.
-        window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
+        // SECURITY: FLAG_SECURE blocks screenshots, screen recording and the recent-apps preview in production.
+        if (isProductionFlavor()) {
+            window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
+        }
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {

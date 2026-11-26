@@ -271,24 +271,39 @@ class _SplashScreenState extends State<SplashScreen>
                           : LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
-                              colors: [
-                                defaultBg,
-                                Color.lerp(defaultBg, const Color(0xFF0B3A7D), 0.72)!,
-                                Color.lerp(defaultBg, const Color(0xFF196BB8), 0.85)!,
+                              colors: const [
+                                Color(0xFF021E52),
+                                Color(0xFF06377A),
+                                Color(0xFF0B53A6),
                               ],
                               stops: const [0.0, 0.52, 1.0],
                             ),
                     ),
                   ),
 
-                  // Full-bleed splash background bundled directly in the app
-                  Positioned.fill(
+                  // Bank DMB building anchored cleanly in the lower portion, fading smoothly into the sky
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: MediaQuery.of(context).size.height * 0.66,
                     child: IgnorePointer(
-                      child: Image.asset(
-                        'assets/images/splash_building.jpg',
-                        fit: BoxFit.cover,
-                        alignment: Alignment.center,
-                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                      child: ShaderMask(
+                        blendMode: BlendMode.dstIn,
+                        shaderCallback: (Rect bounds) {
+                          return const LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Colors.transparent, Colors.white],
+                            stops: [0.0, 0.30],
+                          ).createShader(bounds);
+                        },
+                        child: Image.asset(
+                          'assets/images/splash_building.jpg',
+                          fit: BoxFit.cover,
+                          alignment: Alignment.bottomCenter,
+                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                        ),
                       ),
                     ),
                   ),

@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import '../../deposit/deposit_screen.dart';
 import '../../loan/loan_screen.dart';
 import '../../mutation/mutation_screen.dart';
-import '../../profile/company_profile_screen.dart';
 
-enum _MenuIconType { mutasi, pinjaman, deposito, profil }
+enum _MenuIconType { mutasi, pinjaman, deposito }
 
 /// 4-column circular quick menu row with dual-tone fintech icons matching myDMB.
 class FigmaMenuGrid extends StatelessWidget {
@@ -32,13 +31,6 @@ class FigmaMenuGrid extends StatelessWidget {
         type: _MenuIconType.deposito,
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const DepositScreen()),
-        ),
-      ),
-      (
-        label: 'Profil\nDMB',
-        type: _MenuIconType.profil,
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const CompanyProfileScreen()),
         ),
       ),
     ];
@@ -168,32 +160,6 @@ class _DualToneMenuIcon extends StatelessWidget {
           height: 26,
           child: CustomPaint(
             painter: _DepositChartPainter(),
-          ),
-        );
-      case _MenuIconType.profil:
-        return SizedBox(
-          width: 28,
-          height: 28,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              const Center(
-                child: Icon(Icons.account_balance_rounded, color: _navy, size: 24),
-              ),
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  width: 11,
-                  height: 11,
-                  decoration: BoxDecoration(
-                    color: _cyan,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 1.5),
-                  ),
-                ),
-              ),
-            ],
           ),
         );
     }

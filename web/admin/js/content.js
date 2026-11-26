@@ -587,11 +587,10 @@ function renderMobileMockupPreview() {
             </div>
           </div>
         ` : '<div class="text-[9px] text-slate-400 italic">Semua banner promo disembunyikan</div>'}
-        <div class="grid grid-cols-4 gap-1.5 pt-1 text-center">
+        <div class="grid grid-cols-3 gap-1.5 pt-1 text-center">
           <div class="p-1.5 rounded-xl bg-white border border-slate-100 text-[7.5px] font-bold text-[#0A1628]">Mutasi</div>
           <div class="p-1.5 rounded-xl bg-white border border-slate-100 text-[7.5px] font-bold text-[#0A1628]">Pinjaman</div>
           <div class="p-1.5 rounded-xl bg-white border border-slate-100 text-[7.5px] font-bold text-[#0A1628]">Deposito</div>
-          <div class="p-1.5 rounded-xl bg-white border border-slate-100 text-[7.5px] font-bold text-[#0A1628]">Profil DMB</div>
         </div>
         <div class="p-2.5 rounded-xl bg-white border border-slate-100 space-y-1">
           <div class="text-[8.5px] font-extrabold text-[#0A1628]">Aktivitas Terakhir</div>
@@ -601,9 +600,10 @@ function renderMobileMockupPreview() {
           </div>
         </div>
       </div>
-      <div class="mx-2 mb-2 px-2 py-1.5 rounded-full bg-[#033172] text-white flex items-center justify-around text-[7.5px] font-bold shadow-md">
+      <div class="mx-2 mb-2 px-2 py-1.5 rounded-full bg-[#033172] text-white flex items-center justify-around text-[7px] font-bold shadow-md">
         <span class="bg-white/15 px-2 py-0.5 rounded-full">Beranda</span>
-        <span class="text-white/75">Katalog Produk</span>
+        <span class="text-white/75">Katalog</span>
+        <span class="text-white/75">DMB</span>
         <span class="text-white/75">Akun Saya</span>
       </div>
     </div>`;
