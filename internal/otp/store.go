@@ -158,6 +158,24 @@ func (s *Store) Verify(ctx context.Context, id, purpose, deviceID, code string) 
 	return sess, nil
 }
 
+// PeekVerified validates that a verified session exists without consuming it yet.
+func (s *Store) PeekVerified(ctx context.Context, id, purpose, deviceID string) (*Session, error) {
+	sess, err := s.load(ctx, id)
+	if err != nil {
+		return nil, ErrSessionNotFound
+	}
+	if sess.Purpose != purpose {
+		return nil, ErrPurposeMismatch
+	}
+	if sess.DeviceID != "" && sess.DeviceID != strings.TrimSpace(deviceID) {
+		return nil, ErrDeviceMismatch
+	}
+	if !sess.Verified {
+		return nil, ErrNotVerified
+	}
+	return sess, nil
+}
+
 // Consume atomically takes a verified session (GETDEL): a session can be used once even
 // under concurrent requests (audit D-06).
 func (s *Store) Consume(ctx context.Context, id, purpose, deviceID string) (*Session, error) {

@@ -455,6 +455,7 @@ func (p *OpenAPICBSProvider) RegistrationCheck(ctx context.Context, accountNumbe
 	}
 
 	payload := map[string]string{
+		"nomor_rekening": accClean,
 		"account_number": accClean,
 	}
 
@@ -483,6 +484,7 @@ func (p *OpenAPICBSProvider) RegistrationComplete(ctx context.Context, accountNu
 	}
 
 	payload := map[string]string{
+		"nomor_rekening": accClean,
 		"account_number": accClean,
 	}
 

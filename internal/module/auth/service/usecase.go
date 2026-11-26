@@ -620,7 +620,24 @@ func (s *authService) CompleteActivation(ctx context.Context, req domain.Activat
 	if err := s.consent.ValidatePreLogin(ctx, deviceID, acceptanceID); err != nil {
 		return nil, err
 	}
-	sess, err := s.otpStore.Consume(ctx, req.SessionID, otp.PurposeActivation, deviceID)
+	sess, err := s.otpStore.PeekVerified(ctx, req.SessionID, otp.PurposeActivation, deviceID)
+	if err != nil {
+		return nil, err
+	}
+
+	username := strings.ToLower(strings.TrimSpace(req.Username))
+	if username != "" {
+		if err := validateUsername(username); err != nil {
+			return nil, err
+		}
+		if taken, err := s.repo.IsUsernameTaken(ctx, username, sess.UserID); err != nil {
+			return nil, ErrServiceUnavailable
+		} else if taken {
+			return nil, errors.New("username sudah digunakan nasabah lain. Silakan pilih username yang berbeda")
+		}
+	}
+
+	sess, err = s.otpStore.Consume(ctx, req.SessionID, otp.PurposeActivation, deviceID)
 	if err != nil {
 		return nil, err
 	}
@@ -657,17 +674,7 @@ func (s *authService) CompleteActivation(ctx context.Context, req domain.Activat
 		return nil, errors.New("nomor handphone sudah terdaftar pada akun lain. Silakan hubungi CS Bank DMB")
 	}
 
-	username := strings.ToLower(strings.TrimSpace(req.Username))
-	if username != "" {
-		if err := validateUsername(username); err != nil {
-			return nil, err
-		}
-		if taken, err := s.repo.IsUsernameTaken(ctx, username, userID); err != nil {
-			return nil, ErrServiceUnavailable
-		} else if taken {
-			return nil, errors.New("username sudah digunakan nasabah lain. Silakan pilih username yang berbeda")
-		}
-	} else {
+	if username == "" {
 		targetUser, _ := s.repo.FindByID(ctx, userID)
 		if targetUser != nil {
 			username = s.generateSuggestedUsername(ctx, targetUser.FullName)
