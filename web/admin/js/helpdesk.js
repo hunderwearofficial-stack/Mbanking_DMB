@@ -19,10 +19,11 @@ async function loadHelpdeskFaqs() {
     const isReadOnly = role === 'COMPLIANCE' || role === 'AUDITOR';
 
     if (faqs.length === 0) {
+      hideTablePagination('helpdeskFaqTableBody');
       tbody.innerHTML = '<tr><td colspan="4" class="px-5 py-8 text-center text-slate-400">Belum ada FAQ.</td></tr>';
       return;
     }
-    tbody.innerHTML = faqs.map(f => {
+    paginateTableData('helpdeskFaqs', faqs, 'helpdeskFaqTableBody', (pageRows) => pageRows.map(f => {
       const badge = f.is_active
         ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">Aktif</span>'
         : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">Nonaktif</span>';
@@ -45,8 +46,9 @@ async function loadHelpdeskFaqs() {
           <td class="px-5 py-3.5 text-right">${actions}</td>
         </tr>
       `;
-    }).join('');
+    }).join(''), { resetPage: true });
   } catch (e) {
+    hideTablePagination('helpdeskFaqTableBody');
     tbody.innerHTML = `<tr><td colspan="4" class="px-5 py-8 text-center text-rose-500">Error: ${esc(e.message)}</td></tr>`;
   }
 }
@@ -73,10 +75,11 @@ async function loadHelpdeskInquiries() {
     const isReadOnly = role === 'COMPLIANCE' || role === 'AUDITOR';
 
     if (items.length === 0) {
+      hideTablePagination('helpdeskInquiriesTableBody');
       tbody.innerHTML = '<tr><td colspan="5" class="px-5 py-8 text-center text-slate-400">Belum ada pertanyaan nasabah pada filter ini.</td></tr>';
       return;
     }
-    tbody.innerHTML = items.map(item => {
+    paginateTableData('helpdeskInquiries', items, 'helpdeskInquiriesTableBody', (pageRows) => pageRows.map(item => {
       const dt = item.created_at ? new Date(item.created_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-';
       const stBadge = item.status === 'RESOLVED'
         ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">RESOLVED</span>'
@@ -101,7 +104,7 @@ async function loadHelpdeskInquiries() {
           <td class="px-5 py-3.5 text-right">${actions}</td>
         </tr>
       `;
-    }).join('');
+    }).join(''), { resetPage: true });
   } catch (e) {
     tbody.innerHTML = `<tr><td colspan="5" class="px-5 py-8 text-center text-rose-500">Error: ${esc(e.message)}</td></tr>`;
   }

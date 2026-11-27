@@ -165,31 +165,36 @@ async function loadPushCampaigns() {
   const me = pushRole();
   const canApprove = ['SUPER_ADMIN', 'MARKETING', 'COMPLIANCE'].includes(me.role);
   const canEdit = ['SUPER_ADMIN', 'MARKETING'].includes(me.role);
-  body.innerHTML = json.data.map(c => {
-    const id = jsArg(c.id);
-    const actions = [];
-    if (c.status === 'PENDING_APPROVAL' && canApprove) {
-      if (c.created_by !== me.id) actions.push(`<button type="button" onclick="approvePushCampaign(${id})" class="text-emerald-700 font-bold hover:underline">Setujui &amp; Kirim</button>`);
-      else actions.push('<span class="text-slate-400" title="Maker-checker">Menunggu petugas lain</span>');
-      actions.push(`<button type="button" onclick="rejectPushCampaign(${id})" class="text-rose-600 font-bold hover:underline">Tolak</button>`);
-    }
-    if ((c.status === 'DRAFT' || c.status === 'REJECTED') && canEdit) {
-      actions.push(`<button type="button" onclick="submitPushCampaign(${id})" class="text-blue-700 font-bold hover:underline">Ajukan</button>`);
-    }
-    if (['SENT', 'PARTIAL', 'FAILED', 'SENDING'].includes(c.status)) {
-      actions.push(`<button type="button" onclick="showPushDeliveries(${id})" class="text-[#033172] font-bold hover:underline">Detail</button>`);
-    }
-    const result = c.send_started_at
-      ? `${esc(c.target_devices)} perangkat &middot; diterima FCM ${esc(c.accepted_count)} &middot; gagal ${esc(c.failed_count)} &middot; token tidak valid ${esc(c.invalid_token_count)}${c.last_error ? `<div class="text-rose-600">${esc(c.last_error)}</div>` : ''}`
-      : (c.reject_reason ? `<span class="text-rose-600">Alasan: ${esc(c.reject_reason)}</span>` : '-');
-    return `<tr class="hover:bg-slate-50 align-top">
-      <td class="py-3 px-4 max-w-xs"><div class="font-bold text-slate-900">${esc(c.title)}</div><div class="text-slate-500 whitespace-pre-line">${esc(c.body)}</div><div class="text-[10px] text-slate-400 mt-1">${esc(c.category)}</div></td>
-      <td class="py-3 px-4">${c.target_type === 'ALL' ? 'Semua nasabah' : 'Satu nasabah<div class="text-[10px] font-mono text-slate-400">' + esc(c.target_user_id) + '</div>'}</td>
-      <td class="py-3 px-4">${pushPill(c.status)}</td>
-      <td class="py-3 px-4">${esc(c.created_by_name)}<div class="text-[10px] text-slate-400">${esc(pushDate(c.created_at))}</div>${c.approved_by_name ? `<div class="mt-1">${esc(c.approved_by_name)}</div><div class="text-[10px] text-slate-400">${esc(pushDate(c.approved_at))}</div>` : ''}</td>
-      <td class="py-3 px-4">${result}</td>
-      <td class="py-3 px-4 text-right whitespace-nowrap space-x-2">${actions.join('')}</td></tr>`;
-  }).join('') || '<tr><td colspan="6" class="py-6 text-center text-slate-400">Belum ada notifikasi.</td></tr>';
+  if (json.data.length === 0) {
+    hideTablePagination('pushCampaignBody');
+    body.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-slate-400">Belum ada notifikasi.</td></tr>';
+  } else {
+    paginateTableData('pushCampaigns', json.data, 'pushCampaignBody', (pageRows) => pageRows.map(c => {
+      const id = jsArg(c.id);
+      const actions = [];
+      if (c.status === 'PENDING_APPROVAL' && canApprove) {
+        if (c.created_by !== me.id) actions.push(`<button type="button" onclick="approvePushCampaign(${id})" class="text-emerald-700 font-bold hover:underline">Setujui &amp; Kirim</button>`);
+        else actions.push('<span class="text-slate-400" title="Maker-checker">Menunggu petugas lain</span>');
+        actions.push(`<button type="button" onclick="rejectPushCampaign(${id})" class="text-rose-600 font-bold hover:underline">Tolak</button>`);
+      }
+      if ((c.status === 'DRAFT' || c.status === 'REJECTED') && canEdit) {
+        actions.push(`<button type="button" onclick="submitPushCampaign(${id})" class="text-blue-700 font-bold hover:underline">Ajukan</button>`);
+      }
+      if (['SENT', 'PARTIAL', 'FAILED', 'SENDING'].includes(c.status)) {
+        actions.push(`<button type="button" onclick="showPushDeliveries(${id})" class="text-[#033172] font-bold hover:underline">Detail</button>`);
+      }
+      const result = c.send_started_at
+        ? `${esc(c.target_devices)} perangkat &middot; diterima FCM ${esc(c.accepted_count)} &middot; gagal ${esc(c.failed_count)} &middot; token tidak valid ${esc(c.invalid_token_count)}${c.last_error ? `<div class="text-rose-600">${esc(c.last_error)}</div>` : ''}`
+        : (c.reject_reason ? `<span class="text-rose-600">Alasan: ${esc(c.reject_reason)}</span>` : '-');
+      return `<tr class="hover:bg-slate-50 align-top">
+        <td class="py-3 px-4 max-w-xs"><div class="font-bold text-slate-900">${esc(c.title)}</div><div class="text-slate-500 whitespace-pre-line">${esc(c.body)}</div><div class="text-[10px] text-slate-400 mt-1">${esc(c.category)}</div></td>
+        <td class="py-3 px-4">${c.target_type === 'ALL' ? 'Semua nasabah' : 'Satu nasabah<div class="text-[10px] font-mono text-slate-400">' + esc(c.target_user_id) + '</div>'}</td>
+        <td class="py-3 px-4">${pushPill(c.status)}</td>
+        <td class="py-3 px-4">${esc(c.created_by_name)}<div class="text-[10px] text-slate-400">${esc(pushDate(c.created_at))}</div>${c.approved_by_name ? `<div class="mt-1">${esc(c.approved_by_name)}</div><div class="text-[10px] text-slate-400">${esc(pushDate(c.approved_at))}</div>` : ''}</td>
+        <td class="py-3 px-4">${result}</td>
+        <td class="py-3 px-4 text-right whitespace-nowrap space-x-2">${actions.join('')}</td></tr>`;
+    }).join(''), { resetPage: true });
+  }
   if (json.data.some(c => c.status === 'SENDING') && currentTab === 'push') {
     clearTimeout(pushState.timer);
     pushState.timer = setTimeout(loadPushCampaigns, 4000);

@@ -466,3 +466,140 @@ function showConfirmModal(opts = {}) {
     document.addEventListener('keydown', onKeyDown);
   });
 }
+
+/**
+ * Shared Client-Side Table Pagination Helper
+ * Renders uniform pagination controls below any <table> wrapper.
+ */
+const _tablePaginators = {};
+
+function hideTablePagination(tbodyId) {
+  const bar = document.getElementById(`${tbodyId}_pagination`);
+  if (bar) bar.classList.add('hidden');
+}
+
+function paginateTableData(key, rows, tbodyId, renderRowsFn, options = {}) {
+  const list = Array.isArray(rows) ? rows : [];
+  const defaultSize = options.pageSize || 15;
+  if (!_tablePaginators[key] || options.resetPage) {
+    _tablePaginators[key] = {
+      page: 1,
+      pageSize: (_tablePaginators[key] && _tablePaginators[key].pageSize) || defaultSize,
+      rows: list,
+      tbodyId,
+      renderRowsFn,
+    };
+  } else {
+    _tablePaginators[key].rows = list;
+    _tablePaginators[key].tbodyId = tbodyId;
+    _tablePaginators[key].renderRowsFn = renderRowsFn;
+  }
+  renderPaginatedTable(key);
+}
+
+function goToTablePage(key, page) {
+  const st = _tablePaginators[key];
+  if (!st) return;
+  const totalPages = Math.max(1, Math.ceil(st.rows.length / st.pageSize));
+  st.page = Math.min(Math.max(1, Number(page) || 1), totalPages);
+  renderPaginatedTable(key);
+}
+
+function changeTablePageSize(key, size) {
+  const st = _tablePaginators[key];
+  if (!st) return;
+  st.pageSize = Math.max(1, Number(size) || 15);
+  st.page = 1;
+  renderPaginatedTable(key);
+}
+
+function renderPaginatedTable(key) {
+  const st = _tablePaginators[key];
+  if (!st) return;
+  const tbody = document.getElementById(st.tbodyId);
+  if (!tbody) return;
+
+  const total = st.rows.length;
+  if (total === 0) {
+    hideTablePagination(st.tbodyId);
+    return;
+  }
+
+  const totalPages = Math.max(1, Math.ceil(total / st.pageSize));
+  if (st.page > totalPages) st.page = totalPages;
+  const startIdx = (st.page - 1) * st.pageSize;
+  const endIdx = Math.min(startIdx + st.pageSize, total);
+  const pageItems = st.rows.slice(startIdx, endIdx);
+
+  tbody.innerHTML = st.renderRowsFn(pageItems, startIdx);
+  if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons();
+
+  const barId = `${st.tbodyId}_pagination`;
+  let bar = document.getElementById(barId);
+  if (!bar) {
+    const tableWrap = tbody.closest('.overflow-x-auto') || tbody.closest('table')?.parentElement;
+    if (!tableWrap || !tableWrap.parentElement) return;
+    bar = document.createElement('div');
+    bar.id = barId;
+    bar.className = 'pt-3 px-4 pb-3 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-100';
+    tableWrap.insertAdjacentElement('afterend', bar);
+  }
+
+  bar.classList.remove('hidden');
+
+  const pages = [];
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    pages.push(1);
+    if (st.page > 3) pages.push('...');
+    const startP = Math.max(2, st.page - 1);
+    const endP = Math.min(totalPages - 1, st.page + 1);
+    for (let i = startP; i <= endP; i++) pages.push(i);
+    if (st.page < totalPages - 2) pages.push('...');
+    pages.push(totalPages);
+  }
+
+  const prevDisabled = st.page <= 1;
+  const nextDisabled = st.page >= totalPages;
+  const keyArg = typeof jsArg === 'function' ? jsArg(key) : `'${String(key)}'`;
+
+  const sizeOptions = [15, 25, 50, 100].map(sz =>
+    `<option value="${sz}" ${st.pageSize === sz ? 'selected' : ''}>${sz}</option>`
+  ).join('');
+
+  const pageBtns = pages.map(p => {
+    if (p === '...') return '<span class="px-1.5 text-xs text-slate-400">…</span>';
+    const active = p === st.page;
+    return `
+      <button type="button" onclick="goToTablePage(${keyArg}, ${p})"
+        class="min-w-[30px] px-2 py-1.5 rounded-lg text-xs font-bold border transition ${active ? 'bg-[#033172] text-white border-[#033172]' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}">
+        ${p}
+      </button>
+    `;
+  }).join('');
+
+  bar.innerHTML = `
+    <div class="flex items-center gap-3 text-xs text-slate-500">
+      <span>Menampilkan ${startIdx + 1}–${endIdx} dari ${total} entri</span>
+      <div class="flex items-center gap-1.5">
+        <span>Tampil</span>
+        <select onchange="changeTablePageSize(${keyArg}, this.value)"
+          class="px-2 py-1 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-700 focus:outline-none focus:border-[#033172]">
+          ${sizeOptions}
+        </select>
+      </div>
+    </div>
+    <div class="flex items-center gap-1 flex-wrap justify-center">
+      <button type="button" onclick="goToTablePage(${keyArg}, ${st.page - 1})" ${prevDisabled ? 'disabled' : ''}
+        class="px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition">
+        Sebelumnya
+      </button>
+      ${pageBtns}
+      <button type="button" onclick="goToTablePage(${keyArg}, ${st.page + 1})" ${nextDisabled ? 'disabled' : ''}
+        class="px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition">
+        Berikutnya
+      </button>
+    </div>
+  `;
+}

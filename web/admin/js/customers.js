@@ -327,7 +327,7 @@ async function loadProductApplications() {
       const isReadOnly = role === 'COMPLIANCE' || role === 'AUDITOR';
 
       if (filtered.length > 0) {
-        tbody.innerHTML = filtered.map(app => {
+        paginateTableData('productApplications', filtered, 'productApplicationsTableBody', (pageRows) => pageRows.map(app => {
           const dt = app.created_at ? new Date(app.created_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-';
           const isDeposito = app.product_type === 'DEPOSITO';
           const isTabungan = app.product_type === 'TABUNGAN';
@@ -398,14 +398,17 @@ async function loadProductApplications() {
               </td>
             </tr>
           `;
-        }).join('');
+        }).join(''), { resetPage: true });
       } else {
+        hideTablePagination('productApplicationsTableBody');
         tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">Belum ada pengajuan Deposito / Pinjaman yang sesuai filter</td></tr>`;
       }
     } else {
+      hideTablePagination('productApplicationsTableBody');
       tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">Belum ada pengajuan Deposito / Pinjaman dari aplikasi Mobile DMB</td></tr>`;
     }
   } catch (e) {
+    hideTablePagination('productApplicationsTableBody');
     tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-rose-500">Gagal memuat pengajuan: ${esc(e.message)}</td></tr>`;
   }
 }
@@ -546,11 +549,12 @@ async function loadDepositDisbursements() {
     const isReadOnly = role === 'COMPLIANCE' || role === 'AUDITOR';
 
     if (filtered.length === 0) {
+      hideTablePagination('depositDisbursementsTableBody');
       tbody.innerHTML = '<tr><td colspan="6" class="px-5 py-10 text-center text-slate-400">Belum ada pengajuan pencairan deposito pada filter ini.</td></tr>';
       return;
     }
 
-    tbody.innerHTML = filtered.map(app => {
+    paginateTableData('depositDisbursements', filtered, 'depositDisbursementsTableBody', (pageRows) => pageRows.map(app => {
       const dt = app.created_at ? new Date(app.created_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-';
       const amountFmt = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(app.amount || 0);
 
@@ -600,8 +604,9 @@ async function loadDepositDisbursements() {
           <td class="px-5 py-3.5 text-right">${actionsHtml}</td>
         </tr>
       `;
-    }).join('');
+    }).join(''), { resetPage: true });
   } catch (e) {
+    hideTablePagination('depositDisbursementsTableBody');
     tbody.innerHTML = `<tr><td colspan="6" class="px-5 py-8 text-center text-rose-500">Error: ${esc(e.message)}</td></tr>`;
   }
 }

@@ -48,6 +48,7 @@ function renderAdminUsers(users) {
   const tbody = document.getElementById('adminUsersTableBody');
   if (!tbody) return;
   if (!users || users.length === 0) {
+    hideTablePagination('adminUsersTableBody');
     tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-xs text-slate-400">Tidak ada petugas admin yang sesuai dengan filter.</td></tr>';
     return;
   }
@@ -60,7 +61,7 @@ function renderAdminUsers(users) {
 
   const nowTs = Date.now();
 
-  tbody.innerHTML = users.map((u) => {
+  paginateTableData('adminUsers', users, 'adminUsersTableBody', (pageRows) => pageRows.map((u) => {
     let roleBadge = '';
     let roleDesc = '';
     switch (u.role) {
@@ -158,9 +159,7 @@ function renderAdminUsers(users) {
         </td>
       </tr>
     `;
-  }).join('');
-
-  if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons();
+  }).join(''), { resetPage: true });
 }
 
 function openCreateAdminModal() {

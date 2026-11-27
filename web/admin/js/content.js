@@ -744,10 +744,11 @@ async function loadContentHistory() {
   }
   contentState.history = json.data;
   if (!json.data.length) {
+    hideTablePagination('contentHistoryBody');
     body.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-slate-400">Belum ada revisi. Versi 0 = konten bawaan aplikasi.</td></tr>';
     return;
   }
-  body.innerHTML = json.data.map(r => `<tr class="hover:bg-slate-50 align-top">
+  paginateTableData('contentHistory', json.data, 'contentHistoryBody', (pageRows) => pageRows.map(r => `<tr class="hover:bg-slate-50 align-top">
     <td class="py-3 px-4 font-black">v${esc(r.version_number)}</td>
     <td class="py-3 px-4">${statusPill(r.status)}</td>
     <td class="py-3 px-4">${esc(r.created_by_name)}<div class="text-[10px] text-slate-400">${esc(contentDate(r.created_at))}</div></td>
@@ -757,7 +758,7 @@ async function loadContentHistory() {
     <td class="py-3 px-4 text-right whitespace-nowrap space-x-2">
       <button type="button" onclick="showContentDiff(${jsArg(r.id)})" class="text-[#033172] font-bold hover:underline">Lihat perubahan</button>
       ${(r.status === 'PUBLISHED' || r.status === 'ARCHIVED') && canEditContent() ? `<button type="button" onclick="rollbackContent(${jsArg(r.id)}, ${jsArg(r.version_number)})" class="text-slate-600 font-bold hover:underline">Pulihkan ke draf</button>` : ''}
-    </td></tr>`).join('');
+    </td></tr>`).join(''), { resetPage: true });
 }
 
 function showContentDiff(id) {
