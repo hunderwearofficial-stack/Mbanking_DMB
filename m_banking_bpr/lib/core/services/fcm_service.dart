@@ -145,6 +145,10 @@ class FCMService {
             importance: Importance.max,
             priority: Priority.max,
             ticker: n.title,
+            styleInformation: BigTextStyleInformation(
+              n.body ?? '',
+              contentTitle: n.title,
+            ),
           ),
         ),
         payload: payload,

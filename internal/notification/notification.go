@@ -22,8 +22,6 @@ const (
 
 func PushBody(category, message string) string {
 	switch strings.ToUpper(category) {
-	case CategoryTransaction:
-		return "Ada aktivitas transaksi pada akun Mobile DMB Anda. Buka aplikasi untuk melihat detail."
 	case CategorySecurity:
 		return "Ada aktivitas keamanan pada akun Mobile DMB Anda. Buka aplikasi untuk melihat detail."
 	}
