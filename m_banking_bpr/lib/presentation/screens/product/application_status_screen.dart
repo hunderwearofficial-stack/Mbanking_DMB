@@ -5,6 +5,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/money/money.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../data/repositories/account_repository.dart';
+import '../../widgets/auth_ui_kit.dart';
 import '../../widgets/empty_state_view.dart';
 
 class ApplicationStatusScreen extends StatefulWidget {
@@ -60,30 +61,17 @@ class _ApplicationStatusScreenState extends State<ApplicationStatusScreen> {
     final filters = ['Semua', 'Diajukan', 'Proses', 'Selesai'];
     final items = _filteredApps;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF6F8FB),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: titleDark,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        title: Text(
-          'Status Pengajuan',
-          style: GoogleFonts.plusJakartaSans(fontSize: 17, fontWeight: FontWeight.w700),
-        ),
-        actions: [
-          IconButton(
-            onPressed: _fetchApps,
-            icon: const Icon(Icons.refresh_rounded, color: primaryNavy, size: 21),
-          ),
-        ],
-        bottom: const PreferredSize(
-          preferredSize: Size.fromHeight(1),
-          child: Divider(height: 1, color: borderLight),
-        ),
-      ),
-      body: Column(
-        children: [
+    return AuthSwooshCanvas(
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            DmbPageHeader(
+              title: 'Status Pengajuan',
+              subtitle: 'Pantau progres pengajuan produk Anda',
+              actionIcon: Icons.refresh_rounded,
+              onAction: _fetchApps,
+            ),
           Container(
             color: Colors.white,
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
@@ -159,6 +147,7 @@ class _ApplicationStatusScreenState extends State<ApplicationStatusScreen> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

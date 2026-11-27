@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/bank_contact.dart';
 import '../../../data/repositories/account_repository.dart';
+import '../../widgets/auth_ui_kit.dart';
 
 class _ChatMessage {
   final bool isBot;
@@ -307,107 +308,369 @@ class _HelpdeskScreenState extends State<HelpdeskScreen> {
     );
   }
 
+  IconData _topicIcon(String topic) {
+    final t = topic.toLowerCase();
+    if (t.contains('pin') || t.contains('password')) return Icons.lock_outline_rounded;
+    if (t.contains('hp') || t.contains('perangkat')) return Icons.phone_android_rounded;
+    if (t.contains('kredit') || t.contains('kkm')) return Icons.credit_card_outlined;
+    if (t.contains('deposito') || t.contains('pencairan')) return Icons.description_outlined;
+    if (t.contains('mutasi') || t.contains('saldo')) return Icons.trending_up_rounded;
+    if (t.contains('status')) return Icons.verified_user_outlined;
+    if (t.contains('jam') || t.contains('kantor')) return Icons.account_balance_outlined;
+    if (t.contains('contact') || t.contains('hubungi')) return Icons.chat_bubble_outline_rounded;
+    return Icons.help_outline_rounded;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF6F8FB),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: titleDark,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        automaticallyImplyLeading: !widget.isTab,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    final topicList = _dynamicRules.isNotEmpty
+        ? _dynamicRules.map((e) => e.topic).toList()
+        : _defaultTopics;
+    final showTopicGrid = _messages.length <= 1;
+
+    return AuthSwooshCanvas(
+      child: SafeArea(
+        bottom: false,
+        child: Column(
           children: [
-            Text(
-              'Pusat Bantuan',
-              style: GoogleFonts.plusJakartaSans(fontSize: 17, fontWeight: FontWeight.w700),
-            ),
-            Text(
-              'Asisten Virtual Bank DMB',
-              style: GoogleFonts.plusJakartaSans(fontSize: 11.5, color: textMuted),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Contact Center',
-            onPressed: () => _handleSend('Hubungi Contact Center'),
-            icon: const Icon(Icons.support_agent_outlined, color: primaryNavy, size: 22),
-          ),
-        ],
-        bottom: const PreferredSize(
-          preferredSize: Size.fromHeight(1),
-          child: Divider(height: 1, color: borderLight),
-        ),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollCtrl,
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-              itemCount: _messages.length,
-              itemBuilder: (_, i) => _buildMessageItem(_messages[i]),
-            ),
-          ),
-          // Input bar
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-            child: SafeArea(
-              top: false,
+            // Clean Light Header (matching Pusat Bantuan reference)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 10, 18, 10),
               child: Row(
                 children: [
+                  if (!widget.isTab) ...[
+                    Material(
+                      color: Colors.white,
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: () => Navigator.of(context).pop(),
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AuthUiTokens.inputBorder),
+                          ),
+                          child: const Icon(
+                            Icons.arrow_back_rounded,
+                            size: 19,
+                            color: AuthUiTokens.deepCobalt,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
                   Expanded(
-                    child: TextField(
-                      controller: _inputCtrl,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _handleSend(),
-                      style: GoogleFonts.plusJakartaSans(fontSize: 13.5, color: titleDark),
-                      decoration: InputDecoration(
-                        hintText: 'Ketik pertanyaan Anda...',
-                        hintStyle: GoogleFonts.plusJakartaSans(fontSize: 13, color: textMuted),
-                        filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: const BorderSide(color: borderLight),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Pusat Bantuan',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: AuthUiTokens.deepCobalt,
+                            letterSpacing: -0.35,
+                          ),
                         ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: const BorderSide(color: borderLight),
+                        Text(
+                          'Asisten Virtual & Contact Center Bank DMB',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w500,
+                            color: textMuted,
+                          ),
                         ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: const BorderSide(color: primaryNavy),
+                      ],
+                    ),
+                  ),
+                  if (!showTopicGrid)
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          if (_messages.length > 1) {
+                            _messages.removeRange(1, _messages.length);
+                          }
+                        });
+                      },
+                      child: Text(
+                        'Topik',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AuthUiTokens.deepCobalt,
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    width: 42,
-                    height: 42,
-                    child: ElevatedButton(
-                      onPressed: () => _handleSend(),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryNavy,
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.zero,
-                        elevation: 0,
-                        shape: const CircleBorder(),
-                      ),
-                      child: const Icon(Icons.send_rounded, size: 18),
-                    ),
-                  ),
                 ],
               ),
             ),
-          ),
-        ],
+
+            // Body: Popular Topic Grid (initial) OR Chat History
+            Expanded(
+              child: showTopicGrid
+                  ? SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(18, 6, 18, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Greeting Banner Card
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.92),
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(color: const Color(0xFFE8EEF6)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AuthUiTokens.deepCobalt.withValues(alpha: 0.04),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: const BoxDecoration(
+                                    color: AuthUiTokens.softBlueBg,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.headset_mic_rounded,
+                                    color: AuthUiTokens.deepCobalt,
+                                    size: 20,
+                                  ),
+                                ),
+                                Container(
+                                  width: 1,
+                                  height: 32,
+                                  margin: const EdgeInsets.symmetric(horizontal: 12),
+                                  color: const Color(0xFFE2E8F0),
+                                ),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Halo! Saya Asisten Virtual Bank DMB.',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w800,
+                                          color: AuthUiTokens.deepCobalt,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Pilih topik di bawah atau ketik pertanyaan Anda.',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 11.5,
+                                          color: textMuted,
+                                          height: 1.35,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Topik Populer',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: AuthUiTokens.deepCobalt,
+                                ),
+                              ),
+                              InkWell(
+                                onTap: () => _handleSend('Hubungi Contact Center'),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Contact Center',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: AuthUiTokens.royalBlue,
+                                      ),
+                                    ),
+                                    const Icon(
+                                      Icons.chevron_right_rounded,
+                                      size: 16,
+                                      color: AuthUiTokens.royalBlue,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: topicList.length,
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              mainAxisSpacing: 10,
+                              crossAxisSpacing: 10,
+                              mainAxisExtent: 64,
+                            ),
+                            itemBuilder: (_, idx) {
+                              final topic = topicList[idx];
+                              return Material(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(16),
+                                  onTap: () => _handleSend(topic),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(color: const Color(0xFFE8EEF6)),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: AuthUiTokens.deepCobalt.withValues(alpha: 0.03),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 34,
+                                          height: 34,
+                                          decoration: BoxDecoration(
+                                            color: AuthUiTokens.softBlueBg,
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          child: Icon(
+                                            _topicIcon(topic),
+                                            size: 18,
+                                            color: AuthUiTokens.deepCobalt,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 9),
+                                        Expanded(
+                                          child: Text(
+                                            topic,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: titleDark,
+                                              height: 1.25,
+                                            ),
+                                          ),
+                                        ),
+                                        const Icon(
+                                          Icons.chevron_right_rounded,
+                                          size: 16,
+                                          color: Color(0xFF94A3B8),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      controller: _scrollCtrl,
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+                      itemCount: _messages.length,
+                      itemBuilder: (_, i) => _buildMessageItem(_messages[i]),
+                    ),
+            ),
+
+            // Floating Pill Input Bar
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: SafeArea(
+                top: false,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(color: const Color(0xFFE8EEF6)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AuthUiTokens.deepCobalt.withValues(alpha: 0.06),
+                        blurRadius: 14,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.search_rounded,
+                        size: 20,
+                        color: Color(0xFF64748B),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: _inputCtrl,
+                          textInputAction: TextInputAction.send,
+                          onSubmitted: (_) => _handleSend(),
+                          style: GoogleFonts.plusJakartaSans(fontSize: 13.5, color: titleDark),
+                          decoration: InputDecoration(
+                            hintText: 'Ketik pertanyaan Anda...',
+                            hintStyle: GoogleFonts.plusJakartaSans(fontSize: 13, color: textMuted),
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      SizedBox(
+                        width: 40,
+                        height: 40,
+                        child: ElevatedButton(
+                          onPressed: () => _handleSend(),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AuthUiTokens.deepCobalt,
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.zero,
+                            elevation: 0,
+                            shape: const CircleBorder(),
+                          ),
+                          child: const Icon(Icons.send_rounded, size: 17),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

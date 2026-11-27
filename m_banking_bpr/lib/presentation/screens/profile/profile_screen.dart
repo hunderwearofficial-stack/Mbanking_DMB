@@ -603,77 +603,91 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           return SafeArea(
             bottom: false,
-            child: RefreshIndicator(
-              onRefresh: () async {
-                setState(() {
-                  _profileFuture = _fetchProfileData();
-                });
-                await context.read<AccountCubit>().refresh();
-              },
-              color: AuthUiTokens.deepCobalt,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: EdgeInsets.fromLTRB(18, 10, 18, widget.isTab ? 100 : 28),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        if (!widget.isTab) ...[
-                          Material(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(12),
-                              onTap: () => Navigator.of(context).pop(),
-                              child: Container(
-                                width: 38,
-                                height: 38,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: AuthUiTokens.inputBorder),
-                                ),
-                                child: const Icon(
-                                  Icons.arrow_back_ios_new_rounded,
-                                  color: AuthUiTokens.deepCobalt,
-                                  size: 17,
-                                ),
+            child: Column(
+              children: [
+                // Clean Light Header (matching Pusat Bantuan & Notifikasi)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 10, 18, 10),
+                  child: Row(
+                    children: [
+                      if (!widget.isTab) ...[
+                        Material(
+                          color: Colors.white,
+                          shape: const CircleBorder(),
+                          child: InkWell(
+                            customBorder: const CircleBorder(),
+                            onTap: () => Navigator.of(context).pop(),
+                            child: Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: AuthUiTokens.inputBorder),
+                              ),
+                              child: const Icon(
+                                Icons.arrow_back_rounded,
+                                size: 19,
+                                color: AuthUiTokens.deepCobalt,
                               ),
                             ),
                           ),
-                          const SizedBox(width: 12),
-                        ],
-                        Expanded(
-                          child: Text(
-                            'Akun Saya',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              color: AuthUiTokens.titleDark,
-                              letterSpacing: -0.4,
-                            ),
-                          ),
                         ),
+                        const SizedBox(width: 12),
                       ],
-                    ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Akun Saya',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                                color: AuthUiTokens.deepCobalt,
+                                letterSpacing: -0.35,
+                              ),
+                            ),
+                            Text(
+                              'Profil nasabah & pengaturan layanan',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w500,
+                                color: textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: () async {
+                      setState(() {
+                        _profileFuture = _fetchProfileData();
+                      });
+                      await context.read<AccountCubit>().refresh();
+                    },
+                    color: AuthUiTokens.deepCobalt,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: EdgeInsets.fromLTRB(18, 6, 18, widget.isTab ? 100 : 28),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
 
-                    const SizedBox(height: 18),
-
-                    // Profile Summary Card (matched to reference card)
+                    // Profile Summary Card (clean white + subtle diagonal Bank DMB accent)
                     Container(
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                          colors: [Color(0xFFFFFFFF), Color(0xFFF0F6FF)],
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFE4EEF9)),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: const Color(0xFFE8EEF6)),
                         boxShadow: [
                           BoxShadow(
-                            color: AuthUiTokens.royalBlue.withOpacity(0.08),
-                            blurRadius: 20,
-                            offset: const Offset(0, 8),
+                            color: AuthUiTokens.deepCobalt.withValues(alpha: 0.04),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
                           ),
                         ],
                       ),
@@ -743,8 +757,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       ),
                                       const Icon(
                                         Icons.chevron_right_rounded,
-                                        color: Colors.white,
-                                        size: 24,
+                                        color: AuthUiTokens.deepCobalt,
+                                        size: 22,
                                       ),
                                     ],
                                   ),
@@ -760,23 +774,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(height: 10),
                     _buildMenuSectionCard([
                       _ProfileMenuEntry(
-                        icon: Icons.settings_rounded,
-                        title: 'Pengaturan',
-                        subtitle: 'Kelola akun dan keamanan',
+                        iconType: _ProfileMenuIconType.security,
+                        title: 'Pengaturan Keamanan',
+                        subtitle: 'Kelola PIN, kata sandi & biometrik',
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(builder: (_) => const SecuritySettingsScreen()),
                         ),
                       ),
                       _ProfileMenuEntry(
-                        icon: Icons.info_rounded,
-                        title: 'Bantuan',
-                        subtitle: 'Pusat bantuan dan FAQ',
+                        iconType: _ProfileMenuIconType.helpdesk,
+                        title: 'Pusat Bantuan',
+                        subtitle: 'Asisten virtual, FAQ & contact center',
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(builder: (_) => const HelpdeskScreen()),
                         ),
                       ),
                       _ProfileMenuEntry(
-                        icon: Icons.account_balance_rounded,
+                        iconType: _ProfileMenuIconType.bank,
                         title: 'Tentang Bank DMB',
                         subtitle: 'Profil, visi, misi & legalitas',
                         onTap: () => Navigator.of(context).push(
@@ -784,7 +798,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       _ProfileMenuEntry(
-                        icon: Icons.verified_user_outlined,
+                        iconType: _ProfileMenuIconType.terms,
                         title: 'Syarat & Ketentuan',
                         subtitle: 'Dokumen ketentuan layanan',
                         onTap: () => Navigator.of(context).push(
@@ -792,7 +806,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       _ProfileMenuEntry(
-                        icon: Icons.logout_rounded,
+                        iconType: _ProfileMenuIconType.logout,
                         title: 'Keluar dari Akun',
                         subtitle: 'Akhiri sesi Mobile Banking',
                         isDanger: true,
@@ -829,6 +843,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ),
+          ),
+        ],
+      ),
           );
         },
       ),
@@ -839,13 +856,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFE8EEF6)),
         boxShadow: [
           BoxShadow(
-            color: AuthUiTokens.royalBlue.withOpacity(0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+            color: AuthUiTokens.deepCobalt.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -857,8 +874,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               InkWell(
                 borderRadius: BorderRadius.vertical(
-                  top: i == 0 ? const Radius.circular(20) : Radius.zero,
-                  bottom: isLast ? const Radius.circular(20) : Radius.zero,
+                  top: i == 0 ? const Radius.circular(18) : Radius.zero,
+                  bottom: isLast ? const Radius.circular(18) : Radius.zero,
                 ),
                 onTap: item.onTap,
                 child: Padding(
@@ -866,18 +883,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Row(
                     children: [
                       Container(
-                        width: 42,
-                        height: 42,
+                        width: 40,
+                        height: 40,
                         decoration: BoxDecoration(
                           color: item.isDanger
                               ? AppColors.dangerLight
                               : AuthUiTokens.softBlueBg,
-                          shape: BoxShape.circle,
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Icon(
-                          item.icon,
-                          color: item.isDanger ? dmbRed : AuthUiTokens.deepCobalt,
-                          size: 20,
+                        child: Center(
+                          child: SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CustomPaint(
+                              painter: _ProfileMenuIconPainter(
+                                type: item.iconType,
+                                strokeColor: item.isDanger ? dmbRed : AuthUiTokens.deepCobalt,
+                                fillColor: item.isDanger
+                                    ? const Color(0xFFFCA5A5)
+                                    : const Color(0xFF7DD3FC),
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 14),
@@ -980,11 +1007,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE8EEF6)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 12,
+            color: AuthUiTokens.deepCobalt.withValues(alpha: 0.03),
+            blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
@@ -1040,15 +1068,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
+enum _ProfileMenuIconType { security, helpdesk, bank, terms, logout }
+
 class _ProfileMenuEntry {
-  final IconData icon;
+  final _ProfileMenuIconType iconType;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
   final bool isDanger;
 
   const _ProfileMenuEntry({
-    required this.icon,
+    required this.iconType,
     required this.title,
     required this.subtitle,
     required this.onTap,
@@ -1056,57 +1086,168 @@ class _ProfileMenuEntry {
   });
 }
 
+class _ProfileMenuIconPainter extends CustomPainter {
+  const _ProfileMenuIconPainter({
+    required this.type,
+    required this.strokeColor,
+    required this.fillColor,
+  });
+
+  final _ProfileMenuIconType type;
+  final Color strokeColor;
+  final Color fillColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    final fill = Paint()
+      ..color = fillColor.withValues(alpha: 0.72)
+      ..style = PaintingStyle.fill;
+
+    final stroke = Paint()
+      ..color = strokeColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.7
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    switch (type) {
+      case _ProfileMenuIconType.security:
+        // Shield with check duotone
+        final shield = Path()
+          ..moveTo(w * 0.50, h * 0.12)
+          ..lineTo(w * 0.82, h * 0.24)
+          ..lineTo(w * 0.82, h * 0.50)
+          ..quadraticBezierTo(w * 0.82, h * 0.76, w * 0.50, h * 0.88)
+          ..quadraticBezierTo(w * 0.18, h * 0.76, w * 0.18, h * 0.50)
+          ..lineTo(w * 0.18, h * 0.24)
+          ..close();
+        canvas.drawPath(shield, fill);
+        canvas.drawPath(shield, stroke);
+        canvas.drawLine(Offset(w * 0.36, h * 0.50), Offset(w * 0.46, h * 0.60), stroke);
+        canvas.drawLine(Offset(w * 0.46, h * 0.60), Offset(w * 0.65, h * 0.40), stroke);
+        break;
+
+      case _ProfileMenuIconType.helpdesk:
+        // Headset duotone
+        final band = Path()
+          ..moveTo(w * 0.20, h * 0.56)
+          ..quadraticBezierTo(w * 0.20, h * 0.18, w * 0.50, h * 0.18)
+          ..quadraticBezierTo(w * 0.80, h * 0.18, w * 0.80, h * 0.56);
+        canvas.drawPath(band, stroke);
+        final leftEar = RRect.fromRectAndRadius(
+          Rect.fromLTWH(w * 0.14, h * 0.48, w * 0.16, h * 0.28),
+          const Radius.circular(4),
+        );
+        final rightEar = RRect.fromRectAndRadius(
+          Rect.fromLTWH(w * 0.70, h * 0.48, w * 0.16, h * 0.28),
+          const Radius.circular(4),
+        );
+        canvas.drawRRect(leftEar, fill);
+        canvas.drawRRect(rightEar, fill);
+        canvas.drawRRect(leftEar, stroke);
+        canvas.drawRRect(rightEar, stroke);
+        final mic = Path()
+          ..moveTo(w * 0.78, h * 0.76)
+          ..quadraticBezierTo(w * 0.78, h * 0.86, w * 0.56, h * 0.86);
+        canvas.drawPath(mic, stroke);
+        break;
+
+      case _ProfileMenuIconType.bank:
+        // Bank building duotone
+        final roof = Path()
+          ..moveTo(w * 0.12, h * 0.38)
+          ..lineTo(w * 0.50, h * 0.14)
+          ..lineTo(w * 0.88, h * 0.38)
+          ..close();
+        canvas.drawPath(roof, fill);
+        canvas.drawPath(roof, stroke);
+        canvas.drawRect(Rect.fromLTWH(w * 0.22, h * 0.44, w * 0.56, h * 0.34), fill);
+        canvas.drawLine(Offset(w * 0.26, h * 0.42), Offset(w * 0.26, h * 0.78), stroke);
+        canvas.drawLine(Offset(w * 0.50, h * 0.42), Offset(w * 0.50, h * 0.78), stroke);
+        canvas.drawLine(Offset(w * 0.74, h * 0.42), Offset(w * 0.74, h * 0.78), stroke);
+        canvas.drawLine(Offset(w * 0.14, h * 0.84), Offset(w * 0.86, h * 0.84), stroke);
+        break;
+
+      case _ProfileMenuIconType.terms:
+        // Document sheet duotone
+        final doc = RRect.fromRectAndRadius(
+          Rect.fromLTWH(w * 0.20, h * 0.12, w * 0.60, h * 0.76),
+          const Radius.circular(3.5),
+        );
+        canvas.drawRRect(doc, fill);
+        canvas.drawRRect(doc, stroke);
+        canvas.drawLine(Offset(w * 0.34, h * 0.36), Offset(w * 0.66, h * 0.36), stroke);
+        canvas.drawLine(Offset(w * 0.34, h * 0.52), Offset(w * 0.66, h * 0.52), stroke);
+        canvas.drawLine(Offset(w * 0.34, h * 0.68), Offset(w * 0.52, h * 0.68), stroke);
+        break;
+
+      case _ProfileMenuIconType.logout:
+        // Door + exit arrow duotone
+        final door = RRect.fromRectAndRadius(
+          Rect.fromLTWH(w * 0.16, h * 0.16, w * 0.38, h * 0.68),
+          const Radius.circular(3.5),
+        );
+        canvas.drawRRect(door, fill);
+        canvas.drawRRect(door, stroke);
+        canvas.drawLine(Offset(w * 0.44, h * 0.50), Offset(w * 0.86, h * 0.50), stroke);
+        canvas.drawLine(Offset(w * 0.70, h * 0.35), Offset(w * 0.86, h * 0.50), stroke);
+        canvas.drawLine(Offset(w * 0.70, h * 0.65), Offset(w * 0.86, h * 0.50), stroke);
+        break;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ProfileMenuIconPainter oldDelegate) =>
+      oldDelegate.type != type;
+}
+
 class _DualToneAvatarPainter extends CustomPainter {
   const _DualToneAvatarPainter();
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2;
+    final w = size.width;
+    final h = size.height;
 
-    canvas.save();
-    canvas.clipPath(Path()..addOval(Rect.fromCircle(center: center, radius: radius)));
-
-    // Soft sky-blue circular backdrop
-    canvas.drawCircle(
-      center,
-      radius,
+    final bgRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, w, h),
+      const Radius.circular(16),
+    );
+    canvas.drawRRect(bgRect, Paint()..color = const Color(0xFFEFF6FF));
+    canvas.drawRRect(
+      bgRect,
       Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFFEAF3FF), Color(0xFFCDE1FA)],
-        ).createShader(Rect.fromCircle(center: center, radius: radius)),
+        ..color = const Color(0xFFD6E6FA)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2,
     );
 
-    // Shoulders in deep cobalt
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(size.width / 2, size.height * 0.90),
-        width: size.width * 0.72,
-        height: size.height * 0.50,
-      ),
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF0550A6), Color(0xFF033172)],
-        ).createShader(Rect.fromLTWH(0, size.height * 0.55, size.width, size.height * 0.45)),
-    );
+    final fill = Paint()
+      ..color = const Color(0xFF7DD3FC).withValues(alpha: 0.78)
+      ..style = PaintingStyle.fill;
 
-    // Head in cyan-azure
-    canvas.drawCircle(
-      Offset(size.width / 2, size.height * 0.40),
-      size.width * 0.19,
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF00B4D8), Color(0xFF0284C7)],
-        ).createShader(Rect.fromLTWH(size.width * 0.3, size.height * 0.2, size.width * 0.4, size.height * 0.4)),
-    );
+    final stroke = Paint()
+      ..color = const Color(0xFF033172)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
 
-    canvas.restore();
+    // Head
+    canvas.drawCircle(Offset(w * 0.50, h * 0.36), w * 0.14, fill);
+    canvas.drawCircle(Offset(w * 0.50, h * 0.36), w * 0.14, stroke);
+
+    // Shoulders
+    final body = Path()
+      ..moveTo(w * 0.24, h * 0.76)
+      ..quadraticBezierTo(w * 0.24, h * 0.54, w * 0.50, h * 0.54)
+      ..quadraticBezierTo(w * 0.76, h * 0.54, w * 0.76, h * 0.76)
+      ..close();
+    canvas.drawPath(body, fill);
+    canvas.drawPath(body, stroke);
   }
 
   @override
@@ -1119,48 +1260,25 @@ class _ProfileCardWavePainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
 
-    final cyanPath = Path()
-      ..moveTo(w * 0.08, 0)
+    final p1 = Paint()
+      ..color = const Color(0xFF0550A6).withValues(alpha: 0.08);
+    final path1 = Path()
+      ..moveTo(w * 0.35, 0)
       ..lineTo(w, 0)
       ..lineTo(w, h)
-      ..lineTo(w * 0.62, h)
-      ..quadraticBezierTo(w * 0.16, h * 0.56, w * 0.08, 0)
+      ..lineTo(w * 0.15, h)
       ..close();
+    canvas.drawPath(path1, p1);
 
-    canvas.drawPath(
-      cyanPath,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF6EE7B7).withOpacity(0.55),
-            const Color(0xFF00B4D8).withOpacity(0.75),
-            const Color(0xFF0550A6).withOpacity(0.88),
-          ],
-        ).createShader(Rect.fromLTWH(0, 0, w, h)),
-    );
-
-    final cobaltPath = Path()
-      ..moveTo(w * 0.42, 0)
+    final p2 = Paint()
+      ..color = const Color(0xFF033172).withValues(alpha: 0.06);
+    final path2 = Path()
+      ..moveTo(w * 0.62, 0)
       ..lineTo(w, 0)
       ..lineTo(w, h)
-      ..lineTo(w * 0.72, h)
-      ..quadraticBezierTo(w * 0.30, h * 0.48, w * 0.42, 0)
+      ..lineTo(w * 0.42, h)
       ..close();
-
-    canvas.drawPath(
-      cobaltPath,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF22D3EE).withOpacity(0.45),
-            const Color(0xFF033172).withOpacity(0.92),
-          ],
-        ).createShader(Rect.fromLTWH(0, 0, w, h)),
-    );
+    canvas.drawPath(path2, p2);
   }
 
   @override

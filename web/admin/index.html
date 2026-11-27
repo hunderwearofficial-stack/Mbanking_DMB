@@ -302,172 +302,154 @@
       </header>
 
       <!-- CONTENT BODY -->
-      <div class="p-4 sm:p-6 space-y-6 flex-1">
+      <div class="p-4 sm:p-6 flex-1">
 
         <!-- ==================== TAB 1: DASHBOARD ==================== -->
         <section id="tab-dashboard" class="space-y-5">
-          <!-- Executive Hero Banner (Bank DMB Navy Theme) -->
-          <div class="relative overflow-hidden text-white shadow-sm"
-            style="background: linear-gradient(135deg, #033172 0%, #05449E 58%, #022454 100%); border-radius: 18px; padding: 24px 28px;">
-            <div
-              style="position: absolute; right: -40px; top: -60px; width: 260px; height: 260px; border-radius: 9999px; background: radial-gradient(circle, rgba(0,180,216,0.22) 0%, rgba(0,180,216,0) 70%); pointer-events: none;"></div>
-            <div class="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-              <div style="max-width: 640px;">
-                <div
-                  style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 9999px; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.24); color: #E0F2FE; margin-bottom: 10px;">
-                  <span>Enterprise Digital Banking Console</span>
-                  <span>&bull;</span>
-                  <span>OJK &amp; LPS Compliant</span>
-                </div>
-                <h1 style="font-size: 22px; line-height: 1.3; font-weight: 800; margin: 0; color: #ffffff;">
-                  Ringkasan Eksekutif Operasional Bank DMB
-                </h1>
-                <p style="font-size: 13px; line-height: 1.55; margin: 6px 0 0 0; color: rgba(255,255,255,0.85);">
-                  Pusat kendali nasabah, sinkronisasi rekening Core Banking System, antrean pengajuan layanan, serta kepatuhan keamanan <strong>myDMB</strong> secara real-time.
-                </p>
-              </div>
-              <div class="flex flex-wrap items-center gap-2.5 shrink-0">
-                <button type="button" onclick="loadDashboardStats()"
-                  style="padding: 9px 14px; border-radius: 12px; font-size: 12px; font-weight: 700; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.28); color: #ffffff; display: inline-flex; align-items: center; gap: 7px;">
-                  <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
-                  <span>Segarkan Data</span>
-                </button>
-                <button type="button" onclick="switchTab('customers')"
-                  style="padding: 9px 16px; border-radius: 12px; font-size: 12px; font-weight: 700; background: #ffffff; color: #033172; display: inline-flex; align-items: center; gap: 7px; box-shadow: 0 4px 14px rgba(1,24,59,0.25);">
-                  <i data-lucide="users" class="w-4 h-4"></i>
-                  <span>Kelola Nasabah</span>
-                </button>
-              </div>
+          <!-- Clean Professional Page Header -->
+          <div class="tab-navy-header">
+            <div>
+              <div class="tab-navy-header-badge">Ringkasan Operasional &bull; OJK &amp; LPS Compliant</div>
+              <h1 class="tab-navy-header-title">Dashboard Eksekutif Bank DMB</h1>
+              <p class="tab-navy-header-sub">Monitoring nasabah, rekening terhubung Core Banking, antrean layanan, dan kepatuhan sistem myDMB.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 shrink-0">
+              <button type="button" onclick="loadDashboardStats()"
+                class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 transition inline-flex items-center gap-1.5">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-slate-600"></i>
+                <span>Segarkan Data</span>
+              </button>
+              <button type="button" onclick="switchTab('customers')"
+                style="background-color: #033172 !important; color: #FFFFFF !important; border-color: #033172 !important;"
+                class="px-3.5 py-2 rounded-xl text-xs font-bold transition inline-flex items-center gap-1.5">
+                <i data-lucide="users" class="w-3.5 h-3.5"></i>
+                <span>Kelola Nasabah</span>
+              </button>
             </div>
           </div>
 
           <!-- 4-Column KPI Metric Cards -->
           <div class="dash-kpi-grid">
             <!-- Card 1: Total Nasabah -->
-            <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs card-hover"
-              style="border-top: 3px solid #033172;">
+            <div class="bg-white rounded-xl p-5 border border-slate-200/90 shadow-xs card-hover">
               <div class="flex items-center justify-between mb-2">
                 <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Nasabah</span>
-                <div class="w-9 h-9 rounded-xl bg-[#EFF6FF] text-[#033172] flex items-center justify-center">
+                <div class="w-9 h-9 rounded-lg bg-[#EFF6FF] text-[#033172] flex items-center justify-center">
                   <i data-lucide="users" class="w-4 h-4"></i>
                 </div>
               </div>
-              <div class="text-3xl font-black text-slate-900 tracking-tight" id="statTotalUsers">0</div>
+              <div class="text-2xl font-black text-slate-900 tracking-tight" id="statTotalUsers">0</div>
               <p class="text-xs text-slate-500 mt-2 flex items-center gap-1.5 font-medium">
                 <span id="statActiveUsers" class="text-[#033172] font-bold">0</span> aktif &bull; <span
-                  id="statBoundDevices" class="text-blue-600 font-bold">0</span> terikat device
+                  id="statBoundDevices" class="text-slate-700 font-bold">0</span> terikat device
               </p>
             </div>
 
             <!-- Card 2: Rekening Terdaftar -->
-            <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs card-hover"
-              style="border-top: 3px solid #059669;">
+            <div class="bg-white rounded-xl p-5 border border-slate-200/90 shadow-xs card-hover">
               <div class="flex items-center justify-between mb-2">
                 <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Rekening Terdaftar</span>
-                <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <div class="w-9 h-9 rounded-lg bg-[#EFF6FF] text-[#033172] flex items-center justify-center">
                   <i data-lucide="wallet" class="w-4 h-4"></i>
                 </div>
               </div>
-              <div class="text-3xl font-black text-slate-900 tracking-tight" id="statTotalAccounts">0</div>
+              <div class="text-2xl font-black text-slate-900 tracking-tight" id="statTotalAccounts">0</div>
               <p class="text-xs text-slate-500 mt-2 font-medium">Tabungan &amp; Deposito DMB tersinkronisasi</p>
             </div>
 
             <!-- Card 3: Antrean Pengajuan -->
-            <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs card-hover cursor-pointer"
-              onclick="switchTab('product-applications')" style="border-top: 3px solid #0284C7;">
+            <div class="bg-white rounded-xl p-5 border border-slate-200/90 shadow-xs card-hover cursor-pointer"
+              onclick="switchTab('product-applications')">
               <div class="flex items-center justify-between mb-2">
                 <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Antrean Pengajuan</span>
-                <div class="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
+                <div class="w-9 h-9 rounded-lg bg-[#EFF6FF] text-[#033172] flex items-center justify-center">
                   <i data-lucide="briefcase" class="w-4 h-4"></i>
                 </div>
               </div>
-              <div class="text-3xl font-black text-slate-900 tracking-tight" id="statPendingApps">0</div>
+              <div class="text-2xl font-black text-slate-900 tracking-tight" id="statPendingApps">0</div>
               <p class="text-xs text-slate-500 mt-2 font-medium" id="statPendingAppsDetail">Menunggu tindak lanjut CS</p>
             </div>
 
             <!-- Card 4: Konten Aplikasi -->
-            <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs card-hover"
-              style="border-top: 3px solid #D97706;">
+            <div class="bg-white rounded-xl p-5 border border-slate-200/90 shadow-xs card-hover">
               <div class="flex items-center justify-between mb-2">
                 <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Konten Aplikasi</span>
-                <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                <div class="w-9 h-9 rounded-lg bg-[#EFF6FF] text-[#033172] flex items-center justify-center">
                   <i data-lucide="layout-template" class="w-4 h-4"></i>
                 </div>
               </div>
-              <div class="text-3xl font-black text-slate-900 tracking-tight" id="statContentVersion">-</div>
+              <div class="text-2xl font-black text-slate-900 tracking-tight" id="statContentVersion">-</div>
               <p class="text-xs text-slate-500 mt-2 font-medium" id="statContentPending">Versi yang tampil di aplikasi
               </p>
             </div>
           </div>
 
-          <!-- 2-Column Executive Operations Grid -->
+          <!-- Row 2: Recent Applications & Security Audit (Equal 2-Column Grid) -->
           <div class="dash-ops-grid">
-            <!-- LEFT COLUMN: Recent Applications & Live Security Audit -->
-            <div class="space-y-5 min-w-0">
-              <!-- Pengajuan Layanan Terbaru -->
-              <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-                <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
-                  <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-lg bg-[#EFF6FF] text-[#033172] flex items-center justify-center">
-                      <i data-lucide="file-check-2" class="w-4 h-4"></i>
-                    </div>
-                    <div>
-                      <h3 class="text-sm font-bold text-slate-900">Pengajuan Layanan Nasabah Terbaru</h3>
-                      <p class="text-[11px] text-slate-500">Permohonan Kredit, Deposito, Tabungan &amp; Pencairan</p>
-                    </div>
+            <!-- Pengajuan Layanan Terbaru -->
+            <div class="bg-white rounded-xl border border-slate-200/90 shadow-xs overflow-hidden flex flex-col">
+              <div class="px-5 py-4 border-b border-slate-200/80 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-8 h-8 rounded-lg bg-[#EFF6FF] text-[#033172] flex items-center justify-center shrink-0">
+                    <i data-lucide="file-check-2" class="w-4 h-4"></i>
                   </div>
-                  <button type="button" onclick="switchTab('product-applications')"
-                    class="text-xs font-bold text-[#033172] hover:underline shrink-0">Lihat Semua &rarr;</button>
+                  <div>
+                    <h3 class="text-sm font-bold text-slate-900">Pengajuan Layanan Terbaru</h3>
+                    <p class="text-[11px] text-slate-500">Kredit, Deposito, Tabungan &amp; Pencairan</p>
+                  </div>
                 </div>
-                <div class="overflow-x-auto">
-                  <table class="w-full text-left border-collapse">
-                    <thead>
-                      <tr class="bg-slate-50/80 text-[10px] font-extrabold text-slate-500 uppercase tracking-wider border-b border-slate-100">
-                        <th class="px-5 py-2.5">Nasabah</th>
-                        <th class="px-4 py-2.5">Layanan</th>
-                        <th class="px-4 py-2.5">Nominal</th>
-                        <th class="px-5 py-2.5 text-right">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody id="dashRecentAppsBody" class="divide-y divide-slate-100 text-xs">
-                      <tr>
-                        <td colspan="4" class="px-5 py-6 text-center text-slate-400">Memuat pengajuan terbaru...</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
+                <button type="button" onclick="switchTab('product-applications')"
+                  class="text-xs font-bold text-[#033172] hover:underline shrink-0">Lihat Semua &rarr;</button>
               </div>
-
-              <!-- Aktivitas & Audit Keamanan Terbaru -->
-              <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-                <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
-                  <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                      <i data-lucide="shield-check" class="w-4 h-4"></i>
-                    </div>
-                    <div>
-                      <h3 class="text-sm font-bold text-slate-900">Aktivitas &amp; Audit Keamanan Terbaru</h3>
-                      <p class="text-[11px] text-slate-500">Log integritas SHA-256 (Kepatuhan POJK MRTI)</p>
-                    </div>
-                  </div>
-                  <button type="button" onclick="switchTab('audit')"
-                    class="text-xs font-bold text-[#033172] hover:underline shrink-0">Buka Audit Trail &rarr;</button>
-                </div>
-                <div id="dashRecentAuditList" class="divide-y divide-slate-100">
-                  <div class="px-5 py-6 text-center text-xs text-slate-400">Memuat log aktivitas terbaru...</div>
-                </div>
+              <div class="overflow-x-auto flex-1">
+                <table class="w-full text-left border-collapse">
+                  <thead>
+                    <tr class="bg-slate-50 text-[10px] font-extrabold text-slate-500 uppercase tracking-wider border-b border-slate-200/80">
+                      <th class="px-5 py-2.5">Nasabah</th>
+                      <th class="px-4 py-2.5">Layanan</th>
+                      <th class="px-4 py-2.5">Nominal</th>
+                      <th class="px-5 py-2.5 text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dashRecentAppsBody" class="divide-y divide-slate-100 text-xs">
+                    <tr>
+                      <td colspan="4" class="px-5 py-6 text-center text-slate-400">Memuat pengajuan terbaru...</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
 
-            <!-- RIGHT COLUMN: CBS Health & Security Posture -->
-            <div class="space-y-5 min-w-0">
-              <!-- Status Koneksi Layanan Inti (CBS) Card on Dashboard (Visible for SUPER_ADMIN) -->
-              <div id="dashboardCbsCard" class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs"
-                style="border-left: 4px solid #033172;">
+            <!-- Aktivitas & Audit Keamanan Terbaru -->
+            <div class="bg-white rounded-xl border border-slate-200/90 shadow-xs overflow-hidden flex flex-col">
+              <div class="px-5 py-4 border-b border-slate-200/80 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-8 h-8 rounded-lg bg-[#EFF6FF] text-[#033172] flex items-center justify-center shrink-0">
+                    <i data-lucide="shield-check" class="w-4 h-4"></i>
+                  </div>
+                  <div>
+                    <h3 class="text-sm font-bold text-slate-900">Aktivitas &amp; Audit Keamanan</h3>
+                    <p class="text-[11px] text-slate-500">Log integritas SHA-256 (POJK MRTI)</p>
+                  </div>
+                </div>
+                <button type="button" onclick="switchTab('audit')"
+                  class="text-xs font-bold text-[#033172] hover:underline shrink-0">Buka Audit Trail &rarr;</button>
+              </div>
+              <div id="dashRecentAuditList" class="divide-y divide-slate-100 flex-1">
+                <div class="px-5 py-6 text-center text-xs text-slate-400">Memuat log aktivitas terbaru...</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Row 3: CBS Connection & Security Posture (Equal 2-Column Grid) -->
+          <div class="dash-ops-grid">
+            <!-- Status Koneksi Layanan Inti (CBS) Card -->
+            <div id="dashboardCbsCard" class="bg-white rounded-xl p-5 border border-slate-200/90 shadow-xs flex flex-col justify-between">
+              <div>
                 <div class="flex items-start justify-between gap-3 mb-3">
                   <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-[#EFF6FF] text-[#033172] flex items-center justify-center shrink-0">
-                      <i data-lucide="server" class="w-5 h-5"></i>
+                    <div class="w-9 h-9 rounded-lg bg-[#EFF6FF] text-[#033172] flex items-center justify-center shrink-0">
+                      <i data-lucide="server" class="w-4 h-4"></i>
                     </div>
                     <div>
                       <h3 class="text-sm font-bold text-slate-900">Koneksi Core Banking (CBS)</h3>
@@ -477,63 +459,63 @@
                   <span id="dashCbsHealthBadge"
                     class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 shrink-0">Memeriksa...</span>
                 </div>
-                <p id="dashCbsHealthDetail" class="text-xs text-slate-600 bg-slate-50 rounded-xl p-3 border border-slate-100">
+                <p id="dashCbsHealthDetail" class="text-xs text-slate-600 bg-slate-50 rounded-lg p-3 border border-slate-200/70">
                   Memeriksa konektivitas dan token OAuth2 CBS OpenAPI...
                 </p>
-                <div class="flex flex-wrap items-center gap-2 mt-3.5">
-                  <button type="button" onclick="checkCbsHealth()"
-                    class="px-3 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition flex items-center gap-1.5">
-                    <i data-lucide="activity" class="w-3.5 h-3.5 text-[#033172]"></i>
-                    <span>Cek Kesehatan</span>
-                  </button>
-                  <button type="button" id="dashCbsRefreshTokenBtn" onclick="refreshCbsConnectionToken()"
-                    class="px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-[#033172] hover:bg-[#022454] transition flex items-center gap-1.5">
-                    <i data-lucide="key-round" class="w-3.5 h-3.5"></i>
-                    <span>Segarkan Token</span>
-                  </button>
-                </div>
               </div>
+              <div class="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-slate-100">
+                <button type="button" onclick="checkCbsHealth()"
+                  class="px-3 py-2 rounded-lg text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 transition flex items-center gap-1.5">
+                  <i data-lucide="activity" class="w-3.5 h-3.5 text-[#033172]"></i>
+                  <span>Cek Kesehatan</span>
+                </button>
+                <button type="button" id="dashCbsRefreshTokenBtn" onclick="refreshCbsConnectionToken()"
+                  class="px-3.5 py-2 rounded-lg text-xs font-bold text-white bg-[#033172] hover:bg-[#022454] transition flex items-center gap-1.5">
+                  <i data-lucide="key-round" class="w-3.5 h-3.5"></i>
+                  <span>Segarkan Token</span>
+                </button>
+              </div>
+            </div>
 
-              <!-- Postur Keamanan & Tata Kelola Bank -->
-              <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs">
-                <div class="flex items-center justify-between mb-3">
-                  <div>
-                    <h3 class="text-sm font-bold text-slate-900">Postur Keamanan &amp; Kepatuhan</h3>
-                    <p class="text-[11px] text-slate-500">Standar operasional perbankan digital</p>
-                  </div>
-                  <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    TERPROTEKSI
-                  </span>
+            <!-- Postur Keamanan & Tata Kelola Bank -->
+            <div class="bg-white rounded-xl p-5 border border-slate-200/90 shadow-xs flex flex-col justify-between">
+              <div class="flex items-center justify-between mb-3">
+                <div>
+                  <h3 class="text-sm font-bold text-slate-900">Postur Keamanan &amp; Kepatuhan</h3>
+                  <p class="text-[11px] text-slate-500">Standar operasional perbankan digital</p>
                 </div>
-                <div class="space-y-2.5 text-xs">
-                  <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                    <div class="flex items-center gap-2.5">
-                      <i data-lucide="smartphone" class="w-4 h-4 text-[#033172]"></i>
-                      <span class="font-semibold text-slate-700">Device Binding Kriptografis</span>
-                    </div>
-                    <span class="font-bold text-emerald-700">Aktif</span>
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  TERPROTEKSI
+                </span>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                <div class="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-200/70">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <i data-lucide="smartphone" class="w-3.5 h-3.5 text-[#033172] shrink-0"></i>
+                    <span class="font-semibold text-slate-700 truncate">Device Binding</span>
                   </div>
-                  <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                    <div class="flex items-center gap-2.5">
-                      <i data-lucide="link" class="w-4 h-4 text-[#033172]"></i>
-                      <span class="font-semibold text-slate-700">Audit Trail Hash-Chain SHA-256</span>
-                    </div>
-                    <span class="font-bold text-emerald-700">Terverifikasi</span>
+                  <span class="font-bold text-emerald-700 shrink-0">Aktif</span>
+                </div>
+                <div class="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-200/70">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <i data-lucide="link" class="w-3.5 h-3.5 text-[#033172] shrink-0"></i>
+                    <span class="font-semibold text-slate-700 truncate">Hash-Chain OJK</span>
                   </div>
-                  <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                    <div class="flex items-center gap-2.5">
-                      <i data-lucide="message-square" class="w-4 h-4 text-[#033172]"></i>
-                      <span class="font-semibold text-slate-700">Gateway Pengiriman OTP</span>
-                    </div>
-                    <span id="dashOtpModeBadge" class="font-bold text-[#033172]">Terhubung</span>
+                  <span class="font-bold text-emerald-700 shrink-0">Aktif</span>
+                </div>
+                <div class="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-200/70">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <i data-lucide="message-square" class="w-3.5 h-3.5 text-[#033172] shrink-0"></i>
+                    <span class="font-semibold text-slate-700 truncate">Gateway OTP</span>
                   </div>
-                  <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                    <div class="flex items-center gap-2.5">
-                      <i data-lucide="check-circle-2" class="w-4 h-4 text-[#033172]"></i>
-                      <span class="font-semibold text-slate-700">Dual-Control Maker-Checker</span>
-                    </div>
-                    <span class="font-bold text-emerald-700">Aktif</span>
+                  <span id="dashOtpModeBadge" class="font-bold text-[#033172] shrink-0">Terhubung</span>
+                </div>
+                <div class="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-200/70">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-[#033172] shrink-0"></i>
+                    <span class="font-semibold text-slate-700 truncate">Maker-Checker</span>
                   </div>
+                  <span class="font-bold text-emerald-700 shrink-0">Aktif</span>
                 </div>
               </div>
             </div>
@@ -642,9 +624,8 @@
               <!-- Search & Filter Header -->
               <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div>
-                  <h3 class="text-base font-bold text-slate-800">Manajemen Nasabah &amp; Device Binding</h3>
-                  <p class="text-xs text-slate-500">Kelola akun, pantau gagal login/PIN, status blokir, dan buka ikatan
-                    perangkat (Unbind Device ID)</p>
+                  <h3 class="text-sm font-bold text-slate-800">Daftar Nasabah Terdaftar</h3>
+                  <p class="text-[11px] text-slate-500">Pencarian berdasarkan nama, CIF, atau nomor handphone</p>
                 </div>
 
                 <div class="flex items-center gap-2 w-full sm:w-auto">
@@ -732,11 +713,11 @@
               <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                   <div class="flex items-center gap-2.5">
-                    <h3 class="text-base font-bold text-slate-800">Pengajuan Produk Nasabah</h3>
+                    <h3 class="text-sm font-bold text-slate-800">Daftar Pengajuan</h3>
                     <span id="productAppsCountBadge"
                       class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800">0</span>
                   </div>
-                  <p class="text-xs text-slate-500">Daftar pengajuan Kredit, Deposito Berjangka, dan Tabungan dari aplikasi Mobile DMB</p>
+                  <p class="text-[11px] text-slate-500">Filter berdasarkan jenis produk dan status tindak lanjut</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
                   <select id="appProductFilter" onchange="loadProductApplications()"
@@ -1169,7 +1150,7 @@
               <p class="tab-navy-header-sub">Dokumen PDF resmi yang wajib disetujui nasabah sebelum login, dikelola dengan persetujuan dua petugas.</p>
             </div>
           </div>
-          <div class="space-y-5 max-w-5xl">
+          <div class="space-y-5">
 
             <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
               <div class="flex items-center justify-between gap-3">
@@ -1408,16 +1389,11 @@
             <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div>
                 <div class="flex items-center gap-2 flex-wrap">
-                  <h3 class="text-base font-bold text-slate-800">Audit Trail &amp; Log Keamanan Sistem (Kepatuhan OJK)
-                  </h3>
-                  <span
-                    class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#EFF6FF] text-[#033172] border border-blue-200">POJK
-                    MRTI &bull; SHA-256 Hash Chain</span>
+                  <h3 class="text-sm font-bold text-slate-800">Log Audit &amp; Hash Chain</h3>
                   <span id="auditCountBadge"
                     class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">0 Entri</span>
                 </div>
-                <p class="text-xs text-slate-500 mt-0.5">Rekam jejak berantai hash kriptografis atas aktivitas nasabah,
-                  petugas admin, dan proses sistem</p>
+                <p class="text-[11px] text-slate-500 mt-0.5">Filter berdasarkan aktor, rentang tanggal, atau kata kunci</p>
               </div>
               <div class="flex items-center gap-2">
                 <button type="button" onclick="exportAuditLogsCSV()"

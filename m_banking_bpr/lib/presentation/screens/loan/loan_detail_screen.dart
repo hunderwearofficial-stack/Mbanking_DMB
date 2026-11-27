@@ -9,6 +9,7 @@ import '../../../data/repositories/account_repository.dart';
 import '../../blocs/auth/auth_cubit.dart';
 import '../../blocs/auth/auth_state.dart';
 import '../../widgets/app_validation_feedback.dart';
+import '../../widgets/auth_ui_kit.dart';
 
 class LoanDetailScreen extends StatefulWidget {
   final Map<String, dynamic> initialLoan;
@@ -107,47 +108,30 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
 
     final progressRatio = totalAngsuran > 0 ? (sudahBayar / totalAngsuran).clamp(0.0, 1.0) : 0.0;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF6F8FB),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: titleDark,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return AuthSwooshCanvas(
+      child: SafeArea(
+        bottom: false,
+        child: Column(
           children: [
-            Text(
-              prodName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.plusJakartaSans(fontSize: 16.5, fontWeight: FontWeight.w700),
+            DmbPageHeader(
+              title: prodName,
+              subtitle: 'Rek. $accNo',
+              actionIcon: Icons.refresh_rounded,
+              onAction: _fetchDetail,
             ),
-            Text(
-              'Rek. $accNo',
-              style: GoogleFonts.plusJakartaSans(fontSize: 11.5, color: textMuted),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            onPressed: _fetchDetail,
-            icon: const Icon(Icons.refresh_rounded, color: primaryNavy, size: 21),
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: _isLoading
-              ? const LinearProgressIndicator(minHeight: 2, color: primaryNavy, backgroundColor: borderLight)
-              : const Divider(height: 1, color: borderLight),
-        ),
-      ),
-      body: RefreshIndicator(
-        onRefresh: _fetchDetail,
-        color: primaryNavy,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
+            if (_isLoading)
+              const LinearProgressIndicator(
+                minHeight: 2,
+                color: AuthUiTokens.deepCobalt,
+                backgroundColor: borderLight,
+              ),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _fetchDetail,
+                color: AuthUiTokens.deepCobalt,
+                child: ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
             // Summary Navy Panel
             Container(
               padding: const EdgeInsets.all(18),
@@ -418,6 +402,10 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
                         );
                       }),
                     ),
+            ),
+          ],
+        ),
+      ),
             ),
           ],
         ),

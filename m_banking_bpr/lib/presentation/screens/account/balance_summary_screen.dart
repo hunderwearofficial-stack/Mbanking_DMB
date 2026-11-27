@@ -8,6 +8,7 @@ import '../../../core/utils/currency_formatter.dart';
 import '../../../data/repositories/account_repository.dart';
 import '../../blocs/auth/auth_cubit.dart';
 import '../../blocs/auth/auth_state.dart';
+import '../../widgets/auth_ui_kit.dart';
 import '../../widgets/empty_state_view.dart';
 
 class BalanceSummaryScreen extends StatefulWidget {
@@ -85,34 +86,19 @@ class _BalanceSummaryScreenState extends State<BalanceSummaryScreen> {
       totalSaldo = totalSaldo + (Money.tryParse(acc['saldo']) ?? Money.zero());
     }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF6F8FB),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: titleDark,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        title: Text(
-          'Informasi Saldo',
-          style: GoogleFonts.plusJakartaSans(fontSize: 17, fontWeight: FontWeight.w700),
-        ),
-        actions: [
-          IconButton(
-            tooltip: _hideBalances ? 'Tampilkan saldo' : 'Sembunyikan saldo',
-            onPressed: () => setState(() => _hideBalances = !_hideBalances),
-            icon: Icon(
-              _hideBalances ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-              color: primaryNavy,
-              size: 21,
+    return AuthSwooshCanvas(
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            DmbPageHeader(
+              title: 'Informasi Saldo',
+              subtitle: 'Ringkasan seluruh rekening tabungan',
+              actionIcon: _hideBalances ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+              onAction: () => setState(() => _hideBalances = !_hideBalances),
             ),
-          ),
-        ],
-        bottom: const PreferredSize(
-          preferredSize: Size.fromHeight(1),
-          child: Divider(height: 1, color: borderLight),
-        ),
-      ),
-      body: RefreshIndicator(
+            Expanded(
+              child: RefreshIndicator(
         onRefresh: _fetchAccounts,
         color: primaryNavy,
         child: _isLoading
@@ -272,6 +258,10 @@ class _BalanceSummaryScreenState extends State<BalanceSummaryScreen> {
                       ),
                     ],
                   ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

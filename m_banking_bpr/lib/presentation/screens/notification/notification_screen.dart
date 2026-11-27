@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
@@ -161,10 +162,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
               Row(
                 children: [
                   Container(
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
-                    child: Center(child: Icon(icon, color: iconColor, size: 22)),
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AuthUiTokens.softBlueBg,
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                    child: Center(child: Icon(icon, color: AuthUiTokens.deepCobalt, size: 21)),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -250,27 +254,28 @@ class _NotificationScreenState extends State<NotificationScreen> {
         bottom: false,
         child: Column(
           children: [
+            // Clean Light Header (matching Pusat Bantuan)
             Padding(
-              padding: const EdgeInsets.fromLTRB(18, 10, 18, 6),
+              padding: const EdgeInsets.fromLTRB(18, 10, 18, 10),
               child: Row(
                 children: [
                   if (!widget.isTab) ...[
                     Material(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
+                      shape: const CircleBorder(),
                       child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
+                        customBorder: const CircleBorder(),
                         onTap: () => Navigator.of(context).pop(),
                         child: Container(
                           width: 38,
                           height: 38,
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
+                            shape: BoxShape.circle,
                             border: Border.all(color: AuthUiTokens.inputBorder),
                           ),
                           child: const Icon(
-                            Icons.arrow_back_ios_new_rounded,
-                            size: 17,
+                            Icons.arrow_back_rounded,
+                            size: 19,
                             color: AuthUiTokens.deepCobalt,
                           ),
                         ),
@@ -279,14 +284,29 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     const SizedBox(width: 12),
                   ],
                   Expanded(
-                    child: Text(
-                      'Notifikasi',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 21,
-                        fontWeight: FontWeight.w800,
-                        color: AuthUiTokens.titleDark,
-                        letterSpacing: -0.4,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Notifikasi',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: AuthUiTokens.deepCobalt,
+                            letterSpacing: -0.35,
+                          ),
+                        ),
+                        Text(
+                          'Informasi transaksi & pengumuman Bank DMB',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w500,
+                            color: textMuted,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   if (hasUnread)
@@ -433,34 +453,28 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                   final message = n['message'] as String? ?? '';
                                   final createdAt = n['created_at'] as String? ?? '';
 
-                                  IconData icon = Icons.info_rounded;
-                                  Color iconBg = AuthUiTokens.softBlueBg;
-                                  Color iconColor = AuthUiTokens.royalBlue;
+                                  IconData icon = Icons.notifications_none_rounded;
+                                  const Color iconBg = AuthUiTokens.softBlueBg;
+                                  const Color iconColor = AuthUiTokens.deepCobalt;
 
                                   if (category == 'SECURITY') {
-                                    icon = Icons.shield_rounded;
-                                    iconBg = AppColors.dangerLight;
-                                    iconColor = dmbRed;
+                                    icon = Icons.verified_user_outlined;
                                   } else if (category == 'TRANSACTION') {
-                                    icon = Icons.check_circle_rounded;
-                                    iconBg = const Color(0xFFD1FAE5);
-                                    iconColor = const Color(0xFF059669);
+                                    icon = Icons.receipt_long_outlined;
                                   } else if (category == 'PROMO') {
-                                    icon = Icons.percent_rounded;
-                                    iconBg = const Color(0xFFE0F2FE);
-                                    iconColor = AuthUiTokens.deepCobalt;
+                                    icon = Icons.local_offer_outlined;
                                   }
 
                                   return Material(
-                                    color: isRead ? Colors.white : const Color(0xFFF4F8FF),
-                                    borderRadius: BorderRadius.circular(18),
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
                                     child: InkWell(
                                       onTap: () => _showNotificationDetail(n),
-                                      borderRadius: BorderRadius.circular(18),
+                                      borderRadius: BorderRadius.circular(16),
                                       child: Container(
-                                        padding: const EdgeInsets.all(15),
+                                        padding: const EdgeInsets.all(14),
                                         decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(18),
+                                          borderRadius: BorderRadius.circular(16),
                                           border: Border.all(
                                             color: isRead
                                                 ? const Color(0xFFE8EEF6)
@@ -468,9 +482,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                           ),
                                           boxShadow: [
                                             BoxShadow(
-                                              color: AuthUiTokens.royalBlue.withOpacity(0.05),
-                                              blurRadius: 12,
-                                              offset: const Offset(0, 4),
+                                              color: AuthUiTokens.deepCobalt.withValues(alpha: 0.03),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 3),
                                             ),
                                           ],
                                         ),
@@ -478,11 +492,11 @@ class _NotificationScreenState extends State<NotificationScreen> {
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
                                             Container(
-                                              width: 40,
-                                              height: 40,
+                                              width: 42,
+                                              height: 42,
                                               decoration: BoxDecoration(
                                                 color: iconBg,
-                                                shape: BoxShape.circle,
+                                                borderRadius: BorderRadius.circular(13),
                                               ),
                                               child: Center(
                                                 child: Icon(icon, color: iconColor, size: 20),

@@ -7,6 +7,7 @@ import '../../../core/money/money.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../data/repositories/account_repository.dart';
 import '../../widgets/app_validation_feedback.dart';
+import '../../widgets/auth_ui_kit.dart';
 import '../deposit/deposit_application_bottom_sheet.dart';
 import '../loan/loan_application_bottom_sheet.dart';
 import 'application_status_screen.dart';
@@ -178,23 +179,10 @@ class ApplyHubScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF6F8FB),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: _titleDark,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        automaticallyImplyLeading: false,
-        title: Text(
-          'Ajukan Produk',
-          style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w700),
-        ),
-        bottom: const PreferredSize(
-          preferredSize: Size.fromHeight(1),
-          child: Divider(height: 1, color: _border),
-        ),
-      ),
+    return _dmbApplyScaffold(
+      title: 'Ajukan Produk',
+      subtitle: 'Pilih produk simpanan atau pembiayaan Bank DMB',
+      showBack: false,
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
         children: [
@@ -309,9 +297,9 @@ class LoanCategoryApplyScreen extends StatelessWidget {
       ),
     ];
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF6F8FB),
-      appBar: _cleanAppBar('Ajukan Kredit'),
+    return _dmbApplyScaffold(
+      title: 'Ajukan Kredit',
+      subtitle: 'Pilih fasilitas pinjaman sesuai kebutuhan Anda',
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -373,9 +361,9 @@ class DepositTenorApplyScreen extends StatelessWidget {
       (months: 12, label: 'Deposito 12 Bulan', desc: 'Imbal hasil maksimal & dijamin LPS'),
     ];
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF6F8FB),
-      appBar: _cleanAppBar('Ajukan Deposito'),
+    return _dmbApplyScaffold(
+      title: 'Ajukan Deposito',
+      subtitle: 'Pilih jangka waktu simpanan berjangka',
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -489,9 +477,9 @@ class _SavingsApplicationScreenState extends State<SavingsApplicationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF6F8FB),
-      appBar: _cleanAppBar('Ajukan Tabungan'),
+    return _dmbApplyScaffold(
+      title: 'Ajukan Tabungan',
+      subtitle: 'Pembukaan rekening tabungan Bank DMB',
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -609,19 +597,25 @@ class _SavingsApplicationScreenState extends State<SavingsApplicationScreen> {
   }
 }
 
-AppBar _cleanAppBar(String title) {
-  return AppBar(
-    backgroundColor: Colors.white,
-    foregroundColor: AppColors.titleDark,
-    elevation: 0,
-    scrolledUnderElevation: 0,
-    title: Text(
-      title,
-      style: GoogleFonts.plusJakartaSans(fontSize: 17, fontWeight: FontWeight.w700),
-    ),
-    bottom: const PreferredSize(
-      preferredSize: Size.fromHeight(1),
-      child: Divider(height: 1, color: Color(0xFFE2E8F0)),
+Widget _dmbApplyScaffold({
+  required String title,
+  required String subtitle,
+  bool showBack = true,
+  required Widget body,
+}) {
+  return AuthSwooshCanvas(
+    child: SafeArea(
+      bottom: false,
+      child: Column(
+        children: [
+          DmbPageHeader(
+            title: title,
+            subtitle: subtitle,
+            showBack: showBack,
+          ),
+          Expanded(child: body),
+        ],
+      ),
     ),
   );
 }

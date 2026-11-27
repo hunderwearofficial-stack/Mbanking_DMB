@@ -155,8 +155,8 @@ class _HomeScreenState extends State<HomeScreen> {
       child: AnnotatedRegion<SystemUiOverlayStyle>(
         value: const SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
-          statusBarIconBrightness: Brightness.dark,
-          statusBarBrightness: Brightness.light,
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
           systemNavigationBarColor: Colors.white,
           systemNavigationBarIconBrightness: Brightness.dark,
         ),
@@ -230,54 +230,55 @@ class _HomeScreenState extends State<HomeScreen> {
 
         return Stack(
           children: [
-            // Soft landmark & bright sky backdrop in top-right (matches myDMB Beranda mockup)
+            // Deep Bank DMB Navy Architectural Header (blended with real Bank DMB building)
             Positioned(
               top: 0,
               left: 0,
               right: 0,
-              height: 295,
+              height: 255,
               child: IgnorePointer(
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Opacity(
-                      opacity: 0.38,
-                      child: Image.asset(
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    bottom: Radius.circular(28),
+                  ),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.asset(
                         'assets/images/home_header_landmark.jpg',
                         fit: BoxFit.cover,
                         alignment: Alignment.topRight,
                       ),
-                    ),
-                    // Soft left-only fade into #F4F7FB so greeting text stays crisp and readable
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                          colors: [
-                            canvasBg,
-                            canvasBg.withOpacity(0.92),
-                            canvasBg.withOpacity(0.20),
-                          ],
-                          stops: const [0.0, 0.56, 0.88],
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                            colors: [
+                              deepCobalt.withValues(alpha: 0.96),
+                              deepCobalt.withValues(alpha: 0.85),
+                              royalBlue.withValues(alpha: 0.36),
+                            ],
+                            stops: const [0.0, 0.48, 1.0],
+                          ),
                         ),
                       ),
-                    ),
-                    // Smooth bottom edge fade into #F4F7FB
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            canvasBg.withOpacity(0.0),
-                            canvasBg,
-                          ],
-                          stops: const [0.76, 1.0],
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              deepCobalt.withValues(alpha: 0.72),
+                              Colors.transparent,
+                              deepCobalt.withValues(alpha: 0.55),
+                            ],
+                            stops: const [0.0, 0.55, 1.0],
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -451,7 +452,7 @@ class _HomeScreenState extends State<HomeScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const MyDmbBrandLogo(height: 38),
+            const MyDmbBrandLogo(height: 38, onDark: true),
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -492,9 +493,9 @@ class _HomeScreenState extends State<HomeScreen> {
         Text(
           AppContent.text('home.greeting_title'),
           style: GoogleFonts.plusJakartaSans(
-            fontSize: 14,
+            fontSize: 13.5,
             fontWeight: FontWeight.w500,
-            color: const Color(0xFF475569),
+            color: Colors.white.withValues(alpha: 0.85),
           ),
         ),
         const SizedBox(height: 2),
@@ -508,7 +509,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 21,
                   fontWeight: FontWeight.w800,
-                  color: titleDark,
+                  color: Colors.white,
                   letterSpacing: -0.4,
                 ),
               ),
@@ -516,7 +517,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(width: 6),
             const Icon(
               Icons.verified_rounded,
-              color: Color(0xFF00B4D8),
+              color: Color(0xFF00E5FF),
               size: 18,
             ),
           ],
@@ -530,7 +531,7 @@ class _HomeScreenState extends State<HomeScreen> {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 12.5,
               fontWeight: FontWeight.w600,
-              color: const Color(0xFF334155),
+              color: Colors.white.withValues(alpha: 0.88),
             ),
           ),
         ],
@@ -543,7 +544,7 @@ class _HomeScreenState extends State<HomeScreen> {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 11.5,
               fontWeight: FontWeight.w500,
-              color: const Color(0xFF334155),
+              color: Colors.white.withValues(alpha: 0.78),
               height: 1.35,
             ),
           ),
@@ -561,7 +562,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: Colors.transparent,
+        color: Colors.white.withValues(alpha: 0.14),
         shape: const CircleBorder(),
         child: InkWell(
           customBorder: const CircleBorder(),
@@ -573,7 +574,7 @@ class _HomeScreenState extends State<HomeScreen> {
               alignment: Alignment.center,
               clipBehavior: Clip.none,
               children: [
-                Icon(icon, color: deepCobalt, size: 23),
+                Icon(icon, color: Colors.white, size: 21),
                 if (badgeCount > 0)
                   Positioned(
                     top: 3,
@@ -856,7 +857,7 @@ class _HomeScreenState extends State<HomeScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          height: 126,
+          height: 94,
           child: PageView.builder(
             controller: _promoPageController,
             itemCount: effectiveBanners.length,
@@ -872,16 +873,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTap: item.onTap,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: hasRemoteImage ? deepCobalt : const Color(0xFFEAF3FE),
+                    color: hasRemoteImage ? deepCobalt : Colors.white,
                     borderRadius: BorderRadius.circular(18),
                     border: hasRemoteImage
                         ? null
-                        : Border.all(color: const Color(0xFFD6E6FA)),
+                        : Border.all(color: const Color(0xFFE8EEF6)),
                     boxShadow: [
                       BoxShadow(
-                        color: royalBlue.withOpacity(0.06),
-                        blurRadius: 14,
-                        offset: const Offset(0, 5),
+                        color: royalBlue.withValues(alpha: 0.05),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
@@ -902,58 +903,76 @@ class _HomeScreenState extends State<HomeScreen> {
                                 end: Alignment.centerRight,
                                 colors: [
                                   deepCobalt,
-                                  deepCobalt.withOpacity(0.85),
-                                  deepCobalt.withOpacity(0.0),
+                                  deepCobalt.withValues(alpha: 0.88),
+                                  deepCobalt.withValues(alpha: 0.15),
                                 ],
-                                stops: const [0.0, 0.44, 0.70],
+                                stops: const [0.0, 0.52, 1.0],
                               ),
                             ),
                           ),
                         ] else
-                          const DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [Color(0xFFEAF3FE), Color(0xFFDCEBFE)],
-                              ),
+                          Positioned.fill(
+                            child: CustomPaint(
+                              painter: _PromoCardAccentPainter(),
                             ),
                           ),
                         Padding(
-                          padding: const EdgeInsets.fromLTRB(18, 16, 128, 16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          child: Row(
                             children: [
-                              Text(
-                                item.title.trim().isNotEmpty
-                                    ? item.title
-                                    : 'Wujudkan Rencana Finansial Anda bersama myDMB',
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 14.5,
-                                  fontWeight: FontWeight.w800,
-                                  color: hasRemoteImage ? Colors.white : titleDark,
-                                  height: 1.32,
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      item.title.trim().isNotEmpty
+                                          ? item.title
+                                          : 'DMB Mobile',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w800,
+                                        color: hasRemoteImage ? Colors.white : titleDark,
+                                      ),
+                                    ),
+                                    if (item.subtitle.trim().isNotEmpty) ...[
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        item.subtitle,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w500,
+                                          color: hasRemoteImage
+                                              ? Colors.white.withValues(alpha: 0.85)
+                                              : AuthUiTokens.textMuted,
+                                          height: 1.3,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               ),
+                              const SizedBox(width: 10),
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
                                     'Pelajari Selengkapnya',
                                     style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 12.5,
+                                      fontSize: 11.5,
                                       fontWeight: FontWeight.w700,
                                       color: hasRemoteImage ? Colors.white : royalBlue,
                                     ),
                                   ),
-                                  const SizedBox(width: 6),
+                                  const SizedBox(width: 3),
                                   Icon(
-                                    Icons.arrow_forward_rounded,
+                                    Icons.chevron_right_rounded,
                                     color: hasRemoteImage ? Colors.white : royalBlue,
-                                    size: 15,
+                                    size: 16,
                                   ),
                                 ],
                               ),
@@ -1182,8 +1201,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Expanded(
                 child: _buildNavItem(
-                  icon: Icons.home_outlined,
-                  activeIcon: Icons.home_rounded,
+                  type: _BottomNavType.home,
                   label: 'Beranda',
                   isSelected: _currentNavIndex == 0,
                   onTap: () => setState(() => _currentNavIndex = 0),
@@ -1191,8 +1209,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               Expanded(
                 child: _buildNavItem(
-                  icon: Icons.add_circle_outline_rounded,
-                  activeIcon: Icons.add_circle_rounded,
+                  type: _BottomNavType.apply,
                   label: 'Ajukan',
                   isSelected: false,
                   onTap: () => showApplyBottomSheet(context),
@@ -1200,8 +1217,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               Expanded(
                 child: _buildNavItem(
-                  icon: Icons.apartment_outlined,
-                  activeIcon: Icons.apartment_rounded,
+                  type: _BottomNavType.bank,
                   label: 'DMB',
                   isSelected: _currentNavIndex == 2,
                   onTap: () => setState(() => _currentNavIndex = 2),
@@ -1209,8 +1225,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               Expanded(
                 child: _buildNavItem(
-                  icon: Icons.person_outline_rounded,
-                  activeIcon: Icons.person_rounded,
+                  type: _BottomNavType.account,
                   label: 'Akun',
                   isSelected: _currentNavIndex == 3,
                   onTap: () => setState(() => _currentNavIndex = 3),
@@ -1224,13 +1239,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildNavItem({
-    required IconData icon,
-    IconData? activeIcon,
+    required _BottomNavType type,
     required String label,
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    final color = isSelected ? deepCobalt : const Color(0xFF94A3B8);
     return InkWell(
       onTap: onTap,
       child: Column(
@@ -1238,15 +1251,22 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
             decoration: BoxDecoration(
               color: isSelected ? AuthUiTokens.softBlueBg : Colors.transparent,
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(
-              isSelected ? (activeIcon ?? icon) : icon,
-              color: color,
-              size: 22,
+            child: SizedBox(
+              width: 22,
+              height: 22,
+              child: CustomPaint(
+                painter: _BottomNavIconPainter(
+                  type: type,
+                  isSelected: isSelected,
+                  activeColor: deepCobalt,
+                  inactiveColor: const Color(0xFF64748B),
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 3),
@@ -1264,6 +1284,100 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+}
+
+enum _BottomNavType { home, apply, bank, account }
+
+class _BottomNavIconPainter extends CustomPainter {
+  const _BottomNavIconPainter({
+    required this.type,
+    required this.isSelected,
+    required this.activeColor,
+    required this.inactiveColor,
+  });
+
+  final _BottomNavType type;
+  final bool isSelected;
+  final Color activeColor;
+  final Color inactiveColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    final fill = Paint()
+      ..color = const Color(0xFF7DD3FC).withValues(alpha: isSelected ? 0.78 : 0.25)
+      ..style = PaintingStyle.fill;
+
+    final stroke = Paint()
+      ..color = isSelected ? activeColor : inactiveColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = isSelected ? 1.85 : 1.6
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    switch (type) {
+      case _BottomNavType.home:
+        final house = Path()
+          ..moveTo(w * 0.14, h * 0.44)
+          ..lineTo(w * 0.50, h * 0.14)
+          ..lineTo(w * 0.86, h * 0.44)
+          ..lineTo(w * 0.86, h * 0.84)
+          ..quadraticBezierTo(w * 0.86, h * 0.88, w * 0.80, h * 0.88)
+          ..lineTo(w * 0.20, h * 0.88)
+          ..quadraticBezierTo(w * 0.14, h * 0.88, w * 0.14, h * 0.84)
+          ..close();
+        canvas.drawPath(house, fill);
+        canvas.drawPath(house, stroke);
+        canvas.drawLine(Offset(w * 0.42, h * 0.88), Offset(w * 0.42, h * 0.62), stroke);
+        canvas.drawLine(Offset(w * 0.42, h * 0.62), Offset(w * 0.58, h * 0.62), stroke);
+        canvas.drawLine(Offset(w * 0.58, h * 0.62), Offset(w * 0.58, h * 0.88), stroke);
+        break;
+
+      case _BottomNavType.apply:
+        final box = RRect.fromRectAndRadius(
+          Rect.fromLTWH(w * 0.14, h * 0.14, w * 0.72, h * 0.72),
+          const Radius.circular(6),
+        );
+        canvas.drawRRect(box, fill);
+        canvas.drawRRect(box, stroke);
+        canvas.drawLine(Offset(w * 0.50, h * 0.34), Offset(w * 0.50, h * 0.66), stroke);
+        canvas.drawLine(Offset(w * 0.34, h * 0.50), Offset(w * 0.66, h * 0.50), stroke);
+        break;
+
+      case _BottomNavType.bank:
+        final roof = Path()
+          ..moveTo(w * 0.12, h * 0.38)
+          ..lineTo(w * 0.50, h * 0.14)
+          ..lineTo(w * 0.88, h * 0.38)
+          ..close();
+        canvas.drawPath(roof, fill);
+        canvas.drawPath(roof, stroke);
+        canvas.drawRect(Rect.fromLTWH(w * 0.22, h * 0.46, w * 0.56, h * 0.32), fill);
+        canvas.drawLine(Offset(w * 0.26, h * 0.42), Offset(w * 0.26, h * 0.78), stroke);
+        canvas.drawLine(Offset(w * 0.50, h * 0.42), Offset(w * 0.50, h * 0.78), stroke);
+        canvas.drawLine(Offset(w * 0.74, h * 0.42), Offset(w * 0.74, h * 0.78), stroke);
+        canvas.drawLine(Offset(w * 0.14, h * 0.84), Offset(w * 0.86, h * 0.84), stroke);
+        break;
+
+      case _BottomNavType.account:
+        canvas.drawCircle(Offset(w * 0.50, h * 0.32), w * 0.16, fill);
+        canvas.drawCircle(Offset(w * 0.50, h * 0.32), w * 0.16, stroke);
+        final body = Path()
+          ..moveTo(w * 0.18, h * 0.84)
+          ..quadraticBezierTo(w * 0.18, h * 0.58, w * 0.50, h * 0.58)
+          ..quadraticBezierTo(w * 0.82, h * 0.58, w * 0.82, h * 0.84)
+          ..close();
+        canvas.drawPath(body, fill);
+        canvas.drawPath(body, stroke);
+        break;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _BottomNavIconPainter oldDelegate) =>
+      oldDelegate.type != type || oldDelegate.isSelected != isSelected;
 }
 
 class _BannerSlot {
@@ -1291,4 +1405,34 @@ class _PromoBannerData {
     required this.subtitle,
     required this.onTap,
   });
+}
+
+class _PromoCardAccentPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final p1 = Paint()
+      ..color = const Color(0xFF0550A6).withValues(alpha: 0.08);
+    final path1 = Path()
+      ..moveTo(w * 0.72, 0)
+      ..lineTo(w, 0)
+      ..lineTo(w, h)
+      ..lineTo(w * 0.62, h)
+      ..close();
+    canvas.drawPath(path1, p1);
+
+    final p2 = Paint()
+      ..color = const Color(0xFF033172).withValues(alpha: 0.06);
+    final path2 = Path()
+      ..moveTo(w * 0.84, 0)
+      ..lineTo(w, 0)
+      ..lineTo(w, h)
+      ..lineTo(w * 0.74, h)
+      ..close();
+    canvas.drawPath(path2, p2);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

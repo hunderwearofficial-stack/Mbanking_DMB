@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../blocs/auth/auth_cubit.dart';
@@ -270,58 +271,9 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
         bottom: false,
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 10, 18, 8),
-              child: Row(
-                children: [
-                  Material(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () => Navigator.of(context).pop(),
-                      child: Container(
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AuthUiTokens.inputBorder),
-                        ),
-                        child: const Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          size: 17,
-                          color: AuthUiTokens.deepCobalt,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Pengaturan Keamanan',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 21,
-                            fontWeight: FontWeight.w800,
-                            color: titleDark,
-                            letterSpacing: -0.4,
-                          ),
-                        ),
-                        Text(
-                          'Perlindungan Akun & Privasi',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: textMuted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+            const DmbPageHeader(
+              title: 'Pengaturan Keamanan',
+              subtitle: 'Perlindungan Akun & Privasi',
             ),
             Expanded(
               child: SingleChildScrollView(
@@ -396,10 +348,10 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                     leading: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF0FDF4),
+                        color: AuthUiTokens.softBlueBg,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(Icons.dialpad_rounded, color: dmbGreen, size: 22),
+                      child: const Icon(Icons.dialpad_rounded, color: AuthUiTokens.deepCobalt, size: 22),
                     ),
                     title: Text(
                       'Ganti PIN 6 Digit',

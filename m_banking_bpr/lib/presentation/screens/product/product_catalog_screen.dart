@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_colors.dart';
@@ -185,7 +186,7 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> with Single
                             style: GoogleFonts.plusJakartaSans(
                               fontSize: 10.5,
                               fontWeight: FontWeight.w700,
-                              color: isKredit ? royalBlue : dmbGreen,
+                              color: AuthUiTokens.deepCobalt,
                             ),
                           ),
                         ),
@@ -350,68 +351,12 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> with Single
         bottom: false,
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 10, 18, 12),
-              child: Row(
-                children: [
-                  if (!widget.isTab) ...[
-                    Material(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: () => Navigator.of(context).pop(),
-                        child: Container(
-                          width: 38,
-                          height: 38,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AuthUiTokens.inputBorder),
-                          ),
-                          child: const Icon(
-                            Icons.arrow_back_ios_new_rounded,
-                            size: 17,
-                            color: AuthUiTokens.deepCobalt,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                  ],
-                  Expanded(
-                    child: Text(
-                      widget.isTab ? 'Produk Saya' : 'Katalog Produk',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 21,
-                        fontWeight: FontWeight.w800,
-                        color: AuthUiTokens.titleDark,
-                        letterSpacing: -0.4,
-                      ),
-                    ),
-                  ),
-                  Material(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: _loadProducts,
-                      child: Container(
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AuthUiTokens.inputBorder),
-                        ),
-                        child: const Icon(
-                          Icons.refresh_rounded,
-                          size: 19,
-                          color: AuthUiTokens.deepCobalt,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+            DmbPageHeader(
+              title: widget.isTab ? 'Produk Saya' : 'Katalog Produk',
+              subtitle: 'Tabungan, Deposito Berjangka & Pembiayaan DMB',
+              showBack: !widget.isTab,
+              actionIcon: Icons.refresh_rounded,
+              onAction: _loadProducts,
             ),
 
             // 3-Segment Control: Tabungan | Deposit | Kredit

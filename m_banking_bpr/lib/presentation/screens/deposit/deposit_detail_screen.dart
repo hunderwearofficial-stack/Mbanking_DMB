@@ -140,83 +140,16 @@ class _DepositDetailScreenState extends State<DepositDetailScreen> {
 
     return AuthSwooshCanvas(
       child: SafeArea(
+        bottom: false,
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 10, 18, 8),
-              child: Row(
-                children: [
-                  Material(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () => Navigator.of(context).pop(),
-                      child: Container(
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AuthUiTokens.inputBorder),
-                        ),
-                        child: const Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          size: 17,
-                          color: deepCobalt,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Detail Deposito',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            color: titleDark,
-                            letterSpacing: -0.3,
-                          ),
-                        ),
-                        Text(
-                          bilyet != '-' && bilyet.isNotEmpty
-                              ? 'Bilyet $bilyet'
-                              : accNo,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: textMuted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Material(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: _fetchDetail,
-                      child: Container(
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AuthUiTokens.inputBorder),
-                        ),
-                        child: const Icon(
-                          Icons.refresh_rounded,
-                          size: 19,
-                          color: deepCobalt,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+            DmbPageHeader(
+              title: 'Detail Deposito',
+              subtitle: bilyet != '-' && bilyet.isNotEmpty
+                  ? 'Bilyet $bilyet'
+                  : accNo,
+              actionIcon: Icons.refresh_rounded,
+              onAction: _fetchDetail,
             ),
             Expanded(
               child: _isLoading

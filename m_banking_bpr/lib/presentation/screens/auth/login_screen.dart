@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -30,11 +29,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
-  final PageController _heroPageController = PageController();
-  Timer? _heroTimer;
-  int _heroSlideIndex = 0;
   bool _obscurePassword = true;
   bool _rememberMe = false; // opt-in: identifier is only kept on this device when the customer asks (audit MA-10)
+  bool _lastLoginWasBiometric = false;
   BiometricCapability? _biometricCapability;
 
   static const Color dmbGreen = AppColors.dmbGreen;
@@ -45,20 +42,6 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     _loadSavedUsername();
-    _startHeroAutoSlide();
-  }
-
-  void _startHeroAutoSlide() {
-    _heroTimer?.cancel();
-    _heroTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      if (!mounted || !_heroPageController.hasClients) return;
-      final next = (_heroSlideIndex + 1) % 3;
-      _heroPageController.animateToPage(
-        next,
-        duration: const Duration(milliseconds: 450),
-        curve: Curves.easeInOut,
-      );
-    });
   }
 
   Future<void> _loadSavedUsername() async {
@@ -134,6 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (result.success) {
       if (mounted) {
+        _lastLoginWasBiometric = true;
         context.read<AuthCubit>().loginWithBiometric();
       }
     } else if (result.errorMessage != null) {
@@ -143,8 +127,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
-    _heroTimer?.cancel();
-    _heroPageController.dispose();
     _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -164,6 +146,7 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    _lastLoginWasBiometric = false;
     _persistRememberMePreference(username);
 
     context.read<AuthCubit>().login(
@@ -184,9 +167,9 @@ class _LoginScreenState extends State<LoginScreen> {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        statusBarBrightness: Brightness.light,
-        systemNavigationBarColor: Colors.white,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+        systemNavigationBarColor: AuthUiTokens.canvas,
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
       child: BlocConsumer<AuthCubit, AuthState>(
@@ -211,7 +194,16 @@ class _LoginScreenState extends State<LoginScreen> {
               Navigator.of(context).push(
                 PageRouteBuilder(
                   pageBuilder: (termsCtx, __, ___) => TermsConditionsScreen(
-                    onAccepted: () => Navigator.of(termsCtx).pop(),
+                    onAccepted: () {
+                      Navigator.of(termsCtx).pop();
+                      if (!mounted) return;
+                      if (_lastLoginWasBiometric) {
+                        context.read<AuthCubit>().loginWithBiometric();
+                      } else if (_usernameController.text.trim().isNotEmpty &&
+                          _passwordController.text.trim().isNotEmpty) {
+                        _onLogin();
+                      }
+                    },
                   ),
                   transitionsBuilder: (_, animation, __, child) =>
                       FadeTransition(opacity: animation, child: child),
@@ -225,469 +217,606 @@ class _LoginScreenState extends State<LoginScreen> {
         },
         builder: (context, state) {
           final isLoading = state is AuthLoading;
-          final welcomeTitle = AppContent.text('login.title');
-          final welcomeSubtitle = AppContent.text('login.subtitle');
           final announcement = AppContent.text('app.announcement').trim();
-          final heroSlides = [
-            (
-              badge: AppContent.text('login.hero_slide1_badge'),
-              title: AppContent.text('login.hero_slide1_title'),
-            ),
-            (
-              badge: AppContent.text('login.hero_slide2_badge'),
-              title: AppContent.text('login.hero_slide2_title'),
-            ),
-            (
-              badge: AppContent.text('login.hero_slide3_badge'),
-              title: AppContent.text('login.hero_slide3_title'),
-            ),
-          ];
 
-          return AuthSwooshCanvas(
-            child: SafeArea(
-              bottom: false,
-              child: SingleChildScrollView(
-                physics: const ClampingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(18, 10, 18, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Clean Top Brand Row (matches Beranda header)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: const [
-                          MyDmbBrandLogo(height: 50),
-                          SmartSecurityCapsule(),
-                        ],
+          return Scaffold(
+            backgroundColor: AuthUiTokens.deepCobalt,
+            body: Stack(
+              children: [
+                // Top Full-Bleed Navy Hero with Real Bank DMB Building on Right
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: 315,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.asset(
+                        'assets/images/home_header_landmark.jpg',
+                        fit: BoxFit.cover,
+                        alignment: Alignment.topRight,
                       ),
-                    ),
-
-                    const SizedBox(height: 18),
-
-                    // Clean open editorial headline (no boxy card, no gradient)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(
-                            height: 68,
-                            child: PageView.builder(
-                              controller: _heroPageController,
-                              itemCount: heroSlides.length,
-                              onPageChanged: (idx) {
-                                if (mounted) {
-                                  setState(() => _heroSlideIndex = idx);
-                                }
-                              },
-                              itemBuilder: (_, idx) {
-                                final slide = heroSlides[idx];
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      slide.badge.toUpperCase(),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w800,
-                                        color: AuthUiTokens.royalBlue,
-                                        letterSpacing: 0.9,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      slide.title,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 19,
-                                        fontWeight: FontWeight.w800,
-                                        color: AuthUiTokens.titleDark,
-                                        height: 1.24,
-                                        letterSpacing: -0.3,
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              },
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: List.generate(heroSlides.length, (i) {
-                              final active = i == _heroSlideIndex;
-                              return AnimatedContainer(
-                                duration: const Duration(milliseconds: 240),
-                                margin: const EdgeInsets.only(right: 6),
-                                height: 5,
-                                width: active ? 20 : 6,
-                                decoration: BoxDecoration(
-                                  color: active
-                                      ? AuthUiTokens.deepCobalt
-                                      : const Color(0xFFCBD5E1),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              );
-                            }),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    if (announcement.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 14),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: AuthUiTokens.softBlueBg,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: AuthUiTokens.softBlueBorder),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.campaign_rounded,
-                                color: AuthUiTokens.royalBlue,
-                                size: 18,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  announcement,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: AuthUiTokens.titleDark,
-                                    height: 1.35,
-                                  ),
-                                ),
-                              ),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                            colors: [
+                              AuthUiTokens.deepCobalt.withValues(alpha: 0.96),
+                              AuthUiTokens.deepCobalt.withValues(alpha: 0.84),
+                              AuthUiTokens.royalBlue.withValues(alpha: 0.35),
                             ],
+                            stops: const [0.0, 0.48, 1.0],
                           ),
                         ),
                       ),
-
-                    const SizedBox(height: 16),
-
-                    // White Login Card
-                    AuthSurfaceCard(
-                      padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            welcomeTitle,
-                            style: const TextStyle(
-                              fontSize: 21,
-                              fontWeight: FontWeight.w800,
-                              color: AuthUiTokens.titleDark,
-                              letterSpacing: -0.35,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            welcomeSubtitle,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w400,
-                              color: AuthUiTokens.textMuted,
-                              height: 1.4,
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-
-                          const Text(
-                            'No. HP atau Username',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: AuthUiTokens.titleDark,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: AuthUiTokens.inputFill,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: AuthUiTokens.inputBorder),
-                            ),
-                            child: TextField(
-                              controller: _usernameController,
-                              keyboardType: TextInputType.text,
-                              autocorrect: false,
-                              textInputAction: TextInputAction.next,
-                              style: const TextStyle(
-                                fontSize: 14.5,
-                                fontWeight: FontWeight.w600,
-                                color: AuthUiTokens.titleDark,
-                              ),
-                              decoration: const InputDecoration(
-                                hintText: 'Contoh: 0812 3456 7890',
-                                hintStyle: TextStyle(
-                                  color: Color(0xFF94A3B8),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w400,
-                                ),
-                                prefixIcon: Icon(
-                                  Icons.person_outline_rounded,
-                                  color: AuthUiTokens.royalBlue,
-                                  size: 20,
-                                ),
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 15),
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(height: 16),
-
-                          const Text(
-                            'Password',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: AuthUiTokens.titleDark,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: AuthUiTokens.inputFill,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: AuthUiTokens.inputBorder),
-                            ),
-                            padding: const EdgeInsets.only(right: 6),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: TextField(
-                                    controller: _passwordController,
-                                    obscureText: _obscurePassword,
-                                    textInputAction: TextInputAction.done,
-                                    onSubmitted: (_) {
-                                      if (!isLoading) _onLogin();
-                                    },
-                                    style: const TextStyle(
-                                      fontSize: 14.5,
-                                      fontWeight: FontWeight.w600,
-                                      color: AuthUiTokens.titleDark,
-                                    ),
-                                    decoration: const InputDecoration(
-                                      hintText: 'Masukkan kata sandi',
-                                      hintStyle: TextStyle(
-                                        color: Color(0xFF94A3B8),
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w400,
-                                      ),
-                                      prefixIcon: Icon(
-                                        Icons.lock_outline_rounded,
-                                        color: AuthUiTokens.royalBlue,
-                                        size: 20,
-                                      ),
-                                      border: InputBorder.none,
-                                      enabledBorder: InputBorder.none,
-                                      focusedBorder: InputBorder.none,
-                                      contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 15),
-                                    ),
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: Icon(
-                                    _obscurePassword
-                                        ? Icons.visibility_off_outlined
-                                        : Icons.visibility_outlined,
-                                    color: AuthUiTokens.textMuted,
-                                    size: 20,
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _obscurePassword = !_obscurePassword;
-                                    });
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          const SizedBox(height: 12),
-
-                          InkWell(
-                            onTap: _onToggleRememberMe,
-                            borderRadius: BorderRadius.circular(8),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    width: 18,
-                                    height: 18,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: _rememberMe
-                                            ? AuthUiTokens.royalBlue
-                                            : const Color(0xFF94A3B8),
-                                        width: 1.5,
-                                      ),
-                                      color: _rememberMe
-                                          ? AuthUiTokens.royalBlue
-                                          : Colors.transparent,
-                                    ),
-                                    child: _rememberMe
-                                        ? const Icon(Icons.check, size: 11, color: Colors.white)
-                                        : null,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Text(
-                                    'Ingat Saya',
-                                    style: TextStyle(
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w500,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(height: 18),
-
-                          Row(
-                            children: [
-                              Expanded(
-                                child: AuthGradientButton(
-                                  label: 'Masuk',
-                                  onPressed: isLoading ? null : _onLogin,
-                                  isLoading: isLoading,
-                                ),
-                              ),
-                              if (showBiometricButton) ...[
-                                const SizedBox(width: 10),
-                                Container(
-                                  height: 52,
-                                  width: 54,
-                                  decoration: BoxDecoration(
-                                    color: AuthUiTokens.softBlueBg,
-                                    borderRadius: BorderRadius.circular(18),
-                                    border: Border.all(color: AuthUiTokens.softBlueBorder),
-                                  ),
-                                  child: Material(
-                                    color: Colors.transparent,
-                                    borderRadius: BorderRadius.circular(18),
-                                    child: InkWell(
-                                      borderRadius: BorderRadius.circular(18),
-                                      onTap: _onBiometricLogin,
-                                      child: const Center(
-                                        child: Icon(
-                                          Icons.fingerprint_rounded,
-                                          color: AuthUiTokens.royalBlue,
-                                          size: 26,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              AuthUiTokens.deepCobalt.withValues(alpha: 0.72),
+                              Colors.transparent,
+                              AuthUiTokens.deepCobalt.withValues(alpha: 0.45),
                             ],
+                            stops: const [0.0, 0.55, 1.0],
                           ),
-
-                          const SizedBox(height: 18),
-
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              InkWell(
-                                onTap: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
-                                  );
-                                },
-                                borderRadius: BorderRadius.circular(6),
-                                child: const Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-                                  child: Text(
-                                    'Lupa password?',
-                                    style: TextStyle(
-                                      fontSize: 13.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: AuthUiTokens.royalBlue,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              InkWell(
-                                onTap: () {
-                                  if (!TermsConsentStore.instance.hasAccepted) {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (termsCtx) => TermsConditionsScreen(
-                                          onAccepted: () {
-                                            Navigator.of(termsCtx).pushReplacement(
-                                              MaterialPageRoute(
-                                                builder: (_) => const ActivationScreen(),
-                                              ),
-                                            );
-                                          },
-                                        ),
-                                      ),
-                                    );
-                                    return;
-                                  }
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const ActivationScreen()),
-                                  );
-                                },
-                                borderRadius: BorderRadius.circular(6),
-                                child: const Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-                                  child: Text(
-                                    'Daftar',
-                                    style: TextStyle(
-                                      fontSize: 13.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: AuthUiTokens.royalBlue,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 22),
-
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      child: Text(
-                        AppContent.text('app.footer'),
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w500,
-                          color: AuthUiTokens.textMuted,
-                          height: 1.4,
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+
+                // Main Scrollable Body: Hero Content + White Bottom Sheet Form
+                SafeArea(
+                  bottom: false,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        physics: const ClampingScrollPhysics(),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                          child: IntrinsicHeight(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                // Top Brand Bar + Hero Headline over Real Bank DMB Building
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(22, 10, 22, 24),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Image.asset(
+                                            'assets/images/mydmb_logo_official.png',
+                                            height: 44,
+                                            fit: BoxFit.contain,
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 6,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white.withValues(alpha: 0.14),
+                                              borderRadius: BorderRadius.circular(20),
+                                              border: Border.all(
+                                                color: Colors.white.withValues(alpha: 0.28),
+                                              ),
+                                            ),
+                                            child: const Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  Icons.verified_user_outlined,
+                                                  size: 14,
+                                                  color: Colors.white,
+                                                ),
+                                                SizedBox(width: 6),
+                                                Text(
+                                                  'Aman & Terpercaya',
+                                                  style: TextStyle(
+                                                    fontSize: 11.5,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+
+                                      const SizedBox(height: 28),
+
+                                      const Text(
+                                        'Selamat Datang di\nDMB Mobile',
+                                        style: TextStyle(
+                                          fontSize: 27,
+                                          fontWeight: FontWeight.w800,
+                                          color: Colors.white,
+                                          height: 1.18,
+                                          letterSpacing: -0.5,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Transaksi mudah, aman,\ndi mana saja dan kapan saja.',
+                                        style: TextStyle(
+                                          fontSize: 13.5,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.white.withValues(alpha: 0.88),
+                                          height: 1.4,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                // Clean White Bottom Sheet Form Card
+                                Expanded(
+                                  child: Container(
+                                    decoration: const BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.vertical(
+                                        top: Radius.circular(28),
+                                      ),
+                                    ),
+                                    child: Stack(
+                                      children: [
+                                        Positioned(
+                                          left: 0,
+                                          right: 0,
+                                          bottom: 0,
+                                          height: 76,
+                                          child: IgnorePointer(
+                                            child: CustomPaint(
+                                              painter: _LoginBottomWavePainter(),
+                                            ),
+                                          ),
+                                        ),
+
+                                        Padding(
+                                          padding: const EdgeInsets.fromLTRB(22, 26, 22, 28),
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                                            children: [
+                                              if (announcement.isNotEmpty) ...[
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(
+                                                    horizontal: 14,
+                                                    vertical: 10,
+                                                  ),
+                                                  margin: const EdgeInsets.only(bottom: 18),
+                                                  decoration: BoxDecoration(
+                                                    color: AuthUiTokens.softBlueBg,
+                                                    borderRadius: BorderRadius.circular(14),
+                                                    border: Border.all(
+                                                      color: AuthUiTokens.softBlueBorder,
+                                                    ),
+                                                  ),
+                                                  child: Row(
+                                                    children: [
+                                                      const Icon(
+                                                        Icons.campaign_rounded,
+                                                        color: AuthUiTokens.royalBlue,
+                                                        size: 18,
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      Expanded(
+                                                        child: Text(
+                                                          announcement,
+                                                          style: const TextStyle(
+                                                            fontSize: 12,
+                                                            fontWeight: FontWeight.w600,
+                                                            color: AuthUiTokens.titleDark,
+                                                            height: 1.35,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+
+                                              const Text(
+                                                'No. HP atau Username',
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: AuthUiTokens.titleDark,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Container(
+                                                decoration: BoxDecoration(
+                                                  color: AuthUiTokens.inputFill,
+                                                  borderRadius: BorderRadius.circular(14),
+                                                  border: Border.all(color: AuthUiTokens.inputBorder),
+                                                ),
+                                                child: TextField(
+                                                  controller: _usernameController,
+                                                  keyboardType: TextInputType.text,
+                                                  autocorrect: false,
+                                                  textInputAction: TextInputAction.next,
+                                                  style: const TextStyle(
+                                                    fontSize: 14.5,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: AuthUiTokens.titleDark,
+                                                  ),
+                                                  decoration: const InputDecoration(
+                                                    hintText: 'Contoh: 0812 3456 7890',
+                                                    hintStyle: TextStyle(
+                                                      color: Color(0xFF94A3B8),
+                                                      fontSize: 14,
+                                                      fontWeight: FontWeight.w400,
+                                                    ),
+                                                    prefixIcon: Icon(
+                                                      Icons.person_outline_rounded,
+                                                      color: AuthUiTokens.royalBlue,
+                                                      size: 20,
+                                                    ),
+                                                    border: InputBorder.none,
+                                                    enabledBorder: InputBorder.none,
+                                                    focusedBorder: InputBorder.none,
+                                                    contentPadding: EdgeInsets.symmetric(
+                                                      horizontal: 14,
+                                                      vertical: 15,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+
+                                              const SizedBox(height: 16),
+
+                                              const Text(
+                                                'Kata Sandi',
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: AuthUiTokens.titleDark,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Container(
+                                                decoration: BoxDecoration(
+                                                  color: AuthUiTokens.inputFill,
+                                                  borderRadius: BorderRadius.circular(14),
+                                                  border: Border.all(color: AuthUiTokens.inputBorder),
+                                                ),
+                                                child: TextField(
+                                                  controller: _passwordController,
+                                                  obscureText: _obscurePassword,
+                                                  textInputAction: TextInputAction.done,
+                                                  onSubmitted: (_) {
+                                                    if (!isLoading) _onLogin();
+                                                  },
+                                                  style: const TextStyle(
+                                                    fontSize: 14.5,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: AuthUiTokens.titleDark,
+                                                  ),
+                                                  decoration: InputDecoration(
+                                                    hintText: 'Masukkan kata sandi',
+                                                    hintStyle: const TextStyle(
+                                                      color: Color(0xFF94A3B8),
+                                                      fontSize: 14,
+                                                      fontWeight: FontWeight.w400,
+                                                    ),
+                                                    prefixIcon: const Icon(
+                                                      Icons.lock_outline_rounded,
+                                                      color: AuthUiTokens.royalBlue,
+                                                      size: 20,
+                                                    ),
+                                                    suffixIcon: IconButton(
+                                                      icon: Icon(
+                                                        _obscurePassword
+                                                            ? Icons.visibility_off_outlined
+                                                            : Icons.visibility_outlined,
+                                                        color: AuthUiTokens.textMuted,
+                                                        size: 20,
+                                                      ),
+                                                      onPressed: () {
+                                                        setState(() {
+                                                          _obscurePassword = !_obscurePassword;
+                                                        });
+                                                      },
+                                                    ),
+                                                    border: InputBorder.none,
+                                                    enabledBorder: InputBorder.none,
+                                                    focusedBorder: InputBorder.none,
+                                                    contentPadding: const EdgeInsets.symmetric(
+                                                      horizontal: 14,
+                                                      vertical: 15,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+
+                                              const SizedBox(height: 14),
+
+                                              Row(
+                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                children: [
+                                                  InkWell(
+                                                    onTap: _onToggleRememberMe,
+                                                    borderRadius: BorderRadius.circular(8),
+                                                    child: Padding(
+                                                      padding: const EdgeInsets.symmetric(vertical: 4),
+                                                      child: Row(
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        children: [
+                                                          Container(
+                                                            width: 18,
+                                                            height: 18,
+                                                            decoration: BoxDecoration(
+                                                              shape: BoxShape.circle,
+                                                              border: Border.all(
+                                                                color: _rememberMe
+                                                                    ? AuthUiTokens.royalBlue
+                                                                    : const Color(0xFF94A3B8),
+                                                                width: 1.5,
+                                                              ),
+                                                              color: _rememberMe
+                                                                  ? AuthUiTokens.royalBlue
+                                                                  : Colors.transparent,
+                                                            ),
+                                                            child: _rememberMe
+                                                                ? const Icon(
+                                                                    Icons.check,
+                                                                    size: 11,
+                                                                    color: Colors.white,
+                                                                  )
+                                                                : null,
+                                                          ),
+                                                          const SizedBox(width: 8),
+                                                          const Text(
+                                                            'Ingat Saya',
+                                                            style: TextStyle(
+                                                              fontSize: 13,
+                                                              fontWeight: FontWeight.w500,
+                                                              color: AppColors.textSecondary,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  InkWell(
+                                                    onTap: () {
+                                                      Navigator.of(context).push(
+                                                        MaterialPageRoute(
+                                                          builder: (_) => const ForgotPasswordScreen(),
+                                                        ),
+                                                      );
+                                                    },
+                                                    borderRadius: BorderRadius.circular(6),
+                                                    child: const Padding(
+                                                      padding: EdgeInsets.symmetric(
+                                                        vertical: 4,
+                                                        horizontal: 2,
+                                                      ),
+                                                      child: Text(
+                                                        'Lupa Kata Sandi?',
+                                                        style: TextStyle(
+                                                          fontSize: 13,
+                                                          fontWeight: FontWeight.w700,
+                                                          color: AuthUiTokens.deepCobalt,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+
+                                              const SizedBox(height: 22),
+
+                                              SizedBox(
+                                                height: 52,
+                                                child: ElevatedButton(
+                                                  onPressed: isLoading ? null : _onLogin,
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor: AuthUiTokens.deepCobalt,
+                                                    disabledBackgroundColor: AuthUiTokens.deepCobalt,
+                                                    foregroundColor: Colors.white,
+                                                    elevation: 0,
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius: BorderRadius.circular(26),
+                                                    ),
+                                                  ),
+                                                  child: isLoading
+                                                      ? const SizedBox(
+                                                          width: 22,
+                                                          height: 22,
+                                                          child: CircularProgressIndicator(
+                                                            color: Colors.white,
+                                                            strokeWidth: 2.2,
+                                                          ),
+                                                        )
+                                                      : const Row(
+                                                          mainAxisAlignment: MainAxisAlignment.center,
+                                                          children: [
+                                                            Text(
+                                                              'Masuk',
+                                                              style: TextStyle(
+                                                                fontSize: 15.5,
+                                                                fontWeight: FontWeight.w700,
+                                                                letterSpacing: 0.2,
+                                                              ),
+                                                            ),
+                                                            SizedBox(width: 6),
+                                                            Icon(
+                                                              Icons.chevron_right_rounded,
+                                                              size: 20,
+                                                            ),
+                                                          ],
+                                                        ),
+                                                ),
+                                              ),
+
+                                              if (showBiometricButton) ...[
+                                                const SizedBox(height: 12),
+                                                SizedBox(
+                                                  height: 50,
+                                                  child: OutlinedButton.icon(
+                                                    onPressed: isLoading ? null : _onBiometricLogin,
+                                                    icon: const Icon(
+                                                      Icons.fingerprint_rounded,
+                                                      size: 22,
+                                                      color: AuthUiTokens.royalBlue,
+                                                    ),
+                                                    label: const Text(
+                                                      'Masuk dengan Biometrik',
+                                                      style: TextStyle(
+                                                        fontSize: 14,
+                                                        fontWeight: FontWeight.w700,
+                                                        color: AuthUiTokens.deepCobalt,
+                                                      ),
+                                                    ),
+                                                    style: OutlinedButton.styleFrom(
+                                                      backgroundColor: Colors.white,
+                                                      side: const BorderSide(
+                                                        color: AuthUiTokens.inputBorder,
+                                                        width: 1.2,
+                                                      ),
+                                                      shape: RoundedRectangleBorder(
+                                                        borderRadius: BorderRadius.circular(25),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+
+                                              const SizedBox(height: 22),
+
+                                              Row(
+                                                children: [
+                                                  const Expanded(
+                                                    child: Divider(
+                                                      color: AuthUiTokens.inputBorder,
+                                                      thickness: 1,
+                                                    ),
+                                                  ),
+                                                  Padding(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                                                    child: InkWell(
+                                                      onTap: () {
+                                                        if (!TermsConsentStore.instance.hasAccepted) {
+                                                          Navigator.of(context).push(
+                                                            MaterialPageRoute(
+                                                              builder: (termsCtx) => TermsConditionsScreen(
+                                                                onAccepted: () {
+                                                                  Navigator.of(termsCtx).pushReplacement(
+                                                                    MaterialPageRoute(
+                                                                      builder: (_) => const ActivationScreen(),
+                                                                    ),
+                                                                  );
+                                                                },
+                                                              ),
+                                                            ),
+                                                          );
+                                                          return;
+                                                        }
+                                                        Navigator.of(context).push(
+                                                          MaterialPageRoute(
+                                                            builder: (_) => const ActivationScreen(),
+                                                          ),
+                                                        );
+                                                      },
+                                                      borderRadius: BorderRadius.circular(6),
+                                                      child: const Padding(
+                                                        padding: EdgeInsets.symmetric(
+                                                          vertical: 4,
+                                                          horizontal: 4,
+                                                        ),
+                                                        child: Text(
+                                                          'Aktivasi / Daftar',
+                                                          style: TextStyle(
+                                                            fontSize: 13.5,
+                                                            fontWeight: FontWeight.w700,
+                                                            color: AuthUiTokens.deepCobalt,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const Expanded(
+                                                    child: Divider(
+                                                      color: AuthUiTokens.inputBorder,
+                                                      thickness: 1,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+
+                                              const SizedBox(height: 18),
+
+                                              Text(
+                                                AppContent.text('app.footer'),
+                                                textAlign: TextAlign.center,
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: AuthUiTokens.textMuted,
+                                                  height: 1.4,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
           );
         },
       ),
     );
   }
+}
+
+class _LoginBottomWavePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    final wave1 = Paint()
+      ..color = AuthUiTokens.azureBlue.withValues(alpha: 0.08);
+    final p1 = Path()
+      ..moveTo(0, h * 0.55)
+      ..quadraticBezierTo(w * 0.28, h * 0.15, w * 0.62, h * 0.55)
+      ..quadraticBezierTo(w * 0.84, h * 0.80, w, h * 0.35)
+      ..lineTo(w, h)
+      ..lineTo(0, h)
+      ..close();
+    canvas.drawPath(p1, wave1);
+
+    final wave2 = Paint()
+      ..color = AuthUiTokens.deepCobalt.withValues(alpha: 0.06);
+    final p2 = Path()
+      ..moveTo(0, h * 0.75)
+      ..quadraticBezierTo(w * 0.45, h * 0.42, w, h * 0.72)
+      ..lineTo(w, h)
+      ..lineTo(0, h)
+      ..close();
+    canvas.drawPath(p2, wave2);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

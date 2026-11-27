@@ -162,11 +162,11 @@ class _DepositScreenState extends State<DepositScreen> {
                         width: 46,
                         height: 46,
                         decoration: BoxDecoration(
-                          color: AppColors.successLight,
+                          color: AuthUiTokens.softBlueBg,
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: AppColors.successBorder),
+                          border: Border.all(color: AuthUiTokens.softBlueBorder),
                         ),
-                        child: const Icon(Icons.savings_rounded, color: dmbGreen, size: 24),
+                        child: const Icon(Icons.savings_outlined, color: AuthUiTokens.deepCobalt, size: 24),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -329,67 +329,11 @@ class _DepositScreenState extends State<DepositScreen> {
         bottom: false,
         child: Column(
           children: [
-            // Clean Header Row
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 10, 18, 12),
-              child: Row(
-                children: [
-                  Material(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () => Navigator.of(context).pop(),
-                      child: Container(
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AuthUiTokens.inputBorder),
-                        ),
-                        child: const Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          size: 17,
-                          color: AuthUiTokens.deepCobalt,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Portofolio Deposito',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 21,
-                        fontWeight: FontWeight.w800,
-                        color: AuthUiTokens.titleDark,
-                        letterSpacing: -0.4,
-                      ),
-                    ),
-                  ),
-                  Material(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: _fetchDepositData,
-                      child: Container(
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AuthUiTokens.inputBorder),
-                        ),
-                        child: const Icon(
-                          Icons.refresh_rounded,
-                          size: 19,
-                          color: AuthUiTokens.deepCobalt,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+            DmbPageHeader(
+              title: 'Portofolio Deposito',
+              subtitle: 'Simpanan berjangka Bank DMB dijamin LPS',
+              actionIcon: Icons.refresh_rounded,
+              onAction: _fetchDepositData,
             ),
 
             Expanded(

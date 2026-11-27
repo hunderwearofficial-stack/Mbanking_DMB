@@ -6,6 +6,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/services/dynamic_config_service.dart';
 import '../../blocs/auth/auth_cubit.dart';
 import '../../widgets/app_validation_feedback.dart';
+import '../../widgets/auth_ui_kit.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
@@ -255,48 +256,23 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   Widget build(BuildContext context) {
     final bankName = DynamicConfigService().config.bankName.toUpperCase();
 
-    return Scaffold(
-      backgroundColor: bgCanvas,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: titleDark,
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: titleDark),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Column(
+    return AuthSwooshCanvas(
+      child: SafeArea(
+        bottom: false,
+        child: Column(
           children: [
-            Text(
-              'Ganti Kata Sandi Login',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: titleDark,
-                letterSpacing: -0.2,
-              ),
+            DmbPageHeader(
+              title: 'Ganti Kata Sandi',
+              subtitle: bankName,
             ),
-            const SizedBox(height: 1),
-            Text(
-              bankName,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 9.5,
-                fontWeight: FontWeight.w700,
-                color: royalBlue,
-                letterSpacing: 0.6,
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: _buildForm(),
               ),
             ),
           ],
         ),
-        bottom: const PreferredSize(
-          preferredSize: Size.fromHeight(1),
-          child: Divider(height: 1, color: borderLight),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-        child: _buildForm(),
       ),
     );
   }

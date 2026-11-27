@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/content/app_content.dart';
 import '../../../core/services/dynamic_config_service.dart';
@@ -49,67 +50,19 @@ class CompanyProfileScreen extends StatelessWidget {
     return AuthSwooshCanvas(
       child: SafeArea(
         bottom: false,
-        child: SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(18, 10, 18, canPop ? 28 : 96),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  if (canPop) ...[
-                    Material(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: () => Navigator.of(context).pop(),
-                        child: Container(
-                          width: 38,
-                          height: 38,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AuthUiTokens.inputBorder),
-                          ),
-                          child: const Icon(
-                            Icons.arrow_back_ios_new_rounded,
-                            size: 17,
-                            color: deepCobalt,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                  ],
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Tentang Bank DMB',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 21,
-                            fontWeight: FontWeight.w800,
-                            color: titleDark,
-                            letterSpacing: -0.4,
-                          ),
-                        ),
-                        Text(
-                          bankName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: textMuted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 16),
+        child: Column(
+          children: [
+            DmbPageHeader(
+              title: 'Tentang Bank DMB',
+              subtitle: bankName,
+              showBack: canPop,
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(18, 14, 18, canPop ? 28 : 96),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
 
               // Architectural Photo Showcase Card
               Container(
@@ -383,6 +336,9 @@ class CompanyProfileScreen extends StatelessWidget {
               const SizedBox(height: 14),
             ],
           ),
+        ),
+            ),
+          ],
         ),
       ),
     );

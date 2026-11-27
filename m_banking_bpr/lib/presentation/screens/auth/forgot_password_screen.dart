@@ -82,31 +82,36 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return AuthSwooshCanvas(
-      child: SingleChildScrollView(
-        physics: const ClampingScrollPhysics(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AuthTopHeader(
-              onBack: () => Navigator.of(context).pop(),
-              eyebrow: 'PEMULIHAN AKSES',
-              title: 'Lupa Kata Sandi',
-              icon: Icons.lock_reset_rounded,
-            ),
-
-            // Main White Card
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
-              child: AuthSurfaceCard(
+      navyHeaderHeight: 235,
+      child: Column(
+        children: [
+          AuthTopHeader(
+            onBack: () => Navigator.of(context).pop(),
+            eyebrow: 'PEMULIHAN AKSES',
+            title: 'Lupa Kata Sandi',
+            icon: Icons.lock_reset_rounded,
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: Container(
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              child: SingleChildScrollView(
+                physics: const ClampingScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(22, 24, 22, 28),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
                       'Verifikasi Nomor Terdaftar',
                       style: TextStyle(
-                        fontSize: 17,
+                        fontSize: 18,
                         fontWeight: FontWeight.w800,
                         color: AuthUiTokens.titleDark,
+                        letterSpacing: -0.3,
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -118,7 +123,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         height: 1.45,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 18),
 
                     Container(
                       padding: const EdgeInsets.all(12),
@@ -221,7 +226,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       isLoading: _isLoading,
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 18),
 
                     Center(
                       child: Wrap(
@@ -239,38 +244,36 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
-                                color: AuthUiTokens.royalBlue,
+                                color: AuthUiTokens.deepCobalt,
                               ),
                             ),
                           ),
                         ],
                       ),
                     ),
+
+                    const SizedBox(height: 24),
+
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: Text(
+                        AppContent.text('app.footer'),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.textMuted,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
-
-              const SizedBox(height: 24),
-
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 28),
-                child: Text(
-                  AppContent.text('app.footer'),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textMuted,
-                    height: 1.4,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-            ],
           ),
-        ),
+        ],
+      ),
     );
   }
 }

@@ -7,6 +7,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/services/dynamic_config_service.dart';
 import '../../blocs/auth/auth_cubit.dart';
 import '../../widgets/app_validation_feedback.dart';
+import '../../widgets/auth_ui_kit.dart';
 
 class ChangePinScreen extends StatefulWidget {
   const ChangePinScreen({super.key});
@@ -264,48 +265,23 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
   Widget build(BuildContext context) {
     final bankName = DynamicConfigService().config.bankName.toUpperCase();
 
-    return Scaffold(
-      backgroundColor: bgCanvas,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: titleDark,
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: titleDark),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Column(
+    return AuthSwooshCanvas(
+      child: SafeArea(
+        bottom: false,
+        child: Column(
           children: [
-            Text(
-              'Ganti PIN Transaksi',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: titleDark,
-                letterSpacing: -0.2,
-              ),
+            DmbPageHeader(
+              title: 'Ganti PIN Transaksi',
+              subtitle: bankName,
             ),
-            const SizedBox(height: 1),
-            Text(
-              bankName,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 9.5,
-                fontWeight: FontWeight.w700,
-                color: royalBlue,
-                letterSpacing: 0.6,
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: _buildForm(),
               ),
             ),
           ],
         ),
-        bottom: const PreferredSize(
-          preferredSize: Size.fromHeight(1),
-          child: Divider(height: 1, color: borderLight),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-        child: _buildForm(),
       ),
     );
   }
@@ -318,20 +294,13 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppColors.successLight,
+            color: AuthUiTokens.softBlueBg,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.successBorder),
+            border: Border.all(color: AuthUiTokens.softBlueBorder),
           ),
           child: Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.dialpad_rounded, color: dmbGreen, size: 22),
-              ),
+              const DmbIconSquircle(icon: Icons.dialpad_rounded, size: 40, iconSize: 20),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(

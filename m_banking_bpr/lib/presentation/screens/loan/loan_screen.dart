@@ -666,66 +666,11 @@ class _LoanScreenState extends State<LoanScreen> {
         bottom: false,
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 10, 18, 10),
-              child: Row(
-                children: [
-                  Material(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () => Navigator.of(context).pop(),
-                      child: Container(
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AuthUiTokens.inputBorder),
-                        ),
-                        child: const Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          size: 17,
-                          color: AuthUiTokens.deepCobalt,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Fasilitas Pinjaman',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 21,
-                        fontWeight: FontWeight.w800,
-                        color: AuthUiTokens.titleDark,
-                        letterSpacing: -0.4,
-                      ),
-                    ),
-                  ),
-                  Material(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: _fetchLoanData,
-                      child: Container(
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AuthUiTokens.inputBorder),
-                        ),
-                        child: const Icon(
-                          Icons.refresh_rounded,
-                          size: 19,
-                          color: AuthUiTokens.deepCobalt,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+            DmbPageHeader(
+              title: 'Fasilitas Pinjaman',
+              subtitle: 'Pantau sisa pokok, jadwal & status angsuran',
+              actionIcon: Icons.refresh_rounded,
+              onAction: _fetchLoanData,
             ),
             Expanded(
               child: RefreshIndicator(

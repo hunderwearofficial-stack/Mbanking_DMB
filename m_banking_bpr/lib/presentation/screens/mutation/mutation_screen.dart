@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -664,70 +665,14 @@ class _MutationScreenState extends State<MutationScreen> with SingleTickerProvid
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top Header Row
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 10, 18, 12),
-                  child: Row(
-                    children: [
-                      if (!widget.isTab) ...[
-                        Material(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(12),
-                            onTap: () => Navigator.of(context).pop(),
-                            child: Container(
-                              width: 38,
-                              height: 38,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: AuthUiTokens.inputBorder),
-                              ),
-                              child: const Icon(
-                                Icons.arrow_back_ios_new_rounded,
-                                size: 17,
-                                color: AuthUiTokens.deepCobalt,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                      ],
-                      Expanded(
-                        child: Text(
-                          'Riwayat Transaksi',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 21,
-                            fontWeight: FontWeight.w800,
-                            color: AuthUiTokens.titleDark,
-                            letterSpacing: -0.4,
-                          ),
-                        ),
-                      ),
-                      Material(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: _showDateFilterBottomSheet,
-                          child: Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AuthUiTokens.inputBorder),
-                            ),
-                            child: const Icon(
-                              Icons.calendar_month_rounded,
-                              size: 19,
-                              color: AuthUiTokens.deepCobalt,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                DmbPageHeader(
+                  title: 'Riwayat Transaksi',
+                  subtitle: 'Mutasi rekening tabungan real-time',
+                  showBack: !widget.isTab,
+                  actionIcon: Icons.calendar_month_rounded,
+                  onAction: _showDateFilterBottomSheet,
                 ),
+                const SizedBox(height: 8),
 
                 _buildAccountSelector(state),
 

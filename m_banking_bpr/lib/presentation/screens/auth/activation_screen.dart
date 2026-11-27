@@ -343,6 +343,7 @@ class _ActivationScreenState extends State<ActivationScreen> {
   @override
   Widget build(BuildContext context) {
     return AuthSwooshCanvas(
+      navyHeaderHeight: 235,
       child: Column(
         children: [
           AuthTopHeader(
@@ -357,32 +358,42 @@ class _ActivationScreenState extends State<ActivationScreen> {
             title: 'Aktivasi Mobile Banking',
             icon: Icons.how_to_reg_rounded,
           ),
-          const SizedBox(height: 12),
-          _buildStepIndicator(),
-          const SizedBox(height: 6),
+          const SizedBox(height: 16),
           Expanded(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+            child: Container(
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  AuthSurfaceCard(
-                    child: _buildCurrentStepContent(),
-                  ),
-
-                  const SizedBox(height: 22),
-
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text(
-                      AppContent.text('app.footer'),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w500,
-                        color: AuthUiTokens.textMuted,
-                        height: 1.4,
+                  const SizedBox(height: 18),
+                  _buildStepIndicator(),
+                  const Divider(height: 22, color: AuthUiTokens.inputBorder),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(22, 6, 22, 28),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildCurrentStepContent(),
+                          const SizedBox(height: 22),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            child: Text(
+                              AppContent.text('app.footer'),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: AuthUiTokens.textMuted,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
