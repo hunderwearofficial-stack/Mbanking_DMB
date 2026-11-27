@@ -132,31 +132,10 @@ class OnboardingScreen extends StatelessWidget {
                       height: 44,
                       fit: BoxFit.contain,
                       alignment: Alignment.centerLeft,
-                      placeholder: RichText(
-                        text: TextSpan(
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.5,
-                            shadows: [
-                              Shadow(
-                                offset: const Offset(0, 1),
-                                blurRadius: 8,
-                                color: Colors.black.withOpacity(0.45),
-                              ),
-                            ],
-                          ),
-                          children: const [
-                            TextSpan(
-                              text: 'my',
-                              style: TextStyle(color: Color(0xFF00E5FF)),
-                            ),
-                            TextSpan(
-                              text: 'DMB',
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ],
-                        ),
+                      placeholder: Image.asset(
+                        'assets/images/mydmb_logo_official.png',
+                        height: 44,
+                        fit: BoxFit.contain,
                       ),
                     ),
 

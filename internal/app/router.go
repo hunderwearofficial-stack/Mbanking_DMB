@@ -269,6 +269,8 @@ func NewRouter(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, cbsPr
 			}
 		}
 
+		v1.POST("/internal/cbs/notifications", rl(120, 60, "cbs_webhook", middleware.ByIP), cbsOpsHandler.NotifyWebhook(cfg.CBSWebhookSecret))
+
 		p := v1.Group("")
 		p.Use(maintenance, customerAuth, rl(120, 60, "customer", middleware.ByUser), binder.RequireEnrolled("/api/v1/device/", "/api/v1/auth/logout"))
 		{

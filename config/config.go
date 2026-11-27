@@ -84,10 +84,11 @@ type Config struct {
 
 	deviceExplicit map[string]bool // variabel device binding yang diisi eksplisit
 
-	CBSBaseURL      string
-	CBSClientID     string
-	CBSClientSecret string
-	CBSTimeoutSec   int
+	CBSBaseURL       string
+	CBSClientID      string
+	CBSClientSecret  string
+	CBSTimeoutSec    int
+	CBSWebhookSecret string
 
 	// OTP policy and the allowlist of OTP gateway hosts (an officer cannot redirect OTPs
 	// to an arbitrary server from the backoffice; audit E-03).
@@ -296,10 +297,11 @@ func LoadConfig() *Config {
 		DeviceBindingOffUntil:            r.timestamp("DEVICE_BINDING_OFF_UNTIL"),
 		deviceExplicit:                   explicitVars(deviceSecurityVars),
 
-		CBSBaseURL:      r.str("CBS_BASE_URL", ""),
-		CBSClientID:     r.str("CBS_CLIENT_ID", ""),
-		CBSClientSecret: r.secret("CBS_CLIENT_SECRET"),
-		CBSTimeoutSec:   r.int("CBS_TIMEOUT_SEC", 15, 1, 60),
+		CBSBaseURL:       r.str("CBS_BASE_URL", ""),
+		CBSClientID:      r.str("CBS_CLIENT_ID", ""),
+		CBSClientSecret:  r.secret("CBS_CLIENT_SECRET"),
+		CBSTimeoutSec:    r.int("CBS_TIMEOUT_SEC", 15, 1, 60),
+		CBSWebhookSecret: r.secret("CBS_WEBHOOK_SECRET"),
 
 		OTPTTLMinutes:          r.int("OTP_TTL_MINUTES", 3, 1, 10),
 		OTPMaxAttempts:         r.int("OTP_MAX_ATTEMPTS", 5, 3, 10),
@@ -401,6 +403,9 @@ func (c *Config) Validate() error {
 	errs = append(errs, c.deviceBindingErrors()...)
 	if c.StandaloneCore {
 		errs = append(errs, "STANDALONE_CORE tidak diizinkan: ledger lokal bukan core banking dan tidak boleh menggantikan CBS (lihat docs/SYSTEM_ARCHITECTURE.md). Untuk pengujian lokal gunakan ENABLE_MOCK_CBS=true dengan APP_ENV=local")
+	}
+	if c.CBSWebhookSecret != "" && len(c.CBSWebhookSecret) < 32 {
+		errs = append(errs, "CBS_WEBHOOK_SECRET minimal 32 karakter acak bila diisi")
 	}
 	if !c.EnableMockCBS {
 		if c.CBSBaseURL == "" {

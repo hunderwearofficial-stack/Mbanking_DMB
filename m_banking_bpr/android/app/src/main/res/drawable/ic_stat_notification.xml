@@ -6,29 +6,38 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <!-- Bank DMB 3-figure emblem silhouette (monochrome white for Android status bar) -->
-    <!-- Center head -->
+    <!-- myDMB emblem silhouette (monochrome white for Android status bar) -->
+    <!-- Signal waves -->
     <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M12,6.5m-2.1,0a2.1,2.1 0,1 1,4.2 0a2.1,2.1 0,1 1,-4.2 0" />
-    <!-- Left head -->
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round"
+        android:pathData="M12.2,2.4 A7.2,7.2 0 0,1 18.6,8.4" />
     <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M5.5,8.2m-1.7,0a1.7,1.7 0,1 1,3.4 0a1.7,1.7 0,1 1,-3.4 0" />
-    <!-- Right head -->
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round"
+        android:pathData="M12.0,4.8 A4.8,4.8 0 0,1 16.3,8.9" />
+    <!-- Center circle -->
     <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M18.5,8.2m-1.7,0a1.7,1.7 0,1 1,3.4 0a1.7,1.7 0,1 1,-3.4 0" />
-    <!-- Center body & raised arms arc -->
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2.0"
+        android:pathData="M11.6,9.8m-2.1,0a2.1,2.1 0,1 1,4.2 0a2.1,2.1 0,1 1,-4.2 0" />
+    <!-- Upper bowl arc -->
     <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M12,10.2c-2.2,0 -4.1,1.4 -4.5,3.5l-0.4,3.8c-0.1,0.6 0.4,1 1,1h7.8c0.6,0 1.1,-0.4 1,-1l-0.4,-3.8c-0.4,-2.1 -2.3,-3.5 -4.5,-3.5z" />
-    <!-- Left figure -->
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2.4"
+        android:strokeLineCap="round"
+        android:pathData="M6.8,10.5 A5.4,5.4 0 0,0 16.6,10.5" />
+    <!-- Lower arch -->
     <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M5.5,11.2c-1.7,0 -3.1,1.2 -3.4,2.8l-0.3,2.7c-0.1,0.5 0.3,0.9 0.8,0.9h3.4l0.3,-3.4c0.2,-1.1 0.7,-2.1 1.4,-2.8c-0.6,-0.1 -1.4,-0.2 -2.2,-0.2z" />
-    <!-- Right figure -->
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M18.5,11.2c-0.8,0 -1.6,0.1 -2.2,0.2c0.7,0.7 1.2,1.7 1.4,2.8l0.3,3.4h3.4c0.5,0 0.9,-0.4 0.8,-0.9l-0.3,-2.7c-0.3,-1.6 -1.7,-2.8 -3.4,-2.8z" />
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2.4"
+        android:strokeLineCap="round"
+        android:pathData="M6.0,20.2 A6.2,6.2 0 0,1 17.4,20.2" />
 </vector>
