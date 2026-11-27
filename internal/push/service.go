@@ -400,8 +400,8 @@ func (s *Service) RegisterDevice(ctx context.Context, userID, deviceID, token, p
 	now := time.Now()
 	hash := hashToken(token)
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&Device{}).Where("user_id = ? AND device_id = ? AND is_active AND token_sha256 <> ?", userID, deviceID, hash).
-			Updates(map[string]interface{}{"is_active": false, "deactivated_reason": "TOKEN_REFRESHED", "deactivated_at": now}).Error; err != nil {
+		if err := tx.Model(&Device{}).Where("user_id = ? AND is_active AND token_sha256 <> ?", userID, hash).
+			Updates(map[string]interface{}{"is_active": false, "deactivated_reason": "REPLACED_BY_LATEST_LOGIN", "deactivated_at": now}).Error; err != nil {
 			return err
 		}
 		d := Device{UserID: userID, DeviceID: deviceID, Platform: platform, TokenSHA256: hash, TokenEnc: enc, IsActive: true, CreatedAt: now, LastSeenAt: now}
