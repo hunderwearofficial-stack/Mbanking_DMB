@@ -601,27 +601,15 @@ class _SplashBrandMarkState extends State<_SplashBrandMark>
           opacity: _titleFade,
           child: SlideTransition(
             position: _titleSlide,
-            child: RichText(
-              text: TextSpan(
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.6,
-                ),
-                children: [
-                  const TextSpan(
-                    text: 'my',
-                    style: TextStyle(color: Color(0xFF57DDD3)),
-                  ),
-                  TextSpan(
-                    text: shortName,
-                    style: TextStyle(
-                      color: widget.isLightBg
-                          ? const Color(0xFF0A1628)
-                          : Colors.white,
-                    ),
-                  ),
-                ],
+            child: Text(
+              shortName,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 34,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
+                color: widget.isLightBg
+                    ? const Color(0xFF033172)
+                    : const Color(0xFF57DDD3),
               ),
             ),
           ),

@@ -43,7 +43,7 @@ func (h *Handler) ensureReady() {
 					ID:        uuid.NewString(),
 					Topic:     "Ganti HP / Perangkat",
 					Keywords:  "hp,perangkat,device,ganti,pindah,unbind,reset device",
-					Answer:    "Demi keamanan, 1 akun myDMB terikat pada 1 perangkat smartphone.\n\nJika Anda berganti HP, silakan hubungi Contact Center Bank DMB untuk melakukan reset ikatan perangkat (Unbind Device), lalu lakukan aktivasi ulang dengan verifikasi OTP di HP baru.",
+					Answer:    "Demi keamanan, 1 akun DMB terikat pada 1 perangkat smartphone.\n\nJika Anda berganti HP, silakan hubungi Contact Center Bank DMB untuk melakukan reset ikatan perangkat (Unbind Device), lalu lakukan aktivasi ulang dengan verifikasi OTP di HP baru.",
 					IsActive:  true,
 					SortOrder: 2,
 				},

@@ -870,7 +870,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             _PromoBannerData(
               contentKey: '',
               tag: 'PERENCANAAN',
-              title: 'Wujudkan Rencana Finansial Anda bersama myDMB',
+              title: 'Wujudkan Rencana Finansial Anda bersama DMB',
               subtitle: 'Pelajari Selengkapnya',
               onTap: () => setState(() => _currentNavIndex = 3),
             ),

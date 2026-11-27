@@ -78,7 +78,7 @@ class _HelpdeskScreenState extends State<HelpdeskScreen> {
       topic: 'Ganti HP / Perangkat',
       keywords: ['hp', 'perangkat', 'device', 'ganti', 'pindah', 'unbind', 'reset device'],
       answer:
-          'Demi keamanan, 1 akun myDMB terikat pada 1 perangkat smartphone.\n\n'
+          'Demi keamanan, 1 akun DMB terikat pada 1 perangkat smartphone.\n\n'
           'Jika Anda berganti HP, silakan hubungi Contact Center Bank DMB untuk melakukan reset ikatan perangkat (Unbind Device), lalu lakukan aktivasi ulang dengan verifikasi OTP di HP baru.',
     ),
     const _FaqRule(

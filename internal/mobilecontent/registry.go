@@ -52,7 +52,7 @@ var Pages = []Page{
 	{ID: "splash", Name: "Layar Splash", Screen: "lib/presentation/screens/splash/splash_screen.dart",
 		Description: "Layar pertama saat aplikasi dibuka.",
 		Static: []string{
-			"Gambar latar gedung (splash_building.jpg) dan logo animasi myDMB — dibundel langsung di aplikasi.",
+			"Gambar latar gedung (splash_building.jpg) dan logo animasi DMB — dibundel langsung di aplikasi.",
 			"Teks versi aplikasi (\"DMB Mobile v…\") — berasal dari build aplikasi, bukan konten.",
 		}},
 	{ID: "onboarding", Name: "Tampilan Awal (Onboarding)", Screen: "lib/presentation/screens/onboarding/onboarding_screen.dart",
