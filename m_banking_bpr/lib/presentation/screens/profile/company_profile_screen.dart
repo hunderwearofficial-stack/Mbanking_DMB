@@ -17,7 +17,6 @@ class CompanyProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final config = DynamicConfigService().config;
     final bankName = config.bankName.isNotEmpty ? config.bankName : 'PT BPR Dana Mandiri Bogor';
-    final heroImageUrl = AppContent.imageUrl('company.hero_image');
     final heroTitle = AppContent.text('company.hero_title');
     final establishedYear = AppContent.text('company.established_year');
     final aboutDesc = AppContent.text('company.about_description');
@@ -88,20 +87,14 @@ class CompanyProfileScreen extends StatelessWidget {
                         child: Stack(
                           fit: StackFit.expand,
                           children: [
-                            if (heroImageUrl != null)
-                              ContentImage(
-                                heroImageUrl,
-                                fit: BoxFit.cover,
-                                placeholder: Image.asset(
-                                  'assets/images/company_office.jpg',
-                                  fit: BoxFit.cover,
-                                ),
-                              )
-                            else
-                              Image.asset(
+                            ContentImage(
+                              'company.hero_image',
+                              fit: BoxFit.cover,
+                              placeholder: Image.asset(
                                 'assets/images/company_office.jpg',
                                 fit: BoxFit.cover,
                               ),
+                            ),
                             DecoratedBox(
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
