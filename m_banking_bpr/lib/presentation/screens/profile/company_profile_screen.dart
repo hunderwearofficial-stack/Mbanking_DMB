@@ -91,7 +91,7 @@ class CompanyProfileScreen extends StatelessWidget {
                               'company.hero_image',
                               fit: BoxFit.cover,
                               placeholder: Image.asset(
-                                'assets/images/company_office.jpg',
+                                'assets/images/home_header_landmark.jpg',
                                 fit: BoxFit.cover,
                               ),
                             ),
