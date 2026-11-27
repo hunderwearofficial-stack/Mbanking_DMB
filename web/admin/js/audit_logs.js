@@ -8,6 +8,8 @@
 let cachedAuditLogs = [];
 let auditHasMore = false;
 let auditLastSeq = 0;
+let auditCurrentPage = 1;
+let auditPageSize = 15;
 
 async function loadAuditLogs(append = false) {
   const tbody = document.getElementById('auditLogsTableBody');
@@ -29,6 +31,9 @@ async function loadAuditLogs(append = false) {
   if (!append) {
     cachedAuditLogs = [];
     auditLastSeq = 0;
+    auditCurrentPage = 1;
+    const paginationBar = document.getElementById('auditPaginationBar');
+    if (paginationBar) paginationBar.classList.add('hidden');
     tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-slate-400">Memuat data audit trail keamanan...</td></tr>`;
   } else if (loadMoreBtn) {
     loadMoreBtn.disabled = true;
@@ -123,7 +128,7 @@ async function loadAuditLogs(append = false) {
     }
     if (loadMoreBtn) {
       loadMoreBtn.disabled = false;
-      loadMoreBtn.innerHTML = '<i data-lucide="chevrons-down" class="w-3.5 h-3.5"></i><span>Muat Lebih Banyak (100 Sebelumnya)</span>';
+      loadMoreBtn.innerHTML = '<i data-lucide="chevrons-down" class="w-3.5 h-3.5"></i><span>Muat 100 Lagi</span>';
       if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons();
     }
   }
@@ -141,16 +146,97 @@ function resetAuditFilters() {
   loadAuditLogs(false);
 }
 
+function goToAuditPage(page) {
+  const totalPages = Math.max(1, Math.ceil((cachedAuditLogs ? cachedAuditLogs.length : 0) / auditPageSize));
+  auditCurrentPage = Math.min(Math.max(1, Number(page) || 1), totalPages);
+  renderAuditLogsTable();
+}
+
+function changeAuditPageSize(size) {
+  auditPageSize = Math.max(1, Number(size) || 15);
+  auditCurrentPage = 1;
+  renderAuditLogsTable();
+}
+
+function renderAuditPagination(total, totalPages, startIdx, endIdx) {
+  const bar = document.getElementById('auditPaginationBar');
+  const infoEl = document.getElementById('auditPageInfo');
+  const btnsEl = document.getElementById('auditPageButtons');
+  if (!bar || !infoEl || !btnsEl) return;
+
+  if (total === 0) {
+    bar.classList.add('hidden');
+    return;
+  }
+
+  bar.classList.remove('hidden');
+  infoEl.textContent = `Menampilkan ${startIdx + 1}–${endIdx} dari ${total} entri`;
+
+  const pages = [];
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    pages.push(1);
+    if (auditCurrentPage > 3) pages.push('...');
+    const startP = Math.max(2, auditCurrentPage - 1);
+    const endP = Math.min(totalPages - 1, auditCurrentPage + 1);
+    for (let i = startP; i <= endP; i++) pages.push(i);
+    if (auditCurrentPage < totalPages - 2) pages.push('...');
+    pages.push(totalPages);
+  }
+
+  const prevDisabled = auditCurrentPage <= 1;
+  const nextDisabled = auditCurrentPage >= totalPages;
+
+  let html = `
+    <button type="button" onclick="goToAuditPage(${auditCurrentPage - 1})" ${prevDisabled ? 'disabled' : ''}
+      class="px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition">
+      Sebelumnya
+    </button>
+  `;
+
+  html += pages.map(p => {
+    if (p === '...') {
+      return '<span class="px-1.5 text-xs text-slate-400">…</span>';
+    }
+    const active = p === auditCurrentPage;
+    return `
+      <button type="button" onclick="goToAuditPage(${p})"
+        class="min-w-[30px] px-2 py-1.5 rounded-lg text-xs font-bold border transition ${active ? 'bg-[#033172] text-white border-[#033172]' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}">
+        ${p}
+      </button>
+    `;
+  }).join('');
+
+  html += `
+    <button type="button" onclick="goToAuditPage(${auditCurrentPage + 1})" ${nextDisabled ? 'disabled' : ''}
+      class="px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition">
+      Berikutnya
+    </button>
+  `;
+
+  btnsEl.innerHTML = html;
+}
+
 function renderAuditLogsTable() {
   const tbody = document.getElementById('auditLogsTableBody');
+  const paginationBar = document.getElementById('auditPaginationBar');
   if (!tbody) return;
 
   if (!cachedAuditLogs || cachedAuditLogs.length === 0) {
+    if (paginationBar) paginationBar.classList.add('hidden');
     tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-slate-400">Belum ada rekam jejak audit keamanan yang cocok dengan filter</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = cachedAuditLogs.map((log, idx) => {
+  const total = cachedAuditLogs.length;
+  const totalPages = Math.max(1, Math.ceil(total / auditPageSize));
+  if (auditCurrentPage > totalPages) auditCurrentPage = totalPages;
+  const startIdx = (auditCurrentPage - 1) * auditPageSize;
+  const endIdx = Math.min(startIdx + auditPageSize, total);
+  const pageItems = cachedAuditLogs.slice(startIdx, endIdx);
+
+  tbody.innerHTML = pageItems.map((log, idx) => {
     const rawStatus = (log.status || 'SUCCESS').toUpperCase();
     let statusClass = 'bg-emerald-100 text-emerald-800 border-emerald-200';
     let statusLabel = rawStatus;
@@ -168,7 +254,7 @@ function renderAuditLogsTable() {
       actorBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-slate-200 text-slate-800">SYSTEM</span>';
     }
 
-    const seqDisplay = log.seq ? `#${esc(log.seq)}` : `#${idx + 1}`;
+    const seqDisplay = log.seq ? `#${esc(log.seq)}` : `#${startIdx + idx + 1}`;
     const fullHash = log.hash || '';
     const prevHash = log.prev_hash || '';
     const shortHash = fullHash ? fullHash.substring(0, 10) + '…' : 'legacy';
@@ -212,6 +298,7 @@ function renderAuditLogsTable() {
     `;
   }).join('');
 
+  renderAuditPagination(total, totalPages, startIdx, endIdx);
   if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons();
 }
 
