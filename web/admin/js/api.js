@@ -121,7 +121,11 @@ async function initAppBranding() {
 function updateDOMBranding(c) {
   if (!c) return;
   const rawLogoUrl = c.logo_url || '';
-  const hasCustomLogo = rawLogoUrl && !rawLogoUrl.includes('logo_a63ad9957ea4e615d48df351');
+  const isLegacyDefaultLogo =
+    rawLogoUrl.includes('logo_a63ad9957ea4e615d48df351') ||
+    rawLogoUrl === '/admin/images/bank_logo.png' ||
+    rawLogoUrl === 'images/bank_logo.png';
+  const hasCustomLogo = Boolean(rawLogoUrl && !isLegacyDefaultLogo);
   const logoUrl = hasCustomLogo ? rawLogoUrl : 'images/mydmb_logo_light.png';
   const darkBgLogoUrl = hasCustomLogo ? rawLogoUrl : 'images/mydmb_logo_official.png';
   const bankName = c.bank_name || 'PT BPR DANA MANDIRI BOGOR';
