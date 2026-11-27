@@ -53,7 +53,7 @@ class FCMService {
     playSound: true,
     enableVibration: true,
   );
-  static const String _smallIcon = '@drawable/ic_stat_notification';
+  static const String _smallIcon = 'ic_stat_notification';
 
   FirebaseMessaging get _messaging => FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _local = FlutterLocalNotificationsPlugin();
@@ -134,7 +134,7 @@ class FCMService {
           channel.name,
           channelDescription: channel.description,
           icon: _smallIcon,
-          largeIcon: const DrawableResourceAndroidBitmap('@drawable/ic_notification_logo'),
+          largeIcon: const DrawableResourceAndroidBitmap('ic_notification_logo'),
           color: const Color(0xFF033172),
           importance: Importance.max,
           priority: Priority.max,
