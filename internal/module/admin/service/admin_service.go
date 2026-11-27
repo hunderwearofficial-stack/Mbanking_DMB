@@ -673,15 +673,15 @@ func (s *adminService) UpdateAppConfig(ctx context.Context, in AppConfigUpdate) 
 	}
 	provider := strings.ToUpper(strings.TrimSpace(in.OTPProvider))
 	switch provider {
-	case "", "SANDBOX", "JATIS", "SMS_GATEWAY":
+	case "", "SANDBOX", "SANDBOX_DUMMY", "JATIS", "SMS_GATEWAY":
 	default:
 		return nil, fmt.Errorf("%w: penyedia OTP tidak dikenal", ErrValidation)
 	}
 	if provider == "" {
 		provider = current.OTPProvider
 	}
-	if s.cfg != nil && s.cfg.IsProductionLike() && provider == "SANDBOX" {
-		return nil, fmt.Errorf("%w: mode SANDBOX OTP tidak diizinkan di lingkungan produksi", ErrValidation)
+	if s.cfg != nil && s.cfg.IsProductionLike() && (provider == "SANDBOX" || provider == "SANDBOX_DUMMY") {
+		return nil, fmt.Errorf("%w: mode %s OTP tidak diizinkan di lingkungan produksi", ErrValidation, provider)
 	}
 	if !validHTTPSURL(in.OTPGatewayURL, false) || !validHTTPSURL(in.WebsiteURL, false) ||
 		!validHTTPSURL(in.LogoURL, true) || !validHTTPSURL(in.LoginBgURL, true) ||
