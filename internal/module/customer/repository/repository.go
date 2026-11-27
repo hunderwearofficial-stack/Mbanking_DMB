@@ -62,7 +62,13 @@ func (r *customerRepository) ListNotifications(ctx context.Context, userID strin
 		limit = 30
 	}
 	var notifs []model.Notification
-	if err := db.Where("user_id = ? OR user_id = ?", userID, "ALL").Order("created_at DESC").Limit(limit).Find(&notifs).Error; err != nil {
+	if err := db.Table("notifications n").
+		Select("n.id, n.user_id, n.title, n.message, n.category, (n.is_read OR nr.notification_id IS NOT NULL) AS is_read, n.created_at").
+		Joins("LEFT JOIN notification_reads nr ON nr.notification_id = n.id AND nr.user_id = ?", userID).
+		Where("n.user_id = ? OR n.user_id = ?", userID, "ALL").
+		Order("n.created_at DESC").
+		Limit(limit).
+		Scan(&notifs).Error; err != nil {
 		return nil, err
 	}
 	return notifs, nil
@@ -73,7 +79,15 @@ func (r *customerRepository) MarkNotificationsRead(ctx context.Context, userID s
 	if err != nil || userID == "" {
 		return err
 	}
-	return db.Model(&model.Notification{}).Where("user_id = ? AND is_read = ?", userID, false).Update("is_read", true).Error
+	if err := db.Model(&model.Notification{}).Where("user_id = ? AND is_read = ?", userID, false).Update("is_read", true).Error; err != nil {
+		return err
+	}
+	return db.Exec(
+		`INSERT INTO notification_reads (user_id, notification_id, read_at)
+		 SELECT ?, id, NOW() FROM notifications WHERE user_id = 'ALL'
+		 ON CONFLICT (user_id, notification_id) DO NOTHING`,
+		userID,
+	).Error
 }
 
 func (r *customerRepository) CreateProductApplication(ctx context.Context, app *model.ProductApplication) error {
