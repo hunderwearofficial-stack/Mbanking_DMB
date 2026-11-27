@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show Platform;
 
@@ -63,7 +64,9 @@ class FCMService {
   String? _registeredToken; // token already sent to the backend in this login session
   Map<String, dynamic>? _pendingOpen; // tapped before login
   final List<String> _shownIds = [];
+  final StreamController<void> _incomingController = StreamController<void>.broadcast();
 
+  Stream<void> get onForegroundNotification => _incomingController.stream;
   bool? permissionGranted;
 
   Future<void> initialize({ApiClient? apiClient}) async {
@@ -128,6 +131,7 @@ class FCMService {
     if (_shownIds.contains(id)) return; // never show the same message twice
     _shownIds.add(id);
     if (_shownIds.length > 50) _shownIds.removeAt(0);
+    _incomingController.add(null);
     final payload = PushPayload.encode(message.data);
     try {
       await _local.show(

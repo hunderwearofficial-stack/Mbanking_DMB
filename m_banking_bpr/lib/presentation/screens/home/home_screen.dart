@@ -35,7 +35,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _currentNavIndex = 0;
   int _unreadNotifications = 0;
 
@@ -46,6 +46,8 @@ class _HomeScreenState extends State<HomeScreen> {
   final PageController _promoPageController = PageController(viewportFraction: 1.0);
   int _currentPromoPage = 0;
   Timer? _promoTimer;
+  StreamSubscription<void>? _fcmSub;
+  DateTime? _lastAutoRefreshAt;
 
   static const Color deepCobalt = Color(0xFF033172);
   static const Color royalBlue = Color(0xFF0550A6);
@@ -55,9 +57,12 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _startPromoTimer();
     context.read<AccountCubit>().loadDashboardData();
     _checkUnreadNotifications();
+
+    _fcmSub = FCMService().onForegroundNotification.listen((_) => _triggerEventRefresh());
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       try {
@@ -65,6 +70,24 @@ class _HomeScreenState extends State<HomeScreen> {
         FCMService().syncStoredTokenIfLoggedIn(apiClient: authRepo.apiClient);
       } catch (_) {}
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _triggerEventRefresh();
+    }
+  }
+
+  void _triggerEventRefresh() {
+    if (!mounted) return;
+    final now = DateTime.now();
+    if (_lastAutoRefreshAt != null && now.difference(_lastAutoRefreshAt!) < const Duration(seconds: 2)) {
+      return;
+    }
+    _lastAutoRefreshAt = now;
+    context.read<AccountCubit>().loadDashboardData();
+    _checkUnreadNotifications();
   }
 
   int get _visibleBannerCount =>
@@ -103,6 +126,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    _fcmSub?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     _promoTimer?.cancel();
     _promoPageController.dispose();
     super.dispose();
