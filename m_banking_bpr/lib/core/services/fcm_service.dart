@@ -79,16 +79,20 @@ class FCMService {
       }
       FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-      await _local.initialize(
-        const InitializationSettings(
-          android: AndroidInitializationSettings(_smallIcon),
-          iOS: DarwinInitializationSettings(requestAlertPermission: false, requestBadgePermission: false, requestSoundPermission: false),
-        ),
-        onDidReceiveNotificationResponse: (r) => _onOpened(PushPayload.decode(r.payload)),
-      );
-      await _local
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-          ?.createNotificationChannel(channel);
+      try {
+        await _local.initialize(
+          const InitializationSettings(
+            android: AndroidInitializationSettings(_smallIcon),
+            iOS: DarwinInitializationSettings(requestAlertPermission: false, requestBadgePermission: false, requestSoundPermission: false),
+          ),
+          onDidReceiveNotificationResponse: (r) => _onOpened(PushPayload.decode(r.payload)),
+        );
+        await _local
+            .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+            ?.createNotificationChannel(channel);
+      } catch (e) {
+        logDebug('FCM local notification init gagal: $e');
+      }
 
       await _messaging.setForegroundNotificationPresentationOptions(alert: true, badge: true, sound: true);
 
@@ -116,7 +120,7 @@ class FCMService {
     }
   }
 
-  void _onForegroundMessage(RemoteMessage message) {
+  Future<void> _onForegroundMessage(RemoteMessage message) async {
     if (!Platform.isAndroid) return;
     final n = message.notification;
     if (n == null) return;
@@ -124,25 +128,51 @@ class FCMService {
     if (_shownIds.contains(id)) return; // never show the same message twice
     _shownIds.add(id);
     if (_shownIds.length > 50) _shownIds.removeAt(0);
-    _local.show(
-      id.hashCode,
-      n.title,
-      n.body,
-      NotificationDetails(
-        android: AndroidNotificationDetails(
-          channel.id,
-          channel.name,
-          channelDescription: channel.description,
-          icon: _smallIcon,
-          largeIcon: const DrawableResourceAndroidBitmap('ic_notification_logo'),
-          color: const Color(0xFF033172),
-          importance: Importance.max,
-          priority: Priority.max,
-          ticker: n.title,
+    final payload = PushPayload.encode(message.data);
+    try {
+      await _local.show(
+        id.hashCode,
+        n.title,
+        n.body,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            channel.id,
+            channel.name,
+            channelDescription: channel.description,
+            icon: _smallIcon,
+            largeIcon: const DrawableResourceAndroidBitmap('ic_notification_logo'),
+            color: const Color(0xFF033172),
+            importance: Importance.max,
+            priority: Priority.max,
+            ticker: n.title,
+          ),
         ),
-      ),
-      payload: PushPayload.encode(message.data),
-    );
+        payload: payload,
+      );
+    } catch (e) {
+      logDebug('FCM foreground show dengan largeIcon gagal, fallback tanpa largeIcon: $e');
+      try {
+        await _local.show(
+          id.hashCode,
+          n.title,
+          n.body,
+          NotificationDetails(
+            android: AndroidNotificationDetails(
+              channel.id,
+              channel.name,
+              channelDescription: channel.description,
+              icon: _smallIcon,
+              color: const Color(0xFF033172),
+              importance: Importance.max,
+              priority: Priority.max,
+            ),
+          ),
+          payload: payload,
+        );
+      } catch (e2) {
+        logDebug('FCM foreground show fallback gagal: $e2');
+      }
+    }
   }
 
   Future<void> _onOpened(Map<String, dynamic> data) async {

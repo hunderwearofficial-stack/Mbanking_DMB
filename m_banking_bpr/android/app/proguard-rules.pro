@@ -23,6 +23,11 @@
 -dontwarn okio.**
 -dontwarn org.conscrypt.**
 
+# Flutter Local Notifications (Gson reflection in release R8)
+-keep class com.dexterous.flutterlocalnotifications.** { *; }
+-keepattributes Signature
+-keepattributes *Annotation*
+
 # Flutter engine references Play Core only for deferred components, which this app does
 # not use (no deferred-components in pubspec): R8 must not fail on the absent classes.
 -dontwarn com.google.android.play.core.splitcompat.**
