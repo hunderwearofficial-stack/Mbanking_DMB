@@ -75,8 +75,13 @@ func main() {
 		adminUser = "admin"
 		adminPass = "AdminBPR2026!"
 	}
-	if err := database.BootstrapAdmin(db, adminUser, adminPass); err != nil {
+	if err := database.BootstrapAdminWithEmail(db, adminUser, adminPass, cfg.AdminBootstrapEmail); err != nil {
 		fatal("bootstrap admin gagal", err)
+	}
+	if cfg.AdminBootstrapCheckerUsername != "" && cfg.AdminBootstrapCheckerPassword != "" {
+		if err := database.BootstrapAdminWithEmail(db, cfg.AdminBootstrapCheckerUsername, cfg.AdminBootstrapCheckerPassword, cfg.AdminBootstrapCheckerEmail); err != nil {
+			fatal("bootstrap admin checker gagal", err)
+		}
 	}
 
 	var redisClient *redis.Client

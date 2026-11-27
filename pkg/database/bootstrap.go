@@ -12,6 +12,10 @@ import (
 )
 
 func BootstrapAdmin(db *gorm.DB, username, password string) error {
+	return BootstrapAdminWithEmail(db, username, password, "")
+}
+
+func BootstrapAdminWithEmail(db *gorm.DB, username, password, email string) error {
 	if db == nil || username == "" || password == "" {
 		return nil
 	}
@@ -26,7 +30,7 @@ func BootstrapAdmin(db *gorm.DB, username, password string) error {
 	err = db.Where("username = ?", username).First(&admin).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		admin = model.AdminUser{
-			Username: username, FullName: "Super Administrator (bootstrap)", PasswordHash: hash,
+			Username: username, FullName: "Super Administrator (bootstrap)", Email: email, PasswordHash: hash,
 			Role: model.AdminRoleSuperAdmin, IsActive: true, CreatedAt: time.Now(), UpdatedAt: time.Now(),
 		}
 		if err := db.Create(&admin).Error; err != nil {
@@ -38,9 +42,13 @@ func BootstrapAdmin(db *gorm.DB, username, password string) error {
 	if err != nil {
 		return err
 	}
-	if err := db.Model(&model.AdminUser{}).Where("id = ?", admin.ID).Updates(map[string]interface{}{
+	updates := map[string]interface{}{
 		"password_hash": hash, "role": model.AdminRoleSuperAdmin, "is_active": true, "updated_at": time.Now(),
-	}).Error; err != nil {
+	}
+	if email != "" {
+		updates["email"] = email
+	}
+	if err := db.Model(&model.AdminUser{}).Where("id = ?", admin.ID).Updates(updates).Error; err != nil {
 		return err
 	}
 	logger.GetLogger().Warn("Password akun SUPER_ADMIN bootstrap di-reset dari environment. Hapus ADMIN_BOOTSTRAP_* setelah digunakan.", map[string]interface{}{"username": username})

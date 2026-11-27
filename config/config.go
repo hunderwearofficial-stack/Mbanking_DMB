@@ -52,8 +52,12 @@ type Config struct {
 	AdminJWTSecret        string
 	AdminJWTExpiryMinutes int
 
-	AdminBootstrapUsername string
-	AdminBootstrapPassword string
+	AdminBootstrapUsername        string
+	AdminBootstrapPassword        string
+	AdminBootstrapEmail           string
+	AdminBootstrapCheckerUsername string
+	AdminBootstrapCheckerPassword string
+	AdminBootstrapCheckerEmail    string
 
 	DBEncryptionKey         string   // kunci AES-256 aktif (64 hex atau base64 32 byte)
 	DBEncryptionKeyPrevious string   // opsional: kunci lama, hanya dekripsi (rotasi)
@@ -264,8 +268,12 @@ func LoadConfig() *Config {
 		AdminJWTSecret:        r.secret("ADMIN_JWT_SECRET"),
 		AdminJWTExpiryMinutes: r.int("ADMIN_JWT_EXPIRY_MINUTES", 60, 1, 120),
 
-		AdminBootstrapUsername: r.str("ADMIN_BOOTSTRAP_USERNAME", ""),
-		AdminBootstrapPassword: r.secret("ADMIN_BOOTSTRAP_PASSWORD"),
+		AdminBootstrapUsername:        r.str("ADMIN_BOOTSTRAP_USERNAME", ""),
+		AdminBootstrapPassword:        r.secret("ADMIN_BOOTSTRAP_PASSWORD"),
+		AdminBootstrapEmail:           r.str("ADMIN_BOOTSTRAP_EMAIL", ""),
+		AdminBootstrapCheckerUsername: r.str("ADMIN_BOOTSTRAP_CHECKER_USERNAME", ""),
+		AdminBootstrapCheckerPassword: r.secret("ADMIN_BOOTSTRAP_CHECKER_PASSWORD"),
+		AdminBootstrapCheckerEmail:    r.str("ADMIN_BOOTSTRAP_CHECKER_EMAIL", ""),
 
 		DBEncryptionKey:         r.secret("DB_ENCRYPTION_KEY"),
 		DBEncryptionKeyPrevious: r.secret("DB_ENCRYPTION_KEY_PREVIOUS"),
@@ -380,6 +388,14 @@ func (c *Config) Validate() error {
 	if c.AdminBootstrapUsername != "" || c.AdminBootstrapPassword != "" {
 		if c.AdminBootstrapUsername == "" || len(c.AdminBootstrapPassword) < 12 {
 			errs = append(errs, "ADMIN_BOOTSTRAP_USERNAME dan ADMIN_BOOTSTRAP_PASSWORD (minimal 12 karakter) harus diisi bersamaan")
+		}
+	}
+	if c.AdminBootstrapCheckerUsername != "" || c.AdminBootstrapCheckerPassword != "" {
+		if c.AdminBootstrapCheckerUsername == "" || len(c.AdminBootstrapCheckerPassword) < 12 {
+			errs = append(errs, "ADMIN_BOOTSTRAP_CHECKER_USERNAME dan ADMIN_BOOTSTRAP_CHECKER_PASSWORD (minimal 12 karakter) harus diisi bersamaan")
+		}
+		if c.AdminBootstrapUsername != "" && c.AdminBootstrapCheckerUsername == c.AdminBootstrapUsername {
+			errs = append(errs, "ADMIN_BOOTSTRAP_CHECKER_USERNAME harus berbeda dari ADMIN_BOOTSTRAP_USERNAME")
 		}
 	}
 	errs = append(errs, c.deviceBindingErrors()...)
