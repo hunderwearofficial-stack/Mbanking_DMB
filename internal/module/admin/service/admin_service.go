@@ -1350,6 +1350,9 @@ func (s *adminService) UpdateApplicationStatus(ctx context.Context, id string, s
 	}
 	app, err := s.repo.UpdateApplicationStatus(ctx, id, status, limitLen(adminNotes, 500))
 	if err != nil {
+		if errors.Is(err, repository.ErrApplicationFinalStatus) {
+			return nil, fmt.Errorf("%w: %s", ErrValidation, err.Error())
+		}
 		return nil, err
 	}
 	statusLabel := app.Status

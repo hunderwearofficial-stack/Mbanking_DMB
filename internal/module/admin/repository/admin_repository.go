@@ -16,8 +16,9 @@ import (
 )
 
 var (
-	ErrDBUnavailable = errors.New("database tidak tersedia")
-	ErrSelfApproval  = errors.New("pembuat permintaan tidak dapat menyetujui atau menolak permintaannya sendiri")
+	ErrDBUnavailable          = errors.New("database tidak tersedia")
+	ErrSelfApproval           = errors.New("pembuat permintaan tidak dapat menyetujui atau menolak permintaannya sendiri")
+	ErrApplicationFinalStatus = errors.New("pengajuan yang sudah selesai atau dibatalkan tidak dapat ditindaklanjuti lagi")
 )
 
 type CustomerSummary struct {
@@ -723,6 +724,10 @@ func (r *adminRepository) UpdateApplicationStatus(ctx context.Context, id string
 	var app model.ProductApplication
 	if err := db.Where("id = ?", id).First(&app).Error; err != nil {
 		return nil, err
+	}
+	existing := strings.ToUpper(strings.TrimSpace(app.Status))
+	if existing == "APPROVED" || existing == "REJECTED" {
+		return nil, ErrApplicationFinalStatus
 	}
 	app.Status = strings.ToUpper(status)
 	app.AdminNotes = adminNotes

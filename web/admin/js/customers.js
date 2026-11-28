@@ -356,22 +356,7 @@ async function loadProductApplications() {
           const amountFmt = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(app.amount || 0);
           const estFmt = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(app.estimated_return || 0);
 
-          const actionsHtml = isReadOnly
-            ? `<span class="text-[10px] font-semibold text-slate-400 italic">Read-Only</span>`
-            : `<div class="flex items-center justify-center gap-1.5 flex-wrap">
-                <button type="button" onclick="updateProductAppStatus(${jsArg(app.id)}, 'CONTACTED', ${jsArg(app.product_name)}, ${jsArg(app.full_name)}, ${jsArg(app.admin_notes || '')})"
-                  class="px-2 py-1 rounded-lg text-[10px] font-bold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition">
-                  Proses
-                </button>
-                <button type="button" onclick="updateProductAppStatus(${jsArg(app.id)}, 'APPROVED', ${jsArg(app.product_name)}, ${jsArg(app.full_name)}, ${jsArg(app.admin_notes || '')})"
-                  class="px-2 py-1 rounded-lg text-[10px] font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition">
-                  Selesai
-                </button>
-                <button type="button" onclick="updateProductAppStatus(${jsArg(app.id)}, 'REJECTED', ${jsArg(app.product_name)}, ${jsArg(app.full_name)}, ${jsArg(app.admin_notes || '')})"
-                  class="px-2 py-1 rounded-lg text-[10px] font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition">
-                  Batalkan
-                </button>
-              </div>`;
+          const actionsHtml = renderProductAppActions(app, isReadOnly, 'justify-center');
 
           return `
             <tr class="hover:bg-slate-50/80 transition align-top">
@@ -415,6 +400,35 @@ async function loadProductApplications() {
     hideTablePagination('productApplicationsTableBody');
     tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-rose-500">Gagal memuat pengajuan: ${esc(e.message)}</td></tr>`;
   }
+}
+
+function renderProductAppActions(app, isReadOnly, alignClass = 'justify-center') {
+  if (isReadOnly) {
+    return `<span class="text-[10px] font-semibold text-slate-400 italic">Read-Only</span>`;
+  }
+  const st = (app.status || 'PENDING').toUpperCase();
+  if (st === 'APPROVED') {
+    return `<span class="inline-block px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Tuntas</span>`;
+  }
+  if (st === 'REJECTED') {
+    return `<span class="inline-block px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">Sudah Dibatalkan</span>`;
+  }
+  const prosesBtn = st === 'CONTACTED' ? '' : `
+    <button type="button" onclick="updateProductAppStatus(${jsArg(app.id)}, 'CONTACTED', ${jsArg(app.product_name)}, ${jsArg(app.full_name)}, ${jsArg(app.admin_notes || '')})"
+      class="px-2 py-1 rounded-lg text-[10px] font-bold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition">
+      Proses
+    </button>`;
+  return `<div class="flex items-center ${alignClass} gap-1.5 flex-wrap">
+    ${prosesBtn}
+    <button type="button" onclick="updateProductAppStatus(${jsArg(app.id)}, 'APPROVED', ${jsArg(app.product_name)}, ${jsArg(app.full_name)}, ${jsArg(app.admin_notes || '')})"
+      class="px-2 py-1 rounded-lg text-[10px] font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition">
+      Selesai
+    </button>
+    <button type="button" onclick="updateProductAppStatus(${jsArg(app.id)}, 'REJECTED', ${jsArg(app.product_name)}, ${jsArg(app.full_name)}, ${jsArg(app.admin_notes || '')})"
+      class="px-2 py-1 rounded-lg text-[10px] font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition">
+      Batalkan
+    </button>
+  </div>`;
 }
 
 async function updateProductAppStatus(id, initialStatus, productName, customerName, existingNotes = '') {
@@ -571,22 +585,7 @@ async function loadDepositDisbursements() {
         statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">DIBATALKAN</span>`;
       }
 
-      const actionsHtml = isReadOnly
-        ? `<span class="text-[10px] font-semibold text-slate-400 italic">Read-Only</span>`
-        : `<div class="flex items-center justify-end gap-1.5 flex-wrap">
-            <button type="button" onclick="updateProductAppStatus(${jsArg(app.id)}, 'CONTACTED', ${jsArg(app.product_name)}, ${jsArg(app.full_name)}, ${jsArg(app.admin_notes || '')})"
-              class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition">
-              Proses
-            </button>
-            <button type="button" onclick="updateProductAppStatus(${jsArg(app.id)}, 'APPROVED', ${jsArg(app.product_name)}, ${jsArg(app.full_name)}, ${jsArg(app.admin_notes || '')})"
-              class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition">
-              Selesai
-            </button>
-            <button type="button" onclick="updateProductAppStatus(${jsArg(app.id)}, 'REJECTED', ${jsArg(app.product_name)}, ${jsArg(app.full_name)}, ${jsArg(app.admin_notes || '')})"
-              class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition">
-              Batalkan
-            </button>
-          </div>`;
+      const actionsHtml = renderProductAppActions(app, isReadOnly, 'justify-end');
 
       return `
         <tr class="hover:bg-slate-50/80 transition align-top">
