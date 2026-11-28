@@ -53,7 +53,7 @@ var Pages = []Page{
 		Description: "Layar pertama saat aplikasi dibuka.",
 		Static: []string{
 			"Gambar latar gedung (splash_building.jpg) dan logo animasi DMB — dibundel langsung di aplikasi.",
-			"Teks versi aplikasi (\"DMB Mobile v…\") — berasal dari build aplikasi, bukan konten.",
+			"Teks versi aplikasi (\"DMB v…\") — berasal dari build aplikasi, bukan konten.",
 		}},
 	{ID: "onboarding", Name: "Tampilan Awal (Onboarding)", Screen: "lib/presentation/screens/onboarding/onboarding_screen.dart",
 		Description: "Layar sambutan penuh sebelum nasabah masuk.",
@@ -143,7 +143,7 @@ var Fields = []Field{
 
 func init() {
 	defaults := [3][4]string{
-		{"UNTUK ANDA", "DMB Mobile", "Lebih Mudah, Lebih Dekat dengan Anda", "profil"},
+		{"UNTUK ANDA", "Bank DMB", "Lebih Mudah, Lebih Dekat dengan Anda", "profil"},
 		{"INFO PRODUK", "Tabungan & Deposito DMB", "Simpanan dijamin LPS sesuai ketentuan", "profil"},
 		{"KEAMANAN", "Keamanan Berlapis", "PIN & perangkat terdaftar terlindungi", "keamanan"},
 	}
