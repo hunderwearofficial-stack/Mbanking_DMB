@@ -110,9 +110,9 @@ var Fields = []Field{
 		Default: "Masuk Sekarang"},
 
 	{Key: "terms.headline", Page: "terms", Group: "Teks", Label: "Judul halaman", Used: "TermsConditionsScreen", Type: TypeMultiline, Max: 200, Required: true,
-		Default: "Ringkasan Informasi dan Syarat Ketentuan Mobile Banking Bank DMB"},
+		Default: "Ringkasan Informasi dan Syarat Ketentuan Bank DMB"},
 	{Key: "terms.instruction", Page: "terms", Group: "Teks", Label: "Instruksi", Used: "TermsConditionsScreen", Type: TypeMultiline, Max: 300, Required: true,
-		Default: "Baca dan setujui Ringkasan Informasi serta Syarat dan Ketentuan Mobile Banking Bank DMB."},
+		Default: "Baca dan setujui Ringkasan Informasi serta Syarat dan Ketentuan Bank DMB."},
 
 	{Key: "login.hero_slide1_badge", Page: "login", Group: "Hero Banner", Label: "Label slide 1", Used: "LoginScreen (Hero Slide 1)", Type: TypeText, Max: 50, Required: true,
 		Default: "TABUNGAN DANA MANDIRI"},
