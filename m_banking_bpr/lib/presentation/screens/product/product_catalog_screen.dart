@@ -236,7 +236,6 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> with Single
                               ? 'Fasilitas Pembiayaan / Pinjaman'
                               : 'Tabungan Perorangan',
                     ),
-                    _buildModalRow('Suku Bunga / Imbal Hasil', rateInfo, isHighlight: true),
                     _buildModalRow('Lembaga Pengawas', 'Otoritas Jasa Keuangan (OJK)'),
                     if (!isKredit)
                       _buildModalRow('Penjaminan Simpanan', 'Lembaga Penjamin Simpanan (LPS)'),
