@@ -54,9 +54,7 @@ Future<void> showApplyBottomSheet(BuildContext context) {
                             label: 'Kredit',
                             onTap: () {
                               Navigator.pop(dialogCtx);
-                              Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => const LoanCategoryApplyScreen()),
-                              );
+                              LoanApplicationBottomSheet.show(context);
                             },
                           ),
                           _BubbleMenuRow(
@@ -74,9 +72,7 @@ Future<void> showApplyBottomSheet(BuildContext context) {
                             label: 'Deposito',
                             onTap: () {
                               Navigator.pop(dialogCtx);
-                              Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => const DepositTenorApplyScreen()),
-                              );
+                              DepositApplicationBottomSheet.show(context);
                             },
                           ),
                         ],
@@ -210,9 +206,7 @@ class ApplyHubScreen extends StatelessWidget {
                   icon: Icons.credit_card_outlined,
                   title: 'Ajukan Kredit',
                   subtitle: 'KKM, Micro Individual Loan (MIL), Kredit Multi Guna (KMG)',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const LoanCategoryApplyScreen()),
-                  ),
+                  onTap: () => LoanApplicationBottomSheet.show(context),
                 ),
                 const Divider(height: 1, indent: 52, endIndent: 16, color: Color(0xFFF1F5F9)),
                 _CleanMenuTile(
@@ -260,148 +254,6 @@ class ApplyHubScreen extends StatelessWidget {
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const ApplicationStatusScreen()),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Pilihan Ajukan Kredit: KKM, MIL, KMG -> e-form
-class LoanCategoryApplyScreen extends StatelessWidget {
-  const LoanCategoryApplyScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final options = [
-      (
-        title: 'Kredit Kelompok Mandiri (KKM)',
-        subtitle: 'Pembiayaan kelompok KKM Reguler & KILAT KKM',
-        productName: 'Kredit Kelompok Mandiri (KKM)',
-        icon: Icons.people_outline_rounded,
-      ),
-      (
-        title: 'Micro Individual Loan (MIL)',
-        subtitle: 'Modal kerja usaha mikro perorangan',
-        productName: 'Micro Individual Loan (MIL)',
-        icon: Icons.storefront_outlined,
-      ),
-      (
-        title: 'Kredit Multi Guna (KMG)',
-        subtitle: 'Pembiayaan serbaguna & kebutuhan konsumtif',
-        productName: 'Kredit Multi Guna (KMG)',
-        icon: Icons.description_outlined,
-      ),
-    ];
-
-    return _dmbApplyScaffold(
-      title: 'Ajukan Kredit',
-      subtitle: 'Pilih fasilitas pinjaman sesuai kebutuhan Anda',
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 2, bottom: 8),
-            child: Text(
-              'PILIH JENIS KREDIT',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.6,
-                color: AppColors.textMuted,
-              ),
-            ),
-          ),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Column(
-              children: List.generate(options.length, (i) {
-                final o = options[i];
-                return Column(
-                  children: [
-                    _CleanMenuTile(
-                      icon: o.icon,
-                      title: o.title,
-                      subtitle: o.subtitle,
-                      onTap: () => LoanApplicationBottomSheet.show(
-                        context,
-                        initialProductName: o.productName,
-                      ),
-                    ),
-                    if (i < options.length - 1)
-                      const Divider(height: 1, indent: 52, endIndent: 16, color: Color(0xFFF1F5F9)),
-                  ],
-                );
-              }),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Pilihan Ajukan Deposito: 1, 3, 6, 12 Bulan -> e-form
-class DepositTenorApplyScreen extends StatelessWidget {
-  const DepositTenorApplyScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final tenors = [
-      (months: 1, label: 'Deposito 1 Bulan', desc: 'Tenor singkat dengan fleksibilitas tinggi'),
-      (months: 3, label: 'Deposito 3 Bulan', desc: 'Pilihan jangka pendek-menengah'),
-      (months: 6, label: 'Deposito 6 Bulan', desc: 'Imbal hasil optimal di atas rata-rata pasar'),
-      (months: 12, label: 'Deposito 12 Bulan', desc: 'Imbal hasil maksimal & dijamin LPS'),
-    ];
-
-    return _dmbApplyScaffold(
-      title: 'Ajukan Deposito',
-      subtitle: 'Pilih jangka waktu simpanan berjangka',
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 2, bottom: 8),
-            child: Text(
-              'PILIH JANGKA WAKTU',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.6,
-                color: AppColors.textMuted,
-              ),
-            ),
-          ),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Column(
-              children: List.generate(tenors.length, (i) {
-                final t = tenors[i];
-                return Column(
-                  children: [
-                    _CleanMenuTile(
-                      icon: Icons.savings_outlined,
-                      title: t.label,
-                      subtitle: t.desc,
-                      onTap: () => DepositApplicationBottomSheet.show(
-                        context,
-                        initialTenorMonths: t.months,
-                      ),
-                    ),
-                    if (i < tenors.length - 1)
-                      const Divider(height: 1, indent: 52, endIndent: 16, color: Color(0xFFF1F5F9)),
-                  ],
-                );
-              }),
             ),
           ),
         ],

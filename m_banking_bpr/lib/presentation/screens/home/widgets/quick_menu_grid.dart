@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../account/balance_summary_screen.dart';
+import '../../deposit/deposit_application_bottom_sheet.dart';
 import '../../deposit/deposit_screen.dart';
+import '../../loan/loan_application_bottom_sheet.dart';
 import '../../loan/loan_schedule_list_screen.dart';
 import '../../loan/loan_screen.dart';
 import '../../mutation/mutation_screen.dart';
@@ -70,16 +72,12 @@ class FigmaMenuGrid extends StatelessWidget {
       (
         label: 'Ajukan\nKredit',
         iconType: _DmbMenuIconType.applyCredit,
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const LoanCategoryApplyScreen()),
-        ),
+        onTap: () => LoanApplicationBottomSheet.show(context),
       ),
       (
         label: 'Ajukan\nDeposito',
         iconType: _DmbMenuIconType.applyDeposit,
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const DepositTenorApplyScreen()),
-        ),
+        onTap: () => DepositApplicationBottomSheet.show(context),
       ),
       (
         label: 'Status\nPengajuan',
