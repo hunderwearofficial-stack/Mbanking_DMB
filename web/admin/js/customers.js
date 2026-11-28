@@ -37,10 +37,12 @@ function switchCustomerSubTab(subTab) {
   }
 
   if (secCustomers) {
-    secCustomers.classList.toggle('hidden', subTab !== 'customers' || role === 'MARKETING');
+    secCustomers.classList.toggle('hidden', role === 'MARKETING' && subTab !== 'customers');
   }
   if (secApps) {
-    secApps.classList.toggle('hidden', subTab !== 'applications' && role !== 'MARKETING');
+    // productApplicationsSection now lives in its own top-level tab (#tab-product-applications),
+    // so never hide it when switching/loading Nasabah & Perangkat.
+    secApps.classList.remove('hidden');
   }
 
   if (btnCustomers && btnApps) {
@@ -295,6 +297,8 @@ async function loadDeviceBindingSummary() {
 }
 
 async function loadProductApplications() {
+  const secApps = document.getElementById('productApplicationsSection');
+  if (secApps) secApps.classList.remove('hidden');
   const tbody = document.getElementById('productApplicationsTableBody');
   if (!tbody) return;
   const filterEl = document.getElementById('appProductFilter');
