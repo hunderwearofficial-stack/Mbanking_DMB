@@ -333,19 +333,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
                                       const SizedBox(height: 28),
 
-                                      const Text(
-                                        'Selamat Datang di\nDMB Mobile',
-                                        style: TextStyle(
-                                          fontSize: 27,
+                                      Text(
+                                        AppContent.text('login.title'),
+                                        style: const TextStyle(
+                                          fontSize: 22,
                                           fontWeight: FontWeight.w800,
                                           color: Colors.white,
-                                          height: 1.18,
-                                          letterSpacing: -0.5,
+                                          height: 1.22,
+                                          letterSpacing: -0.4,
                                         ),
                                       ),
                                       const SizedBox(height: 8),
                                       Text(
-                                        'Transaksi mudah, aman,\ndi mana saja dan kapan saja.',
+                                        AppContent.text('login.subtitle'),
                                         style: TextStyle(
                                           fontSize: 13.5,
                                           fontWeight: FontWeight.w500,
