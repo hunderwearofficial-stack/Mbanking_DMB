@@ -254,7 +254,7 @@ function renderAuditLogsTable() {
       actorBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-extrabold bg-slate-200 text-slate-800">SYSTEM</span>';
     }
 
-    const seqDisplay = log.seq ? `#${esc(log.seq)}` : `#${startIdx + idx + 1}`;
+    const seqDisplay = log.seq ? `${esc(log.seq)}.` : `${startIdx + idx + 1}.`;
     const fullHash = log.hash || '';
     const prevHash = log.prev_hash || '';
     const shortHash = fullHash ? fullHash.substring(0, 10) + '…' : 'legacy';

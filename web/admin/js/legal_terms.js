@@ -335,7 +335,7 @@ function renderTermsVisualBuilder() {
         <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 space-y-2.5">
           <div class="flex flex-wrap items-center justify-between gap-2">
             <div class="flex items-center gap-2">
-              <span class="px-2 py-0.5 rounded bg-slate-200 text-slate-700 text-[10px] font-extrabold">Butir #${bIdx + 1}</span>
+              <span class="px-2 py-0.5 rounded bg-slate-200 text-slate-700 text-[10px] font-extrabold">Butir ${bIdx + 1}</span>
               <select onchange="changeTermsBlockType(${sIdx}, ${bIdx}, this.value)"
                 class="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-700">
                 <option value="paragraph" ${b.type === 'paragraph' ? 'selected' : ''}>Paragraf Klausul</option>
@@ -420,7 +420,7 @@ function renderTermsVisualBuilder() {
 
   const statementsHtml = (v.consent_statements || []).map((st, idx) => `
     <div class="flex items-start gap-2">
-      <span class="px-2 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-black">#${idx + 1}</span>
+      <span class="min-w-[32px] text-center px-2 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-black">${idx + 1}.</span>
       <textarea rows="2" maxlength="600"
         oninput="termsVisualData.consent_statements[${idx}] = this.value"
         class="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#033172]">${esc(st)}</textarea>
