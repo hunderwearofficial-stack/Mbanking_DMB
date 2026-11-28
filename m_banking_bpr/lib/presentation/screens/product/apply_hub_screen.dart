@@ -218,10 +218,8 @@ class ApplyHubScreen extends StatelessWidget {
                 _CleanMenuTile(
                   icon: Icons.savings_outlined,
                   title: 'Ajukan Deposito',
-                  subtitle: 'Pilihan tenor 1, 3, 6, dan 12 Bulan',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const DepositTenorApplyScreen()),
-                  ),
+                  subtitle: 'Pengajuan pembukaan Deposito Bank DMB',
+                  onTap: () => DepositApplicationBottomSheet.show(context),
                 ),
                 const Divider(height: 1, indent: 52, endIndent: 16, color: Color(0xFFF1F5F9)),
                 _CleanMenuTile(

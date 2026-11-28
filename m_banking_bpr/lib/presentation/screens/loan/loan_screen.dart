@@ -449,7 +449,6 @@ class _LoanScreenState extends State<LoanScreen> {
                   if (rate != null) _buildDetailRow('Suku Bunga', rate),
                   if (jatuhTempo != '-') _buildDetailRow('Tanggal Jatuh Tempo', jatuhTempo),
                   _buildDetailRow('Status Kolektibilitas', kolLabel, isGreen: isLancar),
-                  _buildDetailRow('Kantor Pelayanan', _field(loan, ['nama_kantor', 'kantor'])),
 
                   const SizedBox(height: 22),
 
@@ -1454,9 +1453,23 @@ class _LoanScreenState extends State<LoanScreen> {
                   ),
                   const SizedBox(height: 14),
 
-                  // Individual KKM Loan Progress Cards
-                  ...List.generate(_kkmLoans.length, (idx) {
-                    final b = _kkmLoans[idx];
+                  // Individual KKM Loan Progress Cards (1 KKM Reguler + 1 KILAT KKM)
+                  ...() {
+                    final displayed = <LoanKkmBundle>[];
+                    LoanKkmBundle? reguler;
+                    LoanKkmBundle? kilat;
+                    for (final item in _kkmLoans) {
+                      final j = (item.kkm['jenis'] ?? item.detail['jenis_kkm'] ?? '').toString().toLowerCase();
+                      if (j == 'kilat') {
+                        kilat ??= item;
+                      } else {
+                        reguler ??= item;
+                      }
+                    }
+                    if (reguler != null) displayed.add(reguler);
+                    if (kilat != null) displayed.add(kilat);
+                    return List.generate(displayed.length, (idx) {
+                    final b = displayed[idx];
                     final jenis = (b.kkm['jenis'] ?? b.detail['jenis_kkm'] ?? '').toString().toLowerCase();
                     final title = jenis == 'kilat' ? 'KILAT KKM' : 'KKM Reguler';
                     final plafon = Money.tryParse(b.detail['plafon'] ?? b.account['plafon']) ?? Money.zero();
@@ -1488,7 +1501,7 @@ class _LoanScreenState extends State<LoanScreen> {
                             Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) => LoanKkmDetailScreen(
-                                  kkmLoans: _kkmLoans,
+                                  kkmLoans: displayed,
                                   initialLoanIndex: idx,
                                   initialTabIndex: 0,
                                 ),
@@ -1562,7 +1575,8 @@ class _LoanScreenState extends State<LoanScreen> {
                         ),
                       ),
                     );
-                  }),
+                  });
+                  }(),
 
                   // Quick Buttons: Info Pinjaman & Bayar & Hadir
                   Row(

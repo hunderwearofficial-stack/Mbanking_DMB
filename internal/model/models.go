@@ -167,15 +167,15 @@ func (b *Banner) BeforeCreate(tx *gorm.DB) error {
 
 type AppConfig struct {
 	ID                   string    `json:"id" gorm:"primaryKey;type:varchar(50);default:'DEFAULT'"`
-	BankName             string    `json:"bank_name" gorm:"type:varchar(120);default:'PT BPR DANA MANDIRI BOGOR'"`
+	BankName             string    `json:"bank_name" gorm:"type:varchar(120);default:'BANK DMB'"`
 	BankShortName        string    `json:"bank_short_name" gorm:"type:varchar(50);default:'Bank DMB'"`
 	Tagline              string    `json:"tagline" gorm:"type:varchar(255);default:'Mitra Terpercaya Menuju Sejahtera'"`
 	LogoURL              string    `json:"logo_url" gorm:"type:text"`
 	LoginBgURL           string    `json:"login_bg_url" gorm:"type:text;column:login_bg_url"`
 	SplashBgURL          string    `json:"splash_bg_url" gorm:"type:text;column:splash_bg_url"`
 	OnboardingBgURL      string    `json:"onboarding_bg_url" gorm:"type:text;column:onboarding_bg_url"`
-	WelcomeTitle         string    `json:"welcome_title" gorm:"type:varchar(150);default:'Selamat Datang di DMB Mobile';column:welcome_title"`
-	WelcomeSubtitle      string    `json:"welcome_subtitle" gorm:"type:varchar(255);default:'Transaksi mudah, aman, dan tepercaya bersama BPR Dana Mandiri Bogor';column:welcome_subtitle"`
+	WelcomeTitle         string    `json:"welcome_title" gorm:"type:varchar(150);default:'Selamat Datang di Bank DMB';column:welcome_title"`
+	WelcomeSubtitle      string    `json:"welcome_subtitle" gorm:"type:varchar(255);default:'Transaksi mudah, aman, dan tepercaya bersama Bank DMB';column:welcome_subtitle"`
 	LoginTitle           string    `json:"login_title" gorm:"type:varchar(150);default:'Masuk ke Akun M-Banking';column:login_title"`
 	LoginSubtitle        string    `json:"login_subtitle" gorm:"type:varchar(255);default:'Silakan masukkan User ID dan Kata Sandi Anda';column:login_subtitle"`
 	TermsVersion         string    `json:"terms_version" gorm:"type:varchar(50);default:'Versi 2.4 - Efektif 2026';column:terms_version"`

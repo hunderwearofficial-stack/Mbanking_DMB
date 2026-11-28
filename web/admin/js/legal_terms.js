@@ -172,7 +172,7 @@ function normalizeVisualContent(raw) {
     consent_instruction: c.consent_instruction || '',
     consent_statements: Array.isArray(c.consent_statements) && c.consent_statements.length
       ? [...c.consent_statements]
-      : ['Saya telah membaca, memahami, dan menyetujui seluruh Syarat dan Ketentuan Layanan Mobile Banking PT BPR Dana Mandiri Bogor.'],
+      : ['Saya telah membaca, memahami, dan menyetujui seluruh Syarat dan Ketentuan Layanan Mobile Banking Bank DMB.'],
     sections: Array.isArray(c.sections) && c.sections.length
       ? c.sections.map(s => ({
           heading: s.heading || '',

@@ -235,7 +235,6 @@ class _DepositScreenState extends State<DepositScreen> {
                         _buildModalRow('Nomor Bilyet', _field(item, ['nomor_bilyet', 'no_bilyet'])),
                         _buildModalRow('Sistem Perpanjangan', _field(item, ['jenis_aro', 'instruksi_aro'])),
                         _buildModalRow('Rekening Pencairan', _field(item, ['rekening_pencairan_bunga', 'rekening_pencairan'])),
-                        _buildModalRow('Kantor Pelayanan', _field(item, ['nama_kantor', 'kantor'])),
                       ],
                     ),
                   ),
@@ -330,7 +329,7 @@ class _DepositScreenState extends State<DepositScreen> {
         child: Column(
           children: [
             DmbPageHeader(
-              title: 'Portofolio Deposito',
+              title: 'Deposito',
               subtitle: 'Simpanan berjangka Bank DMB dijamin LPS',
               actionIcon: Icons.refresh_rounded,
               onAction: _fetchDepositData,

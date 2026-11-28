@@ -247,9 +247,9 @@ class _DepositApplicationBottomSheetState extends State<DepositApplicationBottom
         productName: _selectedProduct.name,
         amount: Money.rupiah(_nominal),
         tenorMonths: _selectedProduct.tenorMonths,
-        interestRate: '${_selectedProduct.ratePercent.toStringAsFixed(2)}% p.a.',
-        estimatedReturn: Money.rupiah(_netReturn),
-        purposeOrSource: 'Instruksi: $_selectedAro',
+        interestRate: '',
+        estimatedReturn: Money.zero(),
+        purposeOrSource: '',
       );
 
       if (!mounted) return;
@@ -425,7 +425,7 @@ class _DepositApplicationBottomSheetState extends State<DepositApplicationBottom
                       const Divider(height: 24, color: Color(0xFFF1F5F9)),
 
               Text(
-                'Pilihan Tenor & Bunga',
+                'Pilihan Produk Deposito',
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
@@ -483,21 +483,6 @@ class _DepositApplicationBottomSheetState extends State<DepositApplicationBottom
                                 ),
                               ),
                             ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: isSelected ? const Color(0xFFDCFCE7) : borderLight,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            '${p.ratePercent.toStringAsFixed(2)}% p.a.',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w800,
-                              color: isSelected ? const Color(0xFF15803D) : titleDark,
-                            ),
                           ),
                         ),
                       ],
@@ -572,139 +557,6 @@ class _DepositApplicationBottomSheetState extends State<DepositApplicationBottom
                       ),
                     );
                   }).toList(),
-                ),
-              ),
-
-              const SizedBox(height: 14),
-              Text(
-                'Instruksi Perpanjangan (ARO)',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: titleDark,
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              DropdownButtonFormField<String>(
-                value: _selectedAro,
-                isExpanded: true,
-                selectedItemBuilder: (ctx) => _aroOptions
-                    .map((opt) => Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            opt,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600),
-                          ),
-                        ))
-                    .toList(),
-                items: _aroOptions
-                    .map((opt) => DropdownMenuItem(
-                          value: opt,
-                          child: Text(
-                            opt,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w600),
-                          ),
-                        ))
-                    .toList(),
-                onChanged: (val) {
-                  if (val != null) setState(() => _selectedAro = val);
-                },
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: bgCanvas,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: borderLight),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColors.successLight,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.successBorder),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Estimasi Bunga Kotor:',
-                            style: GoogleFonts.plusJakartaSans(fontSize: 12, color: textMuted)),
-                        Text(
-                          CurrencyFormatter.formatRupiah(Money.rupiah(_grossReturn)),
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                            color: titleDark,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 5),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          _isTaxable
-                              ? 'Pajak Deposito (${ProductRates.depositoTaxPercent}% > Rp 7,5 Jt):'
-                              : 'Pajak Deposito (Bebas Pajak ≤ Rp 7,5 Jt):',
-                          style: GoogleFonts.plusJakartaSans(fontSize: 11.5, color: textMuted),
-                        ),
-                        Text(
-                          _isTaxable
-                              ? '- ${CurrencyFormatter.formatRupiah(Money.rupiah(_taxDeduction))}'
-                              : 'Rp 0',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: _isTaxable ? AppColors.warning : dmbGreen,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Divider(height: 16, color: AppColors.successBorder),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Estimasi Bunga Bersih (Net):',
-                            style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: dmbGreen)),
-                        Text(
-                          CurrencyFormatter.formatRupiah(Money.rupiah(_netReturn)),
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w800,
-                            color: dmbGreen,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Estimasi Total Jatuh Tempo:',
-                            style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w700, color: titleDark)),
-                        Text(
-                          CurrencyFormatter.formatRupiah(Money.rupiah(_nominal + _netReturn)),
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w800,
-                            color: primaryNavy,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
                 ),
               ),
 

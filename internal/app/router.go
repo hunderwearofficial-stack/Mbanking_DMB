@@ -229,6 +229,7 @@ func NewRouter(cfg *config.Config, db *gorm.DB, redisClient *redis.Client, cbsPr
 				a.PUT("/applications/:id/status", roles(SA, CS, MK), adminHandler.UpdateApplicationStatusAdmin)
 				a.GET("/helpdesk/faqs", roles(SA, CS, MK, CO), helpdeskHandler.AdminListFAQs)
 				a.POST("/helpdesk/faqs", roles(SA, CS, MK), helpdeskHandler.AdminCreateFAQ)
+				a.POST("/helpdesk/faqs/import", roles(SA, CS, MK), helpdeskHandler.AdminImportFAQs)
 				a.PUT("/helpdesk/faqs/:id", roles(SA, CS, MK), helpdeskHandler.AdminUpdateFAQ)
 				a.DELETE("/helpdesk/faqs/:id", roles(SA, CS, MK), helpdeskHandler.AdminDeleteFAQ)
 				a.GET("/helpdesk/inquiries", roles(SA, CS, MK, CO), helpdeskHandler.AdminListInquiries)

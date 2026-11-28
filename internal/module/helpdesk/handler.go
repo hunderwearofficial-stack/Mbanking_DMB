@@ -218,6 +218,68 @@ func (h *Handler) AdminCreateFAQ(c *gin.Context) {
 	response.Success(c, "FAQ berhasil ditambahkan", faq)
 }
 
+type faqImportReq struct {
+	Items []faqPayload `json:"items" binding:"required"`
+}
+
+// Admin: POST /api/v1/admin/helpdesk/faqs/import
+func (h *Handler) AdminImportFAQs(c *gin.Context) {
+	if h.db == nil {
+		errResp(c, http.StatusServiceUnavailable, "Database tidak tersedia")
+		return
+	}
+	h.ensureReady()
+	var req faqImportReq
+	if err := c.ShouldBindJSON(&req); err != nil || len(req.Items) == 0 {
+		errResp(c, http.StatusBadRequest, "Daftar FAQ tidak boleh kosong")
+		return
+	}
+	if len(req.Items) > 500 {
+		errResp(c, http.StatusBadRequest, "Maksimal 500 baris FAQ per unggahan")
+		return
+	}
+	var created []model.HelpdeskFAQ
+	for i, item := range req.Items {
+		topic := strings.TrimSpace(item.Topic)
+		keywords := strings.TrimSpace(item.Keywords)
+		answer := strings.TrimSpace(item.Answer)
+		if topic == "" || answer == "" {
+			continue
+		}
+		if keywords == "" {
+			keywords = strings.ToLower(topic)
+		}
+		active := true
+		if item.IsActive != nil {
+			active = *item.IsActive
+		}
+		sortOrder := item.SortOrder
+		if sortOrder == 0 {
+			sortOrder = i + 1
+		}
+		created = append(created, model.HelpdeskFAQ{
+			ID:        uuid.NewString(),
+			Topic:     topic,
+			Keywords:  keywords,
+			Answer:    answer,
+			IsActive:  active,
+			SortOrder: sortOrder,
+		})
+	}
+	if len(created) == 0 {
+		errResp(c, http.StatusBadRequest, "Tidak ada baris FAQ valid (wajib ada Topik & Jawaban)")
+		return
+	}
+	if err := h.db.WithContext(c.Request.Context()).Create(&created).Error; err != nil {
+		errResp(c, http.StatusInternalServerError, "Gagal mengimpor FAQ")
+		return
+	}
+	response.Success(c, "FAQ berhasil diimpor", gin.H{
+		"imported": len(created),
+		"items":    created,
+	})
+}
+
 // Admin: PUT /api/v1/admin/helpdesk/faqs/:id
 func (h *Handler) AdminUpdateFAQ(c *gin.Context) {
 	if h.db == nil {

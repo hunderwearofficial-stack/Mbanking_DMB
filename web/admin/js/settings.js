@@ -8,7 +8,7 @@ async function loadConfig() {
 
     if (ok && json.data) {
       const c = json.data;
-      document.getElementById('cfgBankName').value = c.bank_name || 'PT BPR DANA MANDIRI BOGOR';
+      document.getElementById('cfgBankName').value = c.bank_name || 'BANK DMB';
       document.getElementById('cfgBankShortName').value = c.bank_short_name || 'Bank DMB';
       document.getElementById('cfgTagline').value = c.tagline || 'Mitra Terpercaya Menuju Sejahtera';
       document.getElementById('cfgLogoUrl').value = c.logo_url || '';

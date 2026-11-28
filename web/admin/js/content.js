@@ -300,7 +300,7 @@ function renderMobileMockupPreview() {
   if (pageId === 'splash') {
     const bgColor = '#091324';
     const tagline = v['splash.tagline'] || 'Sahabat Finansial Terpercaya Anda';
-    const disclaimer = v['app.footer'] || 'PT BPR Dana Mandiri Bogor berizin dan diawasi oleh Otoritas Jasa Keuangan (OJK) serta merupakan peserta penjaminan Lembaga Penjamin Simpanan (LPS).';
+    const disclaimer = v['app.footer'] || 'Bank DMB berizin dan diawasi oleh Otoritas Jasa Keuangan (OJK) serta merupakan peserta penjaminan Lembaga Penjamin Simpanan (LPS).';
 
     container.innerHTML = `
       <div class="h-full flex flex-col justify-between p-4 text-center relative overflow-hidden text-white"
@@ -370,7 +370,7 @@ function renderMobileMockupPreview() {
     const slide1Title = v['login.hero_slide1_title'] || 'Menabung aman, usaha makin lancar';
     const title = v['login.title'] || 'Selamat datang';
     const subtitle = v['login.subtitle'] || 'Masuk ke akun DMB Anda';
-    const footer = v['app.footer'] || 'PT BPR Dana Mandiri Bogor berizin dan diawasi oleh Otoritas Jasa Keuangan (OJK) serta merupakan peserta penjaminan Lembaga Penjamin Simpanan (LPS).';
+    const footer = v['app.footer'] || 'Bank DMB berizin dan diawasi oleh Otoritas Jasa Keuangan (OJK) serta merupakan peserta penjaminan Lembaga Penjamin Simpanan (LPS).';
 
     container.innerHTML = `
       <div class="h-full flex flex-col justify-between bg-[#F4F7FB] text-slate-800 overflow-y-auto relative">

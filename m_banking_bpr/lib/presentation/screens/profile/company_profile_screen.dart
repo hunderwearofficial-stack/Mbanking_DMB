@@ -16,7 +16,7 @@ class CompanyProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final config = DynamicConfigService().config;
-    final bankName = config.bankName.isNotEmpty ? config.bankName : 'PT BPR Dana Mandiri Bogor';
+    final bankName = config.bankName.isNotEmpty ? config.bankName : 'Bank DMB';
     final heroTitle = AppContent.text('company.hero_title');
     final establishedYear = AppContent.text('company.established_year');
     final aboutDesc = AppContent.text('company.about_description');

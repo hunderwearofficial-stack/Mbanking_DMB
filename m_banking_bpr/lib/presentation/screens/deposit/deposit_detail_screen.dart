@@ -362,10 +362,6 @@ class _DepositDetailScreenState extends State<DepositDetailScreen> {
                                       tenor > 0 ? '$tenor Bulan' : '-'),
                                   const Divider(
                                       height: 18, color: Color(0xFFF1F5F9)),
-                                  _detailRow('Tanggal Buka',
-                                      _formatDate(d['tanggal_buka'])),
-                                  const Divider(
-                                      height: 18, color: Color(0xFFF1F5F9)),
                                   _detailRow('Tanggal Efektif',
                                       _formatDate(d['tanggal_efektif'])),
                                   const Divider(
@@ -381,11 +377,6 @@ class _DepositDetailScreenState extends State<DepositDetailScreen> {
                                         height: 18, color: Color(0xFFF1F5F9)),
                                     _detailRow('Rekening Pencairan Bunga',
                                         rekBunga),
-                                  ],
-                                  if (namaKantor.isNotEmpty) ...[
-                                    const Divider(
-                                        height: 18, color: Color(0xFFF1F5F9)),
-                                    _detailRow('Kantor Pembukaan', namaKantor),
                                   ],
                                 ],
                               ),

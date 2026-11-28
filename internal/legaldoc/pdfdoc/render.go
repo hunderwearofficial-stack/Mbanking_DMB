@@ -22,8 +22,8 @@ var fontBold []byte
 var bankLogo []byte
 
 const (
-	BankName        = "PT BPR Dana Mandiri Bogor"
-	BankNameUpper   = "PT BPR DANA MANDIRI BOGOR"
+	BankName        = "Bank DMB"
+	BankNameUpper   = "BANK DMB"
 	DocumentTitle   = "SYARAT DAN KETENTUAN LAYANAN MOBILE BANKING"
 	DocumentShort   = "Syarat dan Ketentuan Layanan Mobile Banking"
 	TemplateVersion = "sk-pdf-template/1"

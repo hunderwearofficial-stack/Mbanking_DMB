@@ -524,21 +524,6 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
                             color: titleDark,
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryLight,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            '${parsedAccounts.length} Kartu',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: royalBlue,
-                            ),
-                          ),
-                        ),
                       ],
                     ),
                     const SizedBox(height: 10),
@@ -856,14 +841,6 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
                             label: 'Nomor Handphone',
                             value: _isDataMasked ? _maskPhone(nohp) : nohp,
                           ),
-                          if (tempatLahir.isNotEmpty && tglLahir.isNotEmpty) ...[
-                            const Divider(height: 18, color: Color(0xFFF1F5F9)),
-                            _buildDetailRow(
-                              icon: Icons.cake_outlined,
-                              label: 'Tempat, Tgl Lahir',
-                              value: _isDataMasked ? '$tempatLahir, **-**-****' : '$tempatLahir, $tglLahir',
-                            ),
-                          ],
                         ],
                       ),
                     ),

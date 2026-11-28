@@ -128,7 +128,7 @@ function updateDOMBranding(c) {
   const hasCustomLogo = Boolean(rawLogoUrl && !isLegacyDefaultLogo);
   const logoUrl = hasCustomLogo ? rawLogoUrl : 'images/mydmb_logo_light.png';
   const darkBgLogoUrl = hasCustomLogo ? rawLogoUrl : 'images/mydmb_logo_official.png';
-  const bankName = c.bank_name || 'PT BPR DANA MANDIRI BOGOR';
+  const bankName = c.bank_name || 'BANK DMB';
   const shortName = c.bank_short_name || 'Bank DMB';
   const tagline = c.tagline || 'Mitra Terpercaya Menuju Sejahtera';
 

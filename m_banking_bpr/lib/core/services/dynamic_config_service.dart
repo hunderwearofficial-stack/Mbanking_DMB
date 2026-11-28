@@ -71,8 +71,8 @@ class DynamicAppConfig {
       loginBgUrl: '',
       splashBgUrl: '',
       onboardingBgUrl: '',
-      welcomeTitle: 'Selamat Datang di DMB Mobile',
-      welcomeSubtitle: 'Transaksi mudah, aman, dan tepercaya bersama BPR Dana Mandiri Bogor',
+      welcomeTitle: 'Selamat Datang di Bank DMB',
+      welcomeSubtitle: 'Transaksi mudah, aman, dan tepercaya bersama Bank DMB',
       loginTitle: 'Masuk ke Akun M-Banking',
       loginSubtitle: 'Silakan masukkan User ID dan Kata Sandi Anda',
       termsVersion: '',
@@ -93,16 +93,16 @@ class DynamicAppConfig {
 
   factory DynamicAppConfig.fromJson(Map<String, dynamic> json) {
     return DynamicAppConfig(
-      bankName: json['bank_name'] as String? ?? 'PT BPR DANA MANDIRI BOGOR',
+      bankName: json['bank_name'] as String? ?? 'Bank DMB',
       bankShortName: json['bank_short_name'] as String? ?? 'Bank DMB',
       tagline: json['tagline'] as String? ?? 'Mitra Terpercaya Menuju Sejahtera',
       logoUrl: json['logo_url'] as String? ?? '',
       loginBgUrl: json['login_bg_url'] as String? ?? '',
       splashBgUrl: json['splash_bg_url'] as String? ?? '',
       onboardingBgUrl: json['onboarding_bg_url'] as String? ?? '',
-      welcomeTitle: json['welcome_title'] as String? ?? 'Selamat Datang di DMB Mobile',
+      welcomeTitle: json['welcome_title'] as String? ?? 'Selamat Datang di Bank DMB',
       welcomeSubtitle: json['welcome_subtitle'] as String? ??
-          'Transaksi mudah, aman, dan tepercaya bersama BPR Dana Mandiri Bogor',
+          'Transaksi mudah, aman, dan tepercaya bersama Bank DMB',
       loginTitle: json['login_title'] as String? ?? 'Masuk ke Akun M-Banking',
       loginSubtitle: json['login_subtitle'] as String? ?? 'Silakan masukkan User ID dan Kata Sandi Anda',
       termsVersion: json['terms_version'] as String? ?? '',
