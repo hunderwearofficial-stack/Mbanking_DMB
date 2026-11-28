@@ -9,7 +9,8 @@ import '../../../core/services/dynamic_config_service.dart';
 import '../../../data/repositories/account_repository.dart';
 import '../../widgets/app_validation_feedback.dart';
 import '../../widgets/auth_ui_kit.dart';
-import 'product_simulator_sheet.dart';
+import '../deposit/deposit_application_bottom_sheet.dart';
+import '../loan/loan_application_bottom_sheet.dart';
 
 class ProductCatalogScreen extends StatefulWidget {
   final int initialTabIndex;
@@ -249,18 +250,21 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> with Single
                   child: ElevatedButton.icon(
                     onPressed: () {
                       Navigator.pop(sheetCtx);
-                      ProductSimulatorSheet.show(
-                        context,
-                        initialType: isDeposito ? 'DEPOSITO' : 'PINJAMAN',
-                        initialProductName: name,
-                      );
+                      if (isDeposito) {
+                        DepositApplicationBottomSheet.show(context);
+                      } else {
+                        LoanApplicationBottomSheet.show(
+                          context,
+                          initialProductName: name,
+                        );
+                      }
                     },
                     icon: Icon(
-                      isDeposito ? Icons.calculate_rounded : Icons.request_quote_rounded,
+                      isDeposito ? Icons.savings_outlined : Icons.credit_card_outlined,
                       size: 18,
                     ),
                     label: Text(
-                      isDeposito ? 'Simulasi & Buka Bilyet Deposito' : 'Simulasi & Ajukan Pinjaman',
+                      isDeposito ? 'Ajukan Pembukaan Deposito' : 'Ajukan Pinjaman',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w700,
