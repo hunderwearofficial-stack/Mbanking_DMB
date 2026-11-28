@@ -9,8 +9,6 @@ import '../../../core/services/dynamic_config_service.dart';
 import '../../../data/repositories/account_repository.dart';
 import '../../widgets/app_validation_feedback.dart';
 import '../../widgets/auth_ui_kit.dart';
-import '../deposit/deposit_application_bottom_sheet.dart';
-import '../loan/loan_application_bottom_sheet.dart';
 
 class ProductCatalogScreen extends StatefulWidget {
   final int initialTabIndex;
@@ -243,70 +241,26 @@ class _ProductCatalogScreenState extends State<ProductCatalogScreen> with Single
                 ),
               ),
               const SizedBox(height: 20),
-              if (isDeposito || isKredit)
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(sheetCtx);
-                      if (isDeposito) {
-                        DepositApplicationBottomSheet.show(context);
-                      } else {
-                        LoanApplicationBottomSheet.show(
-                          context,
-                          initialProductName: name,
-                        );
-                      }
-                    },
-                    icon: Icon(
-                      isDeposito ? Icons.savings_outlined : Icons.credit_card_outlined,
-                      size: 18,
-                    ),
-                    label: Text(
-                      isDeposito ? 'Ajukan Pembukaan Deposito' : 'Ajukan Pinjaman',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryNavy,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      elevation: 0,
-                    ),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(sheetCtx),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryNavy,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 0,
                   ),
-                )
-              else
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(sheetCtx);
-                      AppToast.showInfo(
-                        context,
-                        'Untuk pembukaan rekening $name, silakan kunjungi kantor operasional Bank DMB terdekat atau hubungi Petugas CS.',
-                        title: 'Pembukaan Tabungan',
-                      );
-                    },
-                    icon: const Icon(Icons.info_outline_rounded, size: 18),
-                    label: Text(
-                      'Konsultasi Pembukaan Tabungan',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryNavy,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      elevation: 0,
+                  child: Text(
+                    'Tutup',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
+              ),
             ],
           ),
         ),
