@@ -301,9 +301,10 @@ class LoanScheduleDetailScreen extends StatelessWidget {
                             child: Row(
                               children: [
                                 SizedBox(
-                                  width: 34,
+                                  width: 32,
                                   child: Text(
-                                    '#$ke',
+                                    '$ke.',
+                                    textAlign: TextAlign.right,
                                     style: GoogleFonts.plusJakartaSans(
                                       fontSize: 12.5,
                                       fontWeight: FontWeight.w700,
@@ -311,6 +312,7 @@ class LoanScheduleDetailScreen extends StatelessWidget {
                                     ),
                                   ),
                                 ),
+                                const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,

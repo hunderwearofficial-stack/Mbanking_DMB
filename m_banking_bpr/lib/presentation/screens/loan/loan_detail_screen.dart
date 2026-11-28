@@ -353,7 +353,8 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
                                   SizedBox(
                                     width: 32,
                                     child: Text(
-                                      '#$ke',
+                                      '$ke.',
+                                      textAlign: TextAlign.right,
                                       style: GoogleFonts.plusJakartaSans(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w700,
@@ -361,6 +362,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
                                       ),
                                     ),
                                   ),
+                                  const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
